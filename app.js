@@ -471,6 +471,22 @@
     if (state) render(null);
   });
 
+  /* Light/dark toggle — light by default, choice remembered per device */
+  function syncThemeBtn() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    $('theme-btn').textContent = dark ? '☀ Light' : '☾ Dark';
+    $('theme-btn').setAttribute('aria-pressed', String(dark));
+    $('theme-btn').setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+  }
+  $('theme-btn').addEventListener('click', () => {
+    const dark = document.documentElement.getAttribute('data-theme') !== 'dark';
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    try { localStorage.setItem('guardians-draft-theme', dark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
+    syncThemeBtn();
+  });
+  syncThemeBtn();
+
   let toastTimer;
   function toast(msg) {
     const t = $('toast');

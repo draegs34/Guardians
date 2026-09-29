@@ -17,8 +17,10 @@
   --shadow: 0 1px 2px rgba(12, 35, 64, .06), 0 4px 14px rgba(12, 35, 64, .06);
   --radius: 12px;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Dark theme is opt-in via the toggle (html[data-theme="dark"]); light is the default. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  & {
     --bg: #0b1422;
     --surface: #132033;
     --text: #e8edf5;
@@ -55,7 +57,7 @@ code { font-size: .9em; }
 .sync.err { color: #ffb3c1; }
 
 .demo-banner { background: #fff4d6; color: #5c4400; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #f0dca0; }
-@media (prefers-color-scheme: dark) { .demo-banner { background: #3a300f; color: #f5dd98; border-color: #5a4a14; } }
+:root[data-theme="dark"] .demo-banner { background: #3a300f; color: #f5dd98; border-color: #5a4a14; }
 
 /* On the clock */
 .clock {
@@ -95,7 +97,7 @@ code { font-size: .9em; }
 .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .cond { display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--taken-bg); border-radius: 4px; padding: 1px 6px; }
 .cond.hf { color: var(--navy-2); background: #e3ecf7; }
-@media (prefers-color-scheme: dark) { .cond.hf { color: #b9d2f0; background: #1c3350; } }
+:root[data-theme="dark"] .cond.hf { color: #b9d2f0; background: #1c3350; }
 
 .seat {
   font: inherit;
@@ -209,3 +211,9 @@ label.check input { width: auto; }
 @media (prefers-reduced-motion: reduce) {
   .turn-alert-dot, .clock.mine { animation: none; }
 }
+
+/* Theme toggle */
+.top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.theme-btn { font: inherit; font-size: 13px; font-weight: 600; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 5px 12px; cursor: pointer; white-space: nowrap; }
+.theme-btn:hover { background: rgba(255,255,255,.18); }
+.theme-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
