@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Postseason Ticket Draft</title>
+  <meta name="description" content="Live pick-by-pick draft for our season ticket group's postseason home games.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <div>
+        <p class="eyebrow">Season ticket group</p>
+        <h1 id="title">Postseason Draft</h1>
+      </div>
+      <div class="sync" id="sync" aria-live="polite">Loading…</div>
+    </div>
+  </header>
+
+  <div id="demo-banner" class="demo-banner" hidden>
+    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Try PINs Alex 1111, Jordan 2222, Casey 3333, Morgan 4444 (commissioner 0000). Add your Apps Script URL to <code>config.js</code> to go live.</div>
+  </div>
+
+  <main class="wrap">
+    <section class="clock" id="clock" aria-live="polite">
+      <div class="clock-label">On the clock</div>
+      <div class="clock-name" id="clock-name">—</div>
+      <div class="clock-meta" id="clock-meta"></div>
+    </section>
+
+    <div class="layout">
+      <section class="board-col">
+        <div class="section-head">
+          <h2>Games</h2>
+          <div class="legend">
+            <span><i class="dot open"></i>Available</span>
+            <span><i class="dot taken"></i>Taken</span>
+          </div>
+        </div>
+        <div id="board"></div>
+      </section>
+
+      <aside class="side-col">
+        <section class="card">
+          <h2>Up next</h2>
+          <ol id="upcoming" class="upcoming"></ol>
+        </section>
+        <section class="card">
+          <h2>Members</h2>
+          <table class="totals">
+            <thead><tr><th>Name</th><th class="num">Picks</th><th class="num">Owed</th></tr></thead>
+            <tbody id="totals"></tbody>
+          </table>
+        </section>
+        <section class="card">
+          <h2>Pick log</h2>
+          <ol id="log" class="log" reversed></ol>
+        </section>
+        <button class="link-btn" id="commish-btn" type="button">Commissioner tools</button>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="wrap foot">
+    Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.
+  </footer>
+
+  <!-- Pick dialog -->
+  <dialog id="pick-dialog">
+    <form method="dialog" id="pick-form">
+      <h3>Confirm your pick</h3>
+      <div class="pick-item" id="pick-item"></div>
+      <label>Your name
+        <select id="pick-name" required></select>
+      </label>
+      <label>Your PIN
+        <input id="pick-pin" type="password" inputmode="numeric" autocomplete="off" required>
+      </label>
+      <p class="form-error" id="pick-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="pick-cancel">Cancel</button>
+        <button type="submit" class="btn primary" id="pick-submit">Lock it in</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Commissioner dialog -->
+  <dialog id="commish-dialog">
+    <form method="dialog" id="commish-form">
+      <h3>Commissioner tools</h3>
+      <p class="hint">Your commissioner PIN lets you pick for whoever is on the clock (use your PIN in the pick box) or undo the most recent pick.</p>
+      <label>Commissioner PIN
+        <input id="commish-pin" type="password" autocomplete="off" required>
+      </label>
+      <p class="form-error" id="commish-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="commish-cancel">Close</button>
+        <button type="submit" class="btn danger" id="undo-btn">Undo last pick</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
