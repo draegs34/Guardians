@@ -52,10 +52,10 @@
   /* ------------------------------------------------------------------ */
   const demo = (function () {
     const members = [
-      { order: 1, name: 'Alex' },
-      { order: 2, name: 'Jordan' },
-      { order: 3, name: 'Casey' },
-      { order: 4, name: 'Morgan' },
+      { order: 1, name: 'Alex', pin: '1111' },
+      { order: 2, name: 'Jordan', pin: '2222' },
+      { order: 3, name: 'Casey', pin: '3333' },
+      { order: 4, name: 'Morgan', pin: '4444' },
     ];
     const games = [
       ['ALDS-G1', 'AL Division Series', 'Game 1', '10/3', 432, ''],
@@ -83,7 +83,7 @@
       t.upcoming = t.upcoming.slice(0, Math.max(0, inventory.length - picks.length - 1));
       return {
         ok: true, title: settings.title, snake: settings.snake, maxPicks: settings.maxPicks, open: settings.open,
-        members: members.map((m) => ({ order: m.order, name: m.name })),
+        members: members.map((m) => ({ order: m.order, name: m.name, needsPin: !!m.pin })),
         inventory, picks: picks.slice(), current: t.current, upcoming: t.upcoming, serverTime: new Date().toISOString(),
       };
     }
@@ -101,6 +101,9 @@
         if (!t.current || picks.length >= inventory.length) return { ok: false, error: 'The draft is complete.' };
         const onClock = t.current.name;
         if (body.name !== onClock) return { ok: false, error: 'The board changed — ' + onClock + ' is on the clock now. Take another look and try again.' };
+        const mem = members.find((x) => x.name === onClock);
+        const pin = String(body.pin || '').trim();
+        if (mem && mem.pin && pin !== mem.pin && !isC) return { ok: false, error: pin ? "That PIN doesn't match." : 'Enter your PIN.' };
         const item = inventory.find((i) => i.id === body.itemId);
         if (!item) return { ok: false, error: "That game/seat option wasn't found." };
         if (picks.some((p) => p.itemId === item.id)) return { ok: false, error: 'Sorry — that one was just taken.' };
@@ -274,8 +277,13 @@
     $('pick-for').textContent = pendingName || '';
     $('pick-submit').textContent = 'Lock it in for ' + (pendingName || '');
     $('pick-error').textContent = '';
+    const mem = state.members.find((m) => m.name === pendingName);
+    const needsPin = !mem || mem.needsPin !== false; // older script versions don't send needsPin
+    $('pick-pin-wrap').hidden = !needsPin;
+    $('pick-pin').required = needsPin;
+    $('pick-pin').value = '';
     $('pick-dialog').showModal();
-    setTimeout(() => $('pick-submit').focus(), 50);
+    setTimeout(() => (needsPin ? $('pick-pin') : $('pick-submit')).focus(), 50);
   });
 
   $('pick-cancel').addEventListener('click', () => $('pick-dialog').close());
@@ -287,7 +295,7 @@
     $('pick-submit').disabled = true;
     $('pick-submit').textContent = 'Saving…';
     $('pick-error').textContent = '';
-    apiPost({ action: 'pick', name: pendingName, itemId: pendingItem.id })
+    apiPost({ action: 'pick', name: pendingName, pin: $('pick-pin').value, itemId: pendingItem.id })
       .then((res) => {
         if (res && res.inventory) apply(res);
         if (res && res.ok) {

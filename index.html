@@ -22,7 +22,7 @@
   </header>
 
   <div id="demo-banner" class="demo-banner" hidden>
-    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Commissioner PIN for testing undo: 0000. Add your Apps Script URL to <code>config.js</code> to go live.</div>
+    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
   <main class="wrap">
@@ -75,6 +75,9 @@
       <h3>Confirm your pick</h3>
       <div class="pick-item" id="pick-item"></div>
       <p class="hint">Picking for <strong id="pick-for"></strong>, who is on the clock.</p>
+      <label id="pick-pin-wrap">PIN
+        <input id="pick-pin" type="password" autocomplete="off" placeholder="Your PIN (or commissioner PIN)">
+      </label>
       <p class="form-error" id="pick-error" role="alert"></p>
       <div class="actions">
         <button type="button" class="btn ghost" id="pick-cancel">Cancel</button>

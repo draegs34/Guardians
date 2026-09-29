@@ -16,15 +16,15 @@ Until `config.js` has a script URL, the page runs in **demo mode** with sample m
 2. Delete whatever is in `Code.gs`, then paste in the full contents of `apps-script/Code.gs` from this repo. Click **Save**.
 3. In the toolbar's function dropdown, choose **setup** and click **Run**. Approve the permissions prompt: it's your own script, so click *Advanced → Go to project* if Google warns you.
 4. Back in the sheet you'll see four new tabs. Your existing tabs aren't changed.
-   - **Draft Members**: draft order and names.
+   - **Draft Members**: draft order, names and a PIN for each member (column C). Send each person their PIN privately. Leave a PIN blank to let that member pick without one.
    - **Draft Inventory**: every game and seat pair up for grabs, with prices. Add, remove or edit rows freely.
-   - **Draft Settings**: title, snake draft on/off, optional max picks per member, open/paused, and the **Commissioner PIN** (only used for undo). Change `change-me`!
+   - **Draft Settings**: title, snake draft on/off, optional max picks per member, open/paused, and the **Commissioner PIN** (for undo, and for picking on someone's behalf). Change `change-me`!
    - **Draft Picks**: filled in automatically. Only edit it to fix a mistake.
 
 ### 2. Deploy the script as a web app
 1. In Apps Script, click **Deploy → New deployment**.
 2. Click the gear next to "Select type" → **Web app**.
-3. Set **Execute as: Me** and **Who has access: Anyone**. Members don't need Google accounts or PINs.
+3. Set **Execute as: Me** and **Who has access: Anyone**. Members don't need Google accounts; their PINs protect the picks.
 4. Click **Deploy**, then copy the **Web app URL** (it ends in `/exec`).
 
 ### 3. Point the page at the script
@@ -41,8 +41,8 @@ After a minute or two the site is live at **https://draegs34.github.io/Guardians
 ---
 
 ## Running the draft
-- Share the link. Whoever is **On the clock** taps an open seat pair and taps **Lock it in**. One pick per turn; in snake order the member at each end of the order picks twice in a row (end of one round, start of the next).
-- There are no member PINs, so anyone with the link can make the on-clock person's pick. You can also make it for them when they text you.
+- Share the link. Whoever is **On the clock** taps an open seat pair, enters their PIN and taps **Lock it in**. One pick per turn; in snake order the member at each end of the order picks twice in a row (end of one round, start of the next).
+- If someone texts you their pick, make it for them by entering the **Commissioner PIN** instead of theirs.
 - The board refreshes every 10 seconds for everyone.
 - **Commissioner** (you): use **Commissioner tools → Undo last pick** with your PIN to fix mistakes. You can also edit the Draft Picks tab directly.
 - **Badges:** use the Notes column in Draft Inventory. Separate multiple badges with `;`. Home Game 4 in the ALCS and World Series is marked as available only with home-field advantage, since the lower seed hosts only Games 3–5.
