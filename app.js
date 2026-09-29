@@ -143,7 +143,25 @@
   /* ------------------------------------------------------------------ */
   /* Rendering                                                            */
   /* ------------------------------------------------------------------ */
+  // First-load messaging: Apps Script can take several seconds to wake up.
+  let loaded = false;
+  $('clock').classList.add('loading');
+  const loadMsgs = [
+    [4000, 'Waking up the Google Sheet — this can take a few seconds…'],
+    [10000, 'Almost there…'],
+    [20000, 'Still working. Check your connection if this keeps going.'],
+  ];
+  const loadTimers = loadMsgs.map(([ms, text]) => setTimeout(() => {
+    if (!loaded && $('load-msg')) $('load-msg').textContent = text;
+  }, ms));
+
   function apply(s) {
+    if (!loaded) {
+      loaded = true;
+      loadTimers.forEach(clearTimeout);
+      $('clock').classList.remove('loading');
+      $('board').removeAttribute('aria-busy');
+    }
     const prevIds = state ? new Set(state.picks.map((p) => p.itemId)) : null;
     state = s;
     render(prevIds);

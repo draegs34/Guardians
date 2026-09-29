@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>try { if (localStorage.getItem('guardians-draft-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
-  <link rel="stylesheet" href="style.css?v=202609291610">
+  <link rel="stylesheet" href="style.css?v=202609291611">
 </head>
 <body>
   <header class="top">
@@ -20,7 +20,7 @@
       </div>
       <div class="top-right">
         <button type="button" class="theme-btn" id="theme-btn" aria-pressed="false">☾ Dark</button>
-        <div class="sync" id="sync" aria-live="polite">Loading…</div>
+        <div class="sync" id="sync" aria-live="polite"><span class="mini-spin" aria-hidden="true"></span>Connecting…</div>
       </div>
     </div>
   </header>
@@ -38,9 +38,9 @@
 
   <main class="wrap">
     <section class="clock" id="clock" aria-live="polite">
-      <div class="clock-label">On the clock</div>
-      <div class="clock-name" id="clock-name">—</div>
-      <div class="clock-meta" id="clock-meta"></div>
+      <div class="clock-label">Getting the latest picks</div>
+      <div class="clock-name" id="clock-name"><span class="loader" aria-hidden="true"><i></i><i></i><i></i></span></div>
+      <div class="clock-meta" id="clock-meta"><span id="load-msg">Loading the draft board…</span></div>
     </section>
 
     <div class="me-bar">
@@ -57,13 +57,13 @@
             <span><i class="dot taken"></i>Taken</span>
           </div>
         </div>
-        <div id="board"></div>
+        <div id="board" aria-busy="true"><div class="series sk-series"><div class="series-head"><div class="sk sk-line sk-dark w40"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div></div><div class="series sk-series"><div class="series-head"><div class="sk sk-line sk-dark w40"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div></div></div>
       </section>
 
       <aside class="side-col">
         <section class="card">
           <h2>Up next</h2>
-          <ol id="upcoming" class="upcoming"></ol>
+          <ol id="upcoming" class="upcoming"><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li></ol>
         </section>
         <section class="card">
           <h2>Members</h2>
@@ -166,8 +166,8 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202609291610"></script>
-  <script src="engine.js?v=202609291610"></script>
-  <script src="app.js?v=202609291610"></script>
+  <script src="config.js?v=202609291611"></script>
+  <script src="engine.js?v=202609291611"></script>
+  <script src="app.js?v=202609291611"></script>
 </body>
 </html>
