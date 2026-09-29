@@ -121,10 +121,29 @@
     $('sync').classList.remove('err');
   }
 
+  /* Saved copy of the last board, shown instantly on the next visit while the
+     live data loads. Picking stays locked until the live board arrives. */
+  const CACHE_KEY = 'guardians-draft-board:' + API;
+  let stale = false;
+  function saveCache(s) {
+    if (DEMO) return;
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), s })); } catch (e) { /* full or blocked */ }
+  }
+  function loadCache() {
+    if (DEMO) return null;
+    try {
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      if (c && c.s && c.s.inventory && Date.now() - c.at < 7 * 24 * 3600 * 1000) return c;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
   function refresh() {
     return apiGet().then((s) => {
       if (!s || s.ok === false) throw new Error((s && s.error) || 'Bad response');
+      stale = false;
       apply(s);
+      saveCache(s);
       markSynced();
     }).catch((err) => {
       console.warn(err);
@@ -156,6 +175,7 @@
   }, ms));
 
   function apply(s) {
+    if (!stale && s && s.inventory) saveCache(s);
     if (!loaded) {
       loaded = true;
       loadTimers.forEach(clearTimeout);
@@ -225,7 +245,9 @@
       sr.gameMap[key].seats[i.seats] = i;
     });
 
-    const canPick = !done && s.open;
+    const canPick = !done && s.open && !stale;
+    document.body.classList.toggle('stale', stale);
+    if (stale) $('clock-meta').textContent += ' · Updating…';
     $('board').innerHTML = series.map((sr) => {
       const prices = Array.from(sr.prices);
       const priceText = prices.length === 1 ? money(prices[0]) + ' per pair' : prices.map(money).join(' / ');
@@ -515,6 +537,12 @@
   }
 
   // Start
+  const cached = loadCache();
+  if (cached) {
+    stale = true;
+    apply(cached.s);
+    $('sync').innerHTML = '<span class="mini-spin" aria-hidden="true"></span>Updating…';
+  }
   refresh();
   // Keep checking in background tabs too (more slowly) so turn alerts still fire.
   let lastBg = 0;

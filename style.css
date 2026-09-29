@@ -239,3 +239,6 @@ label.check input { width: auto; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (max-width: 520px) { .sk-game { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sk-game > div:first-child { grid-column: 1 / -1; } }
 @media (prefers-reduced-motion: reduce) { .sk, .loader i, .mini-spin { animation: none; } }
+
+/* Cached board shown while live data loads */
+body.stale .seat:not(.taken) { opacity: .7; }
