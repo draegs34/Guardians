@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>try { if (localStorage.getItem('guardians-draft-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
-  <link rel="stylesheet" href="style.css?v=202609291611">
+  <link rel="stylesheet" href="style.css?v=202609291632">
 </head>
 <body>
   <header class="top">
@@ -61,9 +61,14 @@
       </section>
 
       <aside class="side-col">
+        <button class="btn drop" id="drop-btn" type="button">Drop out of the draft</button>
         <section class="card">
           <h2>Up next</h2>
           <ol id="upcoming" class="upcoming"><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li></ol>
+        </section>
+        <section class="card">
+          <h2>Pick log</h2>
+          <ol id="log" class="log" reversed></ol>
         </section>
         <section class="card">
           <h2>Members</h2>
@@ -72,12 +77,7 @@
             <tbody id="totals"></tbody>
           </table>
         </section>
-        <section class="card">
-          <h2>Pick log</h2>
-          <ol id="log" class="log" reversed></ol>
-        </section>
         <div class="side-links">
-          <button class="btn drop" id="drop-btn" type="button">Drop out of the draft</button>
           <button class="link-btn" id="commish-btn" type="button">Commissioner tools</button>
         </div>
       </aside>
@@ -166,8 +166,8 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202609291611"></script>
-  <script src="engine.js?v=202609291611"></script>
-  <script src="app.js?v=202609291611"></script>
+  <script src="config.js?v=202609291632"></script>
+  <script src="engine.js?v=202609291632"></script>
+  <script src="app.js?v=202609291632"></script>
 </body>
 </html>

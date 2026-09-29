@@ -190,7 +190,7 @@ dialog { max-height: calc(100vh - 32px); overflow: auto; }
 label.check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); font-weight: 500; }
 label.check input { width: auto; }
 
-.btn.drop { width: 100%; background: var(--red); color: #fff; padding: 12px 16px; font-size: 15px; }
+.btn.drop { display: block; width: 100%; margin-bottom: 16px; background: var(--red); color: #fff; padding: 12px 16px; font-size: 15px; }
 .btn.drop:hover { filter: brightness(1.08); }
 .btn.drop:focus-visible { outline: 3px solid var(--navy-2); outline-offset: 2px; }
 
