@@ -6,7 +6,7 @@
  *
  * It adds four tabs to your sheet (your existing tabs are never touched):
  *   Draft Settings   — title, snake on/off, pick limit, open/paused, commissioner PIN
- *   Draft Members    — draft order, names, and each member's PIN
+ *   Draft Members    — draft order and names
  *   Draft Inventory  — every game + seat pair up for grabs, with prices
  *   Draft Picks      — filled in automatically as people pick (edit only to fix mistakes)
  */
@@ -18,7 +18,7 @@ const TAB = {
   picks: 'Draft Picks',
 };
 
-const PICK_HEADERS = ['Pick #', 'Round', 'Member', 'Item ID', 'Series', 'Game', 'Date', 'Seats', 'Price', 'Timestamp', 'Entered by'];
+const PICK_HEADERS = ['Pick #', 'Round', 'Member', 'Item ID', 'Series', 'Game', 'Date', 'Seats', 'Price', 'Timestamp'];
 
 /* ----------------------------------------------------------------------- */
 /* One-time setup                                                           */
@@ -33,15 +33,15 @@ function setup() {
     ['Snake draft', 'TRUE', 'TRUE = order reverses every round (1→N, then N→1)'],
     ['Max picks per member', '', 'Leave blank for no limit. Members at the limit are skipped.'],
     ['Draft open', 'TRUE', 'Set to FALSE to pause all picking'],
-    ['Commissioner PIN', 'change-me', 'Lets the commissioner pick for whoever is on the clock, or undo the last pick'],
+    ['Commissioner PIN', 'change-me', 'Needed only to undo picks from the page'],
   ]);
 
   ensureTab_(ss, TAB.members, [
-    ['Draft order', 'Name', 'PIN'],
-    [1, 'Member 1', '1111'],
-    [2, 'Member 2', '2222'],
-    [3, 'Member 3', '3333'],
-    [4, 'Member 4', '4444'],
+    ['Draft order', 'Name'],
+    [1, 'Member 1'],
+    [2, 'Member 2'],
+    [3, 'Member 3'],
+    [4, 'Member 4'],
   ]);
 
   const inv = [['Item ID', 'Series', 'Game', 'Date', 'Seats', 'Price', 'Notes']];
@@ -52,11 +52,11 @@ function setup() {
     ['ALCS-H1', 'AL Championship Series', 'Home Game 1', 'TBD', 646, 'If Guardians advance'],
     ['ALCS-H2', 'AL Championship Series', 'Home Game 2', 'TBD', 646, 'If Guardians advance'],
     ['ALCS-H3', 'AL Championship Series', 'Home Game 3', 'TBD', 646, 'If necessary'],
-    ['ALCS-H4', 'AL Championship Series', 'Home Game 4', 'TBD', 646, 'If necessary'],
+    ['ALCS-H4', 'AL Championship Series', 'Home Game 4', 'TBD', 646, 'If necessary; Only if Guardians have home-field advantage'],
     ['WS-H1', 'World Series', 'Home Game 1', 'TBD', 1090, 'If Guardians advance'],
     ['WS-H2', 'World Series', 'Home Game 2', 'TBD', 1090, 'If Guardians advance'],
     ['WS-H3', 'World Series', 'Home Game 3', 'TBD', 1090, 'If necessary'],
-    ['WS-H4', 'World Series', 'Home Game 4', 'TBD', 1090, 'If necessary'],
+    ['WS-H4', 'World Series', 'Home Game 4', 'TBD', 1090, 'If necessary; Only if Guardians have home-field advantage'],
   ];
   games.forEach(function (g) {
     ['7 & 8', '9 & 10'].forEach(function (seats) {
@@ -70,7 +70,7 @@ function setup() {
 
   SpreadsheetApp.getUi().alert(
     'Draft tabs are ready.\n\n' +
-    '1. Fill in Draft Members (order, names, PINs).\n' +
+    '1. Fill in Draft Members (order and names).\n' +
     '2. Check Draft Inventory (games, seats, prices).\n' +
     '3. Change the Commissioner PIN in Draft Settings.\n' +
     '4. Deploy → New deployment → Web app.'
@@ -127,20 +127,16 @@ function doPost(e) {
 
 function makePick_(data, body) {
   const s = data.settings;
-  const isCommish = s.commissionerPin && String(body.pin || '').trim() === s.commissionerPin;
-
-  if (!s.open && !isCommish) return { ok: false, error: 'The draft is paused right now.' };
+  if (!s.open) return { ok: false, error: 'The draft is paused right now.' };
 
   const turn = computeTurn(data.members, data.picks, s.maxPicks, s.snake, 1);
   if (!turn.current || data.picks.length >= data.inventory.length) return { ok: false, error: 'The draft is complete.' };
 
+  // No member PINs: whoever is on the clock gets the pick. The page sends the
+  // name it showed, so a stale screen can't pick for the wrong person.
   const onClock = turn.current.name;
-  const member = data.members.filter(function (m) { return m.name === body.name; })[0];
-
-  if (!isCommish) {
-    if (!member) return { ok: false, error: 'Pick your name from the list.' };
-    if (String(body.pin || '').trim() !== member.pin) return { ok: false, error: 'That PIN doesn\'t match.' };
-    if (member.name !== onClock) return { ok: false, error: 'It\'s not your turn — ' + onClock + ' is on the clock.' };
+  if (body.name !== onClock) {
+    return { ok: false, error: 'The board changed — ' + onClock + ' is on the clock now. Take another look and try again.' };
   }
 
   const item = data.inventory.filter(function (i) { return i.id === body.itemId; })[0];
@@ -160,7 +156,6 @@ function makePick_(data, body) {
     item.seats,
     item.price,
     new Date(),
-    isCommish && body.name !== onClock ? 'Commissioner' : onClock,
   ]);
   return { ok: true, message: onClock + ' took ' + item.series + ' ' + item.game + ', seats ' + item.seats + '.' };
 }
@@ -228,7 +223,7 @@ function readAll_() {
   const settings = readSettings_();
   const members = rows_(TAB.members)
     .filter(function (r) { return String(r[1]).trim() !== ''; })
-    .map(function (r) { return { order: Number(r[0]) || 999, name: String(r[1]).trim(), pin: String(r[2]).trim() }; })
+    .map(function (r) { return { order: Number(r[0]) || 999, name: String(r[1]).trim() }; })
     .sort(function (a, b) { return a.order - b.order; });
   const inventory = rows_(TAB.inventory)
     .filter(function (r) { return String(r[0]).trim() !== ''; })
@@ -245,7 +240,6 @@ function readAll_() {
       return {
         row: r.row, number: i + 1, round: Number(v[1]) || null, member: String(v[2]).trim(),
         itemId: String(v[3]).trim(), time: v[9] instanceof Date ? v[9].toISOString() : String(v[9] || ''),
-        enteredBy: String(v[10] || ''),
       };
     });
   return { settings: settings, members: members, inventory: inventory, picks: picks };
@@ -295,10 +289,10 @@ function publicState_(data) {
     snake: s.snake,
     maxPicks: s.maxPicks,
     open: s.open,
-    members: data.members.map(function (m) { return { order: m.order, name: m.name }; }), // PINs never leave the sheet
+    members: data.members.map(function (m) { return { order: m.order, name: m.name }; }),
     inventory: data.inventory,
     picks: data.picks.map(function (p) {
-      return { number: p.number, round: p.round, member: p.member, itemId: p.itemId, time: p.time, enteredBy: p.enteredBy };
+      return { number: p.number, round: p.round, member: p.member, itemId: p.itemId, time: p.time };
     }),
     current: turn.current,
     upcoming: turn.upcoming,

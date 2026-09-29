@@ -12,12 +12,9 @@
   let state = null;
   let lastPickCount = null;
   let pendingItem = null;
+  let pendingName = null;
   let busy = false;
 
-  const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
-  };
 
   /* ------------------------------------------------------------------ */
   /* Draft order — keep in sync with computeTurn() in apps-script/Code.gs */
@@ -55,10 +52,10 @@
   /* ------------------------------------------------------------------ */
   const demo = (function () {
     const members = [
-      { order: 1, name: 'Alex', pin: '1111' },
-      { order: 2, name: 'Jordan', pin: '2222' },
-      { order: 3, name: 'Casey', pin: '3333' },
-      { order: 4, name: 'Morgan', pin: '4444' },
+      { order: 1, name: 'Alex' },
+      { order: 2, name: 'Jordan' },
+      { order: 3, name: 'Casey' },
+      { order: 4, name: 'Morgan' },
     ];
     const games = [
       ['ALDS-G1', 'AL Division Series', 'Game 1', '10/3', 432, ''],
@@ -67,11 +64,11 @@
       ['ALCS-H1', 'AL Championship Series', 'Home Game 1', 'TBD', 646, 'If Guardians advance'],
       ['ALCS-H2', 'AL Championship Series', 'Home Game 2', 'TBD', 646, 'If Guardians advance'],
       ['ALCS-H3', 'AL Championship Series', 'Home Game 3', 'TBD', 646, 'If necessary'],
-      ['ALCS-H4', 'AL Championship Series', 'Home Game 4', 'TBD', 646, 'If necessary'],
+      ['ALCS-H4', 'AL Championship Series', 'Home Game 4', 'TBD', 646, 'If necessary; Only if Guardians have home-field advantage'],
       ['WS-H1', 'World Series', 'Home Game 1', 'TBD', 1090, 'If Guardians advance'],
       ['WS-H2', 'World Series', 'Home Game 2', 'TBD', 1090, 'If Guardians advance'],
       ['WS-H3', 'World Series', 'Home Game 3', 'TBD', 1090, 'If necessary'],
-      ['WS-H4', 'World Series', 'Home Game 4', 'TBD', 1090, 'If necessary'],
+      ['WS-H4', 'World Series', 'Home Game 4', 'TBD', 1090, 'If necessary; Only if Guardians have home-field advantage'],
     ];
     const inventory = [];
     games.forEach((g) => ['7 & 8', '9 & 10'].forEach((seats) => {
@@ -99,19 +96,15 @@
           const p = picks.pop();
           return { ok: true, message: 'Undid pick #' + p.number + ' (' + p.member + ').' };
         }
+        if (!settings.open) return { ok: false, error: 'The draft is paused right now.' };
         const t = computeTurn(members, picks, settings.maxPicks, settings.snake, 1);
         if (!t.current || picks.length >= inventory.length) return { ok: false, error: 'The draft is complete.' };
         const onClock = t.current.name;
-        const m = members.find((x) => x.name === body.name);
-        if (!isC) {
-          if (!m) return { ok: false, error: 'Pick your name from the list.' };
-          if (String(body.pin || '').trim() !== m.pin) return { ok: false, error: "That PIN doesn't match." };
-          if (m.name !== onClock) return { ok: false, error: "It's not your turn — " + onClock + ' is on the clock.' };
-        }
+        if (body.name !== onClock) return { ok: false, error: 'The board changed — ' + onClock + ' is on the clock now. Take another look and try again.' };
         const item = inventory.find((i) => i.id === body.itemId);
         if (!item) return { ok: false, error: "That game/seat option wasn't found." };
         if (picks.some((p) => p.itemId === item.id)) return { ok: false, error: 'Sorry — that one was just taken.' };
-        picks.push({ number: picks.length + 1, round: t.current.round, member: onClock, itemId: item.id, time: new Date().toISOString(), enteredBy: isC && body.name !== onClock ? 'Commissioner' : onClock });
+        picks.push({ number: picks.length + 1, round: t.current.round, member: onClock, itemId: item.id, time: new Date().toISOString() });
         return { ok: true, message: onClock + ' took ' + item.series + ' ' + item.game + ', seats ' + item.seats + '.' };
       })();
       return Object.assign(pub(), r);
@@ -162,9 +155,18 @@
     lastPickCount = s.picks.length;
   }
 
+  // Notes can hold several badges separated by ";" (e.g. "If necessary; Only if ... home-field advantage")
+  function badges(notes) {
+    const parts = String(notes || '').split(';').map((x) => x.trim()).filter(Boolean);
+    if (!parts.length) return '';
+    return '<div class="badges">' + parts.map((t) => {
+      const hf = /home.?field/i.test(t);
+      return '<span class="cond' + (hf ? ' hf' : '') + '">' + esc(t) + '</span>';
+    }).join('') + '</div>';
+  }
+
   function render(prevIds) {
     const s = state;
-    const me = store.get('draft-name');
     document.title = s.title || 'Postseason Draft';
     $('title').textContent = s.title || 'Postseason Draft';
     $('demo-banner').hidden = !DEMO;
@@ -183,7 +185,7 @@
       clock.querySelector('.clock-label').textContent = 'Final';
     } else {
       clock.querySelector('.clock-label').textContent = s.open ? 'On the clock' : 'Draft paused';
-      $('clock-name').textContent = s.current.name + (me === s.current.name ? ' (you!)' : '');
+      $('clock-name').textContent = s.current.name;
       const left = s.inventory.length - s.picks.length;
       $('clock-meta').textContent = 'Round ' + s.current.round + ' · Pick ' + s.current.pick + ' · ' + left + ' left' + (s.snake ? ' · Snake order' : '');
     }
@@ -210,7 +212,7 @@
         sr.games.map((g) => {
           const info = '<div class="game-info"><div class="game-name">' + esc(g.game) + '</div>' +
             '<div class="game-sub">' + (g.date && g.date !== 'TBD' ? esc(g.date) : 'Date TBD') + '</div>' +
-            (g.notes ? '<span class="cond">' + esc(g.notes) + '</span>' : '') + '</div>';
+            badges(g.notes) + '</div>';
           const cells = seatCols.map((sc) => {
             const it = g.seats[sc];
             if (!it) return '<div></div>';
@@ -244,7 +246,7 @@
       tot[p.member].owed += it ? it.price : 0;
     });
     $('totals').innerHTML = Object.keys(tot).map((name) =>
-      '<tr' + (name === me ? ' class="me"' : '') + '><td>' + esc(name) + '</td><td class="num">' + tot[name].n + '</td><td class="num">' + money(tot[name].owed) + '</td></tr>'
+      '<tr><td>' + esc(name) + '</td><td class="num">' + tot[name].n + '</td><td class="num">' + money(tot[name].owed) + '</td></tr>'
     ).join('');
 
     // Log
@@ -252,7 +254,7 @@
       ? s.picks.slice().reverse().map((p) => {
           const it = s.inventory.find((i) => i.id === p.itemId);
           const what = it ? it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats : p.itemId;
-          return '<li><b>#' + p.number + ' ' + esc(p.member) + '</b> — ' + esc(what) + (p.enteredBy === 'Commissioner' ? ' <span class="meta">(entered by commissioner)</span>' : '') + '</li>';
+          return '<li><b>#' + p.number + ' ' + esc(p.member) + '</b> — ' + esc(what) + '</li>';
         }).join('')
       : '<li class="empty">No picks yet.</li>';
   }
@@ -268,15 +270,12 @@
     pendingItem = item;
     $('pick-item').innerHTML = '<div class="pi-title">' + esc(item.series) + ' — ' + esc(item.game) + '</div>' +
       '<div class="pi-sub">Seats ' + esc(item.seats) + ' · ' + (item.date && item.date !== 'TBD' ? esc(item.date) + ' · ' : '') + money(item.price) + '</div>';
-    const sel = $('pick-name');
-    const remembered = store.get('draft-name');
-    const def = remembered && state.members.some((m) => m.name === remembered) ? remembered : (state.current && state.current.name);
-    sel.innerHTML = state.members.map((m) => '<option' + (m.name === def ? ' selected' : '') + '>' + esc(m.name) + '</option>').join('');
-    $('pick-pin').value = '';
-    $('pick-error').textContent = state.current && def !== state.current.name
-      ? 'Heads up: ' + state.current.name + ' is on the clock right now.' : '';
+    pendingName = state.current ? state.current.name : null;
+    $('pick-for').textContent = pendingName || '';
+    $('pick-submit').textContent = 'Lock it in for ' + (pendingName || '');
+    $('pick-error').textContent = '';
     $('pick-dialog').showModal();
-    setTimeout(() => $('pick-pin').focus(), 50);
+    setTimeout(() => $('pick-submit').focus(), 50);
   });
 
   $('pick-cancel').addEventListener('click', () => $('pick-dialog').close());
@@ -284,17 +283,14 @@
   $('pick-form').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!pendingItem || busy) return;
-    const name = $('pick-name').value;
-    const pin = $('pick-pin').value;
     busy = true;
     $('pick-submit').disabled = true;
     $('pick-submit').textContent = 'Saving…';
     $('pick-error').textContent = '';
-    apiPost({ action: 'pick', name, pin, itemId: pendingItem.id })
+    apiPost({ action: 'pick', name: pendingName, itemId: pendingItem.id })
       .then((res) => {
         if (res && res.inventory) apply(res);
         if (res && res.ok) {
-          store.set('draft-name', name);
           $('pick-dialog').close();
           toast(res.message || 'Pick saved.');
           render(null);
@@ -307,7 +303,7 @@
         busy = false;
         lastPickCount = state ? state.picks.length : lastPickCount;
         $('pick-submit').disabled = false;
-        $('pick-submit').textContent = 'Lock it in';
+        $('pick-submit').textContent = 'Lock it in for ' + (pendingName || '');
       });
   });
 

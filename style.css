@@ -89,7 +89,10 @@ code { font-size: .9em; }
 .game:first-of-type { border-top: 0; }
 .game-name { font-weight: 600; }
 .game-sub { font-size: 12px; color: var(--muted); }
-.cond { display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--taken-bg); border-radius: 4px; padding: 1px 6px; margin-top: 2px; }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.cond { display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--taken-bg); border-radius: 4px; padding: 1px 6px; }
+.cond.hf { color: var(--navy-2); background: #e3ecf7; }
+@media (prefers-color-scheme: dark) { .cond.hf { color: #b9d2f0; background: #1c3350; } }
 
 .seat {
   font: inherit;
@@ -133,7 +136,6 @@ code { font-size: .9em; }
 .totals th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding-bottom: 6px; }
 .totals td { padding: 6px 0; border-top: 1px solid var(--line); }
 .totals .num { text-align: right; font-variant-numeric: tabular-nums; }
-.totals tr.me td { font-weight: 700; }
 .link-btn { background: none; border: 0; color: var(--muted); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px 0; }
 
 .foot { color: var(--muted); font-size: 12px; padding-top: 12px; padding-bottom: 32px; }

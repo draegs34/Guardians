@@ -22,7 +22,7 @@
   </header>
 
   <div id="demo-banner" class="demo-banner" hidden>
-    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Try PINs Alex 1111, Jordan 2222, Casey 3333, Morgan 4444 (commissioner 0000). Add your Apps Script URL to <code>config.js</code> to go live.</div>
+    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Commissioner PIN for testing undo: 0000. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
   <main class="wrap">
@@ -74,12 +74,7 @@
     <form method="dialog" id="pick-form">
       <h3>Confirm your pick</h3>
       <div class="pick-item" id="pick-item"></div>
-      <label>Your name
-        <select id="pick-name" required></select>
-      </label>
-      <label>Your PIN
-        <input id="pick-pin" type="password" inputmode="numeric" autocomplete="off" required>
-      </label>
+      <p class="hint">Picking for <strong id="pick-for"></strong>, who is on the clock.</p>
       <p class="form-error" id="pick-error" role="alert"></p>
       <div class="actions">
         <button type="button" class="btn ghost" id="pick-cancel">Cancel</button>
@@ -92,7 +87,7 @@
   <dialog id="commish-dialog">
     <form method="dialog" id="commish-form">
       <h3>Commissioner tools</h3>
-      <p class="hint">Your commissioner PIN lets you pick for whoever is on the clock (use your PIN in the pick box) or undo the most recent pick.</p>
+      <p class="hint">Undo the most recent pick. The draft then goes back to that member's turn.</p>
       <label>Commissioner PIN
         <input id="commish-pin" type="password" autocomplete="off" required>
       </label>
