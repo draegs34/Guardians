@@ -78,18 +78,62 @@
       .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   }
 
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /**
+   * Apps Script sometimes saves a change but the reply never makes it back to
+   * the browser (it's redirected through a second Google server). When a POST
+   * fails, re-read the board and check whether the change actually landed
+   * before telling anyone it failed.
+   */
+  async function postVerified(body, landed) {
+    const before = state;
+    try {
+      const res = await apiPost(body);
+      if (res && typeof res === 'object') return res;
+      throw new Error('Empty reply');
+    } catch (err) {
+      console.warn('No usable reply from the draft; checking whether it saved.', err);
+      let reads = 0;
+      for (let i = 0; i < 5; i++) {
+        await sleep(i === 0 ? 700 : 1500);
+        let s;
+        try { s = await apiGet(); } catch (e) { continue; }
+        if (!s || s.ok === false || !s.inventory) continue;
+        apply(s);
+        markSynced();
+        if (landed(s, before)) return Object.assign({}, s, { ok: true, verified: true });
+        if (++reads >= 2) return Object.assign({}, s, { ok: false, error: "That didn't go through. Please try again." });
+      }
+      throw err;
+    }
+  }
+
+  let failStreak = 0;
+  function markSynced() {
+    failStreak = 0;
+    $('sync').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    $('sync').classList.remove('err');
+  }
+
   function refresh() {
     return apiGet().then((s) => {
       if (!s || s.ok === false) throw new Error((s && s.error) || 'Bad response');
       apply(s);
-      $('sync').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
-      $('sync').classList.remove('err');
+      markSynced();
     }).catch((err) => {
-      console.error(err);
-      $('sync').textContent = "Can't reach the draft — retrying…";
-      $('sync').classList.add('err');
+      console.warn(err);
+      // One missed refresh is normal with Apps Script; only warn if it keeps happening.
+      if (++failStreak >= 2) {
+        $('sync').textContent = "Can't reach the draft — retrying…";
+        $('sync').classList.add('err');
+      }
     });
   }
+
+  // "Did it land?" checks used by postVerified()
+  const lastKey = (s) => s && s.picks.length + '|' + JSON.stringify(s.picks[s.picks.length - 1] || null);
+  const changed = (s, before) => lastKey(s) !== lastKey(before);
 
   /* ------------------------------------------------------------------ */
   /* Rendering                                                            */
@@ -255,18 +299,20 @@
     $('pick-submit').disabled = true;
     $('pick-submit').textContent = 'Saving…';
     $('pick-error').textContent = '';
-    apiPost({ action: 'pick', name: pendingName, pin: $('pick-pin').value, itemId: pendingItem.id })
+    const want = { id: pendingItem.id, name: pendingName };
+    postVerified({ action: 'pick', name: pendingName, pin: $('pick-pin').value, itemId: pendingItem.id },
+      (s) => s.picks.some((p) => p.itemId === want.id && p.member === want.name))
       .then((res) => {
         if (res && res.inventory) apply(res);
         if (res && res.ok) {
           $('pick-dialog').close();
-          toast(res.message || 'Pick saved.');
+          toast(res.message || (res.verified ? 'Pick saved for ' + want.name + '.' : 'Pick saved.'));
           render(null);
         } else {
           $('pick-error').textContent = (res && res.error) || 'Something went wrong.';
         }
       })
-      .catch(() => { $('pick-error').textContent = "Couldn't reach the draft. Check your connection and try again."; })
+      .catch(() => { $('pick-error').textContent = "Couldn't reach the draft. Check the pick log in a few seconds before trying again — it may have saved."; })
       .finally(() => {
         busy = false;
         lastPickCount = state ? state.picks.length : lastPickCount;
@@ -303,10 +349,10 @@
     btn.disabled = true;
     $('commish-error').textContent = '';
     body.pin = $('commish-pin').value;
-    apiPost(body)
+    postVerified(body, changed)
       .then((res) => {
         if (res && res.inventory) apply(res);
-        if (res && res.ok) { $('commish-dialog').close(); toast(res.message || 'Done.'); }
+        if (res && res.ok) { $('commish-dialog').close(); toast(res.message || 'Saved.'); }
         else { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; fillAssignLists(); }
       })
       .catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; })
@@ -346,10 +392,11 @@
     busy = true;
     $('drop-submit').disabled = true;
     $('drop-error').textContent = '';
-    apiPost({ action: 'drop', name, pin: $('drop-pin').value })
+    postVerified({ action: 'drop', name, pin: $('drop-pin').value },
+      (s) => s.members.some((m) => m.name === name && m.out))
       .then((res) => {
         if (res && res.inventory) apply(res);
-        if (res && res.ok) { $('drop-dialog').close(); toast(res.message || 'Done.'); }
+        if (res && res.ok) { $('drop-dialog').close(); toast(res.message || name + ' dropped out of the draft.'); }
         else $('drop-error').textContent = (res && res.error) || 'Something went wrong.';
       })
       .catch(() => { $('drop-error').textContent = "Couldn't reach the draft."; })
