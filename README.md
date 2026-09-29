@@ -61,4 +61,5 @@ Edit it in Apps Script, then go to **Deploy → Manage deployments → ✏️ Ed
 *Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*
 
 ## For developers
-The draft rules live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other.
+- **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files. Otherwise phones may keep running an old cached copy.
+- The draft rules live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other.
