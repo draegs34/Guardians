@@ -2,7 +2,7 @@
 
 A live, pick-by-pick draft page for our season ticket group. Members take turns (snake order by default) claiming postseason home games and seat pairs. Every pick is saved to our Google Sheet.
 
-- **The page** (`index.html`, `app.js`, `style.css`, `config.js`) is hosted free on GitHub Pages.
+- **The page** (`index.html`, `app.js`, `engine.js`, `style.css`, `config.js`) is hosted free on GitHub Pages.
 - **The data** lives in the Google Sheet. A small Apps Script (`apps-script/Code.gs`) reads and writes it.
 
 Until `config.js` has a script URL, the page runs in **demo mode** with sample members, so you can try it out.
@@ -44,9 +44,12 @@ After a minute or two the site is live at **https://draegs34.github.io/Guardians
 - Share the link. Whoever is **On the clock** taps an open seat pair, enters their PIN and taps **Lock it in**. One pick per turn; in snake order the member at each end of the order picks twice in a row (end of one round, start of the next).
 - If someone texts you their pick, make it for them by entering the **Commissioner PIN** instead of theirs.
 - The board refreshes every 10 seconds for everyone.
+- **Turn alerts:** each member picks their name under **Turn alerts on this device for** (remembered per phone/computer). When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner warns them when they're up next. There's no sound, and alerts only show while the page is open (background tabs check every 30 seconds).
+- **Dropping out:** a member taps **Drop out of the draft**, picks their name and enters their PIN. They keep seats already picked, get no more turns, and show struck through in Up next. If they're on the clock, it uses their turn. This is logged as `DROPPED OUT`.
 - **Commissioner** (you), under **Commissioner tools** with your PIN:
   - **Assign a seat pair** to any member. It's outside the draft order, so it doesn't use anyone's turn. It's saved in Draft Picks with Round = `Assigned`.
-  - **Undo last entry** removes the most recent pick or assignment.
+  - **Skip to next member** passes the on-clock member's turn (logged as `SKIPPED`).
+  - **Undo last entry** removes the most recent pick, assignment, skip or drop-out.
   - You can also edit the Draft Picks tab directly.
 - **Badges:** use the Notes column in Draft Inventory. Separate multiple badges with `;`. Home Game 4 in the ALCS and World Series is marked as available only with home-field advantage, since the lower seed hosts only Games 3–5.
 - To **pause** the draft, set *Draft open* to `FALSE` in Draft Settings.
@@ -56,3 +59,6 @@ After a minute or two the site is live at **https://draegs34.github.io/Guardians
 Edit it in Apps Script, then go to **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. The URL stays the same.
 
 *Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*
+
+## For developers
+The draft rules live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other.

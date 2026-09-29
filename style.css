@@ -191,3 +191,21 @@ label.check input { width: auto; }
 .btn.drop { width: 100%; background: var(--red); color: #fff; padding: 12px 16px; font-size: 15px; }
 .btn.drop:hover { filter: brightness(1.08); }
 .btn.drop:focus-visible { outline: 3px solid var(--navy-2); outline-offset: 2px; }
+
+/* Turn alerts */
+.me-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -8px 0 18px; font-size: 14px; color: var(--muted); }
+.me-bar label { display: inline; font-size: 14px; font-weight: 500; }
+.me-bar select { width: auto; min-width: 180px; padding: 7px 10px; font-size: 15px; }
+.turn-alert { position: sticky; top: 0; z-index: 5; background: var(--red); color: #fff; font-weight: 700; font-size: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.turn-alert.next { background: var(--navy-2); font-weight: 600; font-size: 15px; }
+.turn-alert-inner { display: flex; align-items: center; gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+.turn-alert-dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; flex: none; animation: pulse-dot 1.2s ease-in-out infinite; }
+.turn-alert.next .turn-alert-dot { animation: none; opacity: .8; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+.clock.mine { border-left-color: var(--red); animation: pulse-ring 1.6s ease-in-out infinite; }
+.clock.mine .clock-name { color: var(--red); }
+@keyframes pulse-ring { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 45%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--red) 0%, transparent); } }
+.upcoming li.me span:first-child::after { content: " (you)"; color: var(--muted); font-weight: 500; }
+@media (prefers-reduced-motion: reduce) {
+  .turn-alert-dot, .clock.mine { animation: none; }
+}

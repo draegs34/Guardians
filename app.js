@@ -15,6 +15,11 @@
   let pendingName = null;
   let busy = false;
 
+  // Which member this device belongs to, for turn alerts. Per-device, stored locally.
+  const ME_KEY = 'guardians-draft-me';
+  let me = '';
+  try { me = localStorage.getItem(ME_KEY) || ''; } catch (e) { /* storage blocked: alerts just won't persist */ }
+
 
   /* ------------------------------------------------------------------ */
   /* Demo backend: an in-memory "sheet" run through the same DraftEngine  */
@@ -164,7 +169,7 @@
 
   function render(prevIds) {
     const s = state;
-    document.title = s.title || 'Postseason Draft';
+    if (!titleTimer) document.title = s.title || 'Postseason Draft';
     $('title').textContent = s.title || 'Postseason Draft';
     $('demo-banner').hidden = !DEMO;
 
@@ -233,7 +238,7 @@
     $('upcoming').innerHTML = up.length
       ? up.map((t) => t.out
           ? '<li class="out"><s>' + esc(t.name) + '</s><span class="meta">Out</span></li>'
-          : '<li><span>' + esc(t.name) + '</span><span class="meta">Rd ' + t.round + ' · #' + t.pick + '</span></li>').join('')
+          : '<li' + (me && t.name === me ? ' class="me"' : '') + '><span>' + esc(t.name) + '</span><span class="meta">Rd ' + t.round + ' · #' + t.pick + '</span></li>').join('')
       : '<li class="empty">Nothing left to pick.</li>';
 
     // Totals
@@ -262,6 +267,7 @@
         }).join('')
       : '<li class="empty">No picks yet.</li>';
 
+    renderMe(s, done);
     $('skip-who').textContent = s.current ? s.current.name : 'nobody';
     $('skip-btn').disabled = !s.current;
   }
@@ -403,6 +409,68 @@
       .finally(() => { busy = false; $('drop-submit').disabled = false; lastPickCount = state ? state.picks.length : lastPickCount; });
   });
 
+  /* ------------------------------------------------------------------ */
+  /* Turn alerts (visual only — no sounds)                                */
+  /* ------------------------------------------------------------------ */
+  let titleTimer = null;
+  let baseTitle = 'Postseason Draft';
+
+  function renderMe(s, done) {
+    // Keep the "this is me" list in sync with the member list.
+    const sel = $('me-select');
+    const names = s.members.map((m) => m.name);
+    const sig = names.join('|');
+    if (sel.dataset.sig !== sig) {
+      sel.innerHTML = '<option value="">Nobody (off)</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
+      sel.dataset.sig = sig;
+    }
+    if (me && !names.includes(me)) me = '';
+    sel.value = me;
+
+    const meMember = s.members.find((m) => m.name === me);
+    const mine = !!me && !done && s.current && s.current.name === me && !(meMember && meMember.out);
+    const nextUp = !mine && !!me && !done && (s.upcoming || []).find((u) => !u.out);
+    const isNext = !!nextUp && nextUp.name === me;
+
+    $('clock').classList.toggle('mine', mine);
+    const bar = $('turn-alert');
+    bar.classList.toggle('next', isNext);
+    if (mine) {
+      $('turn-alert-text').textContent = s.open
+        ? "You're on the clock, " + me + '! Tap an open seat pair below to make your pick.'
+        : "You're on the clock, " + me + ', but the draft is paused right now.';
+      bar.hidden = false;
+    } else if (isNext) {
+      $('turn-alert-text').textContent = "Heads up, " + me + " — you're up next.";
+      bar.hidden = false;
+    } else {
+      bar.hidden = true;
+    }
+
+    baseTitle = s.title || 'Postseason Draft';
+    setTitleFlash(mine);
+  }
+
+  function setTitleFlash(on) {
+    if (on && !titleTimer) {
+      let flip = false;
+      document.title = '● Your pick! — ' + baseTitle;
+      titleTimer = setInterval(() => {
+        flip = !flip;
+        document.title = flip ? baseTitle : '● Your pick! — ' + baseTitle;
+      }, 1200);
+    } else if (!on) {
+      if (titleTimer) { clearInterval(titleTimer); titleTimer = null; }
+      document.title = baseTitle;
+    }
+  }
+
+  $('me-select').addEventListener('change', (e) => {
+    me = e.target.value;
+    try { if (me) localStorage.setItem(ME_KEY, me); else localStorage.removeItem(ME_KEY); } catch (err) { /* ignore */ }
+    if (state) render(null);
+  });
+
   let toastTimer;
   function toast(msg) {
     const t = $('toast');
@@ -414,6 +482,12 @@
 
   // Start
   refresh();
-  setInterval(() => { if (!document.hidden && !busy) refresh(); }, REFRESH_MS);
+  // Keep checking in background tabs too (more slowly) so turn alerts still fire.
+  let lastBg = 0;
+  setInterval(() => {
+    if (busy) return;
+    if (!document.hidden) { refresh(); return; }
+    if (me && Date.now() - lastBg >= 30000) { lastBg = Date.now(); refresh(); }
+  }, REFRESH_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 })();

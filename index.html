@@ -25,12 +25,24 @@
     <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
+  <div id="turn-alert" class="turn-alert" role="alert" hidden>
+    <div class="wrap turn-alert-inner">
+      <span class="turn-alert-dot" aria-hidden="true"></span>
+      <span id="turn-alert-text"></span>
+    </div>
+  </div>
+
   <main class="wrap">
     <section class="clock" id="clock" aria-live="polite">
       <div class="clock-label">On the clock</div>
       <div class="clock-name" id="clock-name">—</div>
       <div class="clock-meta" id="clock-meta"></div>
     </section>
+
+    <div class="me-bar">
+      <label for="me-select">Turn alerts on this device for</label>
+      <select id="me-select"><option value="">Nobody (off)</option></select>
+    </div>
 
     <div class="layout">
       <section class="board-col">
