@@ -11,6 +11,8 @@
   --line: #dfe4ec;
   --open: #1f7a4d;
   --open-bg: #e8f5ee;
+  --open-solid: #1b7a4b;
+  --open-solid-hover: #146a40;
   --taken-bg: #eef1f5;
   --shadow: 0 1px 2px rgba(12, 35, 64, .06), 0 4px 14px rgba(12, 35, 64, .06);
   --radius: 12px;
@@ -78,7 +80,7 @@ code { font-size: .9em; }
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
 .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-.dot.open { background: var(--open-bg); border: 1.5px solid var(--open); }
+.dot.open { background: var(--open-solid); border: 1.5px solid var(--open-solid); }
 .dot.taken { background: var(--taken-bg); border: 1.5px solid var(--line); }
 
 /* Board */
@@ -108,9 +110,19 @@ code { font-size: .9em; }
 }
 .seat .s-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .seat .s-val { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seat.open { background: var(--open-bg); border-color: var(--open); cursor: pointer; transition: transform .08s, box-shadow .12s; }
-.seat.open .s-val { color: var(--open); }
-.seat.open:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--open) 25%, transparent); }
+.seat.open { background: var(--open-solid); border-color: var(--open-solid); color: #fff; cursor: pointer; transition: transform .08s, box-shadow .12s, background .12s; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.seat.open .s-label { color: rgba(255,255,255,.85); }
+.seat.open .s-val { color: #fff; font-size: 15px; font-weight: 800; }
+.seat.open .s-val::after { content: " →"; font-weight: 700; }
+.seat.open:hover { background: var(--open-solid-hover); box-shadow: 0 0 0 3px color-mix(in srgb, var(--open-solid) 30%, transparent); }
+/* Taken seats recede */
+.seat.taken { background: var(--taken-bg); border-color: transparent; border-style: dashed; }
+.seat.taken .s-label { opacity: .75; }
+.seat.taken .s-val { color: var(--muted); font-weight: 600; }
+.seat.taken .s-val::before { content: "✓ "; }
+/* Open but not pickable right now (paused) */
+.seat:not(.open):not(.taken) { background: var(--open-bg); border-color: var(--open); }
+.seat:not(.open):not(.taken) .s-val { color: var(--open); }
 .seat.open:active { transform: scale(.98); }
 .seat.open:focus-visible { outline: 3px solid var(--navy-2); outline-offset: 2px; }
 .seat.just { animation: flash 1.6s ease-out; }
