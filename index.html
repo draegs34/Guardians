@@ -60,7 +60,10 @@
           <h2>Pick log</h2>
           <ol id="log" class="log" reversed></ol>
         </section>
-        <button class="link-btn" id="commish-btn" type="button">Commissioner tools</button>
+        <div class="side-links">
+          <button class="link-btn" id="drop-btn" type="button">Drop out of the draft</button>
+          <button class="link-btn" id="commish-btn" type="button">Commissioner tools</button>
+        </div>
       </aside>
     </div>
   </main>
@@ -107,8 +110,14 @@
       </div>
 
       <div class="tool">
+        <h4>Advance the draft</h4>
+        <p class="hint">Skip <strong id="skip-who"></strong>'s turn and move to the next member. It uses up their turn but gives them no seats.</p>
+        <button type="button" class="btn primary" id="skip-btn">Skip to next member</button>
+      </div>
+
+      <div class="tool">
         <h4>Undo last entry</h4>
-        <p class="hint">Removes the most recent pick or assignment. If it was a pick, the draft goes back to that member's turn.</p>
+        <p class="hint">Removes the most recent pick, assignment, skip or drop-out, so a skipped or dropped member gets their turn back.</p>
         <button type="button" class="btn danger" id="undo-btn">Undo last entry</button>
       </div>
 
@@ -119,9 +128,30 @@
     </form>
   </dialog>
 
+  <!-- Drop out dialog -->
+  <dialog id="drop-dialog">
+    <form method="dialog" id="drop-form">
+      <h3>Drop out of the draft</h3>
+      <p class="hint">You'll keep any seats you've already picked, but you won't get any more turns. If you're on the clock now, this uses your turn.</p>
+      <label>Your name
+        <select id="drop-name"></select>
+      </label>
+      <label>Your PIN
+        <input id="drop-pin" type="password" autocomplete="off" placeholder="Your PIN (or commissioner PIN)">
+      </label>
+      <label class="check"><input type="checkbox" id="drop-confirm"> Yes, I don't want any more picks</label>
+      <p class="form-error" id="drop-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="drop-cancel">Cancel</button>
+        <button type="submit" class="btn danger" id="drop-submit">Drop out</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" hidden></div>
 
   <script src="config.js"></script>
+  <script src="engine.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

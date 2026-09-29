@@ -113,6 +113,7 @@ function doPost(e) {
     let result;
     if (body.action === 'pick') result = makePick_(data, body);
     else if (body.action === 'undo') result = undoLast_(data, body);
+    else if (body.action === 'assign') result = assign_(data, body);
     else result = { ok: false, error: 'Unknown action.' };
 
     const fresh = publicState_(readAll_());
@@ -129,7 +130,7 @@ function makePick_(data, body) {
   const s = data.settings;
   if (!s.open) return { ok: false, error: 'The draft is paused right now.' };
 
-  const turn = computeTurn(data.members, data.picks, s.maxPicks, s.snake, 1);
+  const turn = computeTurn(data.members, draftPicks_(data.picks), s.maxPicks, s.snake, 1);
   if (!turn.current || data.picks.length >= data.inventory.length) return { ok: false, error: 'The draft is complete.' };
 
   // The pick always goes to whoever is on the clock. The page sends the name
@@ -155,7 +156,7 @@ function makePick_(data, body) {
 
   const sh = SpreadsheetApp.getActive().getSheetByName(TAB.picks);
   sh.appendRow([
-    data.picks.length + 1,
+    draftPicks_(data.picks).length + 1,
     turn.current.round,
     onClock,
     item.id,
@@ -169,6 +170,32 @@ function makePick_(data, body) {
   return { ok: true, message: onClock + ' took ' + item.series + ' ' + item.game + ', seats ' + item.seats + '.' };
 }
 
+/**
+ * Commissioner assigns an open seat pair to any member. Assignments sit
+ * outside the draft order: they don't use up anyone's turn.
+ */
+function assign_(data, body) {
+  const s = data.settings;
+  if (!s.commissionerPin || String(body.pin || '').trim() !== s.commissionerPin) {
+    return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  }
+  const member = data.members.filter(function (m) { return m.name === body.name; })[0];
+  if (!member) return { ok: false, error: 'Choose a member.' };
+  const item = data.inventory.filter(function (i) { return i.id === body.itemId; })[0];
+  if (!item) return { ok: false, error: 'Choose a game and seats.' };
+  if (data.picks.some(function (p) { return p.itemId === item.id; })) {
+    return { ok: false, error: 'That one is already taken.' };
+  }
+  SpreadsheetApp.getActive().getSheetByName(TAB.picks).appendRow([
+    '', 'Assigned', member.name, item.id, item.series, item.game, item.date, item.seats, item.price, new Date(),
+  ]);
+  return { ok: true, message: 'Assigned ' + item.series + ' ' + item.game + ', seats ' + item.seats + ' to ' + member.name + '.' };
+}
+
+function draftPicks_(picks) {
+  return picks.filter(function (p) { return !p.assigned; });
+}
+
 function undoLast_(data, body) {
   const s = data.settings;
   if (!s.commissionerPin || String(body.pin || '').trim() !== s.commissionerPin) {
@@ -178,7 +205,9 @@ function undoLast_(data, body) {
   const sh = SpreadsheetApp.getActive().getSheetByName(TAB.picks);
   const last = data.picks[data.picks.length - 1];
   sh.deleteRow(last.row);
-  return { ok: true, message: 'Undid pick #' + last.number + ' (' + last.member + ').' };
+  return { ok: true, message: last.assigned
+    ? 'Removed the assignment to ' + last.member + '.'
+    : 'Undid pick #' + last.number + ' (' + last.member + ').' };
 }
 
 /* ----------------------------------------------------------------------- */
@@ -242,12 +271,15 @@ function readAll_() {
         date: formatDate_(r[3]), seats: String(r[4]), price: Number(r[5]) || 0, notes: String(r[6] || ''),
       };
     });
+  let draftNo = 0;
   const picks = rows_(TAB.picks, true)
     .filter(function (r) { return String(r.values[2]).trim() !== ''; })
-    .map(function (r, i) {
+    .map(function (r) {
       const v = r.values;
+      const assigned = String(v[1]).trim().toLowerCase() === 'assigned';
       return {
-        row: r.row, number: i + 1, round: Number(v[1]) || null, member: String(v[2]).trim(),
+        row: r.row, assigned: assigned, number: assigned ? null : ++draftNo,
+        round: Number(v[1]) || null, member: String(v[2]).trim(),
         itemId: String(v[3]).trim(), time: v[9] instanceof Date ? v[9].toISOString() : String(v[9] || ''),
       };
     });
@@ -289,7 +321,7 @@ function publicState_(data) {
   const s = data.settings;
   const done = data.picks.length >= data.inventory.length;
   const turn = done ? { current: null, upcoming: [] }
-    : computeTurn(data.members, data.picks, s.maxPicks, s.snake, data.members.length);
+    : computeTurn(data.members, draftPicks_(data.picks), s.maxPicks, s.snake, data.members.length);
   // Don't list more upcoming turns than there are seats left.
   turn.upcoming = turn.upcoming.slice(0, Math.max(0, data.inventory.length - data.picks.length - 1));
   return {
@@ -301,7 +333,7 @@ function publicState_(data) {
     members: data.members.map(function (m) { return { order: m.order, name: m.name, needsPin: !!m.pin }; }), // PINs never leave the sheet
     inventory: data.inventory,
     picks: data.picks.map(function (p) {
-      return { number: p.number, round: p.round, member: p.member, itemId: p.itemId, time: p.time };
+      return { number: p.number, assigned: p.assigned, round: p.round, member: p.member, itemId: p.itemId, time: p.time };
     }),
     current: turn.current,
     upcoming: turn.upcoming,

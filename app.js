@@ -17,38 +17,8 @@
 
 
   /* ------------------------------------------------------------------ */
-  /* Draft order — keep in sync with computeTurn() in apps-script/Code.gs */
-  /* ------------------------------------------------------------------ */
-  function computeTurn(members, picks, maxPicks, snake, upcomingCount) {
-    upcomingCount = upcomingCount || members.length;
-    const n = members.length;
-    const out = { current: null, upcoming: [] };
-    if (!n) return out;
-    const sim = {};
-    members.forEach((m) => { sim[m.name] = 0; });
-    let made = 0;
-    const limit = maxPicks > 0 ? maxPicks : Infinity;
-    const maxSlots = (picks.length + upcomingCount + 1) * n + n * 2;
-    for (let slot = 0; slot < maxSlots; slot++) {
-      const round = Math.floor(slot / n) + 1;
-      let idx = slot % n;
-      if (snake && round % 2 === 0) idx = n - 1 - idx;
-      const m = members[idx];
-      if (sim[m.name] >= limit) {
-        if (members.every((x) => sim[x.name] >= limit)) break;
-        continue;
-      }
-      if (made < picks.length) { sim[m.name]++; made++; continue; }
-      const turn = { name: m.name, round, pick: made + 1 + out.upcoming.length + (out.current ? 1 : 0) };
-      if (!out.current) out.current = turn; else out.upcoming.push(turn);
-      sim[m.name]++;
-      if (out.upcoming.length >= upcomingCount) break;
-    }
-    return out;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Demo backend (in-memory, this tab only)                             */
+  /* Demo backend: an in-memory "sheet" run through the same DraftEngine  */
+  /* the Apps Script uses (engine.js).                                    */
   /* ------------------------------------------------------------------ */
   const demo = (function () {
     const members = [
@@ -75,54 +45,22 @@
       inventory.push({ id: g[0] + '-S' + seats.split(' ')[0], series: g[1], game: g[2], date: g[3], seats, price: g[4], notes: g[5] });
     }));
     const settings = { title: '2026 Guardians Postseason Draft', snake: true, maxPicks: 0, open: true, commissionerPin: '0000' };
-    const picks = [];
+    let rows = []; // like the Draft Picks tab, minus the header
 
-    function pub() {
-      const done = picks.length >= inventory.length;
-      const t = done ? { current: null, upcoming: [] } : computeTurn(members, picks.filter((p) => !p.assigned), settings.maxPicks, settings.snake, members.length);
-      t.upcoming = t.upcoming.slice(0, Math.max(0, inventory.length - picks.length - 1));
-      return {
-        ok: true, title: settings.title, snake: settings.snake, maxPicks: settings.maxPicks, open: settings.open,
-        members: members.map((m) => ({ order: m.order, name: m.name, needsPin: !!m.pin })),
-        inventory, picks: picks.slice(), current: t.current, upcoming: t.upcoming, serverTime: new Date().toISOString(),
-      };
-    }
+    const data = () => ({
+      settings, members, inventory,
+      events: rows.map((r, i) => DraftEngine.rowToEvent(r, i + 2)),
+    });
     function post(body) {
-      const r = (function () {
-        const isC = String(body.pin || '').trim() === settings.commissionerPin;
-        if (body.action === 'undo') {
-          if (!isC) return { ok: false, error: 'Only the commissioner can undo picks.' };
-          if (!picks.length) return { ok: false, error: 'There are no picks to undo.' };
-          const p = picks.pop();
-          return { ok: true, message: p.assigned ? 'Removed the assignment to ' + p.member + '.' : 'Undid pick #' + p.number + ' (' + p.member + ').' };
-        }
-        if (body.action === 'assign') {
-          if (!isC) return { ok: false, error: "That commissioner PIN doesn't match." };
-          const m = members.find((x) => x.name === body.name);
-          if (!m) return { ok: false, error: 'Choose a member.' };
-          const it = inventory.find((i) => i.id === body.itemId);
-          if (!it) return { ok: false, error: 'Choose a game and seats.' };
-          if (picks.some((p) => p.itemId === it.id)) return { ok: false, error: 'That one is already taken.' };
-          picks.push({ number: null, assigned: true, round: null, member: m.name, itemId: it.id, time: new Date().toISOString() });
-          return { ok: true, message: 'Assigned ' + it.series + ' ' + it.game + ', seats ' + it.seats + ' to ' + m.name + '.' };
-        }
-        if (!settings.open) return { ok: false, error: 'The draft is paused right now.' };
-        const t = computeTurn(members, picks.filter((p) => !p.assigned), settings.maxPicks, settings.snake, 1);
-        if (!t.current || picks.length >= inventory.length) return { ok: false, error: 'The draft is complete.' };
-        const onClock = t.current.name;
-        if (body.name !== onClock) return { ok: false, error: 'The board changed — ' + onClock + ' is on the clock now. Take another look and try again.' };
-        const mem = members.find((x) => x.name === onClock);
-        const pin = String(body.pin || '').trim();
-        if (mem && mem.pin && pin !== mem.pin && !isC) return { ok: false, error: pin ? "That PIN doesn't match." : 'Enter your PIN.' };
-        const item = inventory.find((i) => i.id === body.itemId);
-        if (!item) return { ok: false, error: "That game/seat option wasn't found." };
-        if (picks.some((p) => p.itemId === item.id)) return { ok: false, error: 'Sorry — that one was just taken.' };
-        picks.push({ number: picks.filter((p) => !p.assigned).length + 1, round: t.current.round, member: onClock, itemId: item.id, time: new Date().toISOString() });
-        return { ok: true, message: onClock + ' took ' + item.series + ' ' + item.game + ', seats ' + item.seats + '.' };
-      })();
-      return Object.assign(pub(), r);
+      const r = DraftEngine.apply(data(), body);
+      if (r.ok && r.append) rows.push(r.append);
+      if (r.ok && r.deleteRow) rows.splice(r.deleteRow - 2, 1);
+      return Object.assign(DraftEngine.publicState(data()), { ok: r.ok, error: r.error, message: r.message });
     }
-    return { get: () => Promise.resolve(pub()), post: (b) => new Promise((res) => setTimeout(() => res(post(b)), 250)) };
+    return {
+      get: () => Promise.resolve(DraftEngine.publicState(data())),
+      post: (b) => new Promise((res) => setTimeout(() => res(post(b)), 250)),
+    };
   })();
 
   /* ------------------------------------------------------------------ */
@@ -163,7 +101,9 @@
     if (lastPickCount !== null && s.picks.length > lastPickCount && !busy) {
       const p = s.picks[s.picks.length - 1];
       const item = s.inventory.find((i) => i.id === p.itemId);
-      if (item) toast(p.member + ' took ' + item.series.replace(/^AL /, '') + ' ' + item.game + ' · ' + item.seats);
+      if (p.type === 'drop') toast(p.member + ' dropped out of the draft');
+      else if (p.type === 'skip') toast(p.member + "'s turn was skipped");
+      else if (item) toast(p.member + (p.assigned ? ' was assigned ' : ' took ') + item.series.replace(/^AL /, '') + ' ' + item.game + ' · ' + item.seats);
     }
     lastPickCount = s.picks.length;
   }
@@ -185,8 +125,10 @@
     $('demo-banner').hidden = !DEMO;
 
     const takenBy = {};
-    s.picks.forEach((p) => { takenBy[p.itemId] = p; });
-    const done = s.picks.length >= s.inventory.length || !s.current;
+    s.picks.forEach((p) => { if (p.itemId) takenBy[p.itemId] = p; });
+    const itemPicks = s.picks.filter((p) => p.itemId);
+    const left = s.inventory.length - itemPicks.length;
+    const done = !s.current;
 
     // On the clock
     const clock = $('clock');
@@ -194,12 +136,11 @@
     clock.classList.toggle('paused', !done && !s.open);
     if (done) {
       $('clock-name').textContent = 'Draft complete';
-      $('clock-meta').textContent = s.picks.length + ' picks made. See you at the ballpark.';
+      $('clock-meta').textContent = itemPicks.length + ' seat pairs claimed' + (left > 0 ? ', ' + left + ' unclaimed' : '') + '.';
       clock.querySelector('.clock-label').textContent = 'Final';
     } else {
       clock.querySelector('.clock-label').textContent = s.open ? 'On the clock' : 'Draft paused';
       $('clock-name').textContent = s.current.name;
-      const left = s.inventory.length - s.picks.length;
       $('clock-meta').textContent = 'Round ' + s.current.round + ' · Pick ' + s.current.pick + ' · ' + left + ' left' + (s.snake ? ' · Snake order' : '');
     }
 
@@ -246,30 +187,39 @@
     // Up next
     const up = done ? [] : [s.current].concat(s.upcoming || []);
     $('upcoming').innerHTML = up.length
-      ? up.map((t) => '<li><span>' + esc(t.name) + '</span><span class="meta">Rd ' + t.round + ' · #' + t.pick + '</span></li>').join('')
+      ? up.map((t) => t.out
+          ? '<li class="out"><s>' + esc(t.name) + '</s><span class="meta">Out</span></li>'
+          : '<li><span>' + esc(t.name) + '</span><span class="meta">Rd ' + t.round + ' · #' + t.pick + '</span></li>').join('')
       : '<li class="empty">Nothing left to pick.</li>';
 
     // Totals
     const tot = {};
-    s.members.forEach((m) => { tot[m.name] = { n: 0, owed: 0 }; });
-    s.picks.forEach((p) => {
+    const outNames = {};
+    s.members.forEach((m) => { tot[m.name] = { n: 0, owed: 0 }; if (m.out) outNames[m.name] = true; });
+    itemPicks.forEach((p) => {
       const it = s.inventory.find((i) => i.id === p.itemId);
       if (!tot[p.member]) tot[p.member] = { n: 0, owed: 0 };
       tot[p.member].n++;
       tot[p.member].owed += it ? it.price : 0;
     });
     $('totals').innerHTML = Object.keys(tot).map((name) =>
-      '<tr><td>' + esc(name) + '</td><td class="num">' + tot[name].n + '</td><td class="num">' + money(tot[name].owed) + '</td></tr>'
+      '<tr' + (outNames[name] ? ' class="out"' : '') + '><td>' + (outNames[name] ? '<s>' + esc(name) + '</s> <span class="meta">out</span>' : esc(name)) + '</td><td class="num">' + tot[name].n + '</td><td class="num">' + money(tot[name].owed) + '</td></tr>'
     ).join('');
 
     // Log
     $('log').innerHTML = s.picks.length
       ? s.picks.slice().reverse().map((p) => {
           const it = s.inventory.find((i) => i.id === p.itemId);
+          const num = p.number ? '#' + p.number + ' ' : '';
+          if (p.type === 'skip') return '<li><b>' + num + esc(p.member) + '</b> — <span class="meta">turn skipped</span></li>';
+          if (p.type === 'drop') return '<li><b>' + num + esc(p.member) + '</b> — <span class="meta">dropped out of the draft</span></li>';
           const what = it ? it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats : p.itemId;
-          return '<li><b>' + (p.assigned ? '' : '#' + p.number + ' ') + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '') + '</li>';
+          return '<li><b>' + (p.assigned ? '' : num) + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '') + '</li>';
         }).join('')
       : '<li class="empty">No picks yet.</li>';
+
+    $('skip-who').textContent = s.current ? s.current.name : 'nobody';
+    $('skip-btn').disabled = !s.current;
   }
 
   /* ------------------------------------------------------------------ */
@@ -328,7 +278,7 @@
   /* Commissioner */
   function fillAssignLists() {
     if (!state) return;
-    const taken = new Set(state.picks.map((p) => p.itemId));
+    const taken = new Set(state.picks.filter((p) => p.itemId).map((p) => p.itemId));
     $('assign-member').innerHTML = '<option value="">Choose member…</option>' +
       state.members.map((m) => '<option>' + esc(m.name) + '</option>').join('');
     const open = state.inventory.filter((i) => !taken.has(i.id));
@@ -370,6 +320,41 @@
     commishAction({ action: 'assign', name, itemId }, $('assign-btn'));
   });
   $('undo-btn').addEventListener('click', () => commishAction({ action: 'undo' }, $('undo-btn')));
+  $('skip-btn').addEventListener('click', () => {
+    if (!state || !state.current) return;
+    commishAction({ action: 'skip', name: state.current.name }, $('skip-btn'));
+  });
+
+  /* Drop out */
+  $('drop-btn').addEventListener('click', () => {
+    if (!state) return;
+    const active = state.members.filter((m) => !m.out);
+    $('drop-name').innerHTML = '<option value="">Choose your name…</option>' +
+      active.map((m) => '<option>' + esc(m.name) + '</option>').join('');
+    $('drop-pin').value = '';
+    $('drop-confirm').checked = false;
+    $('drop-error').textContent = '';
+    $('drop-dialog').showModal();
+  });
+  $('drop-cancel').addEventListener('click', () => $('drop-dialog').close());
+  $('drop-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (busy) return;
+    const name = $('drop-name').value;
+    if (!name) { $('drop-error').textContent = 'Choose your name.'; return; }
+    if (!$('drop-confirm').checked) { $('drop-error').textContent = 'Tick the box to confirm.'; return; }
+    busy = true;
+    $('drop-submit').disabled = true;
+    $('drop-error').textContent = '';
+    apiPost({ action: 'drop', name, pin: $('drop-pin').value })
+      .then((res) => {
+        if (res && res.inventory) apply(res);
+        if (res && res.ok) { $('drop-dialog').close(); toast(res.message || 'Done.'); }
+        else $('drop-error').textContent = (res && res.error) || 'Something went wrong.';
+      })
+      .catch(() => { $('drop-error').textContent = "Couldn't reach the draft."; })
+      .finally(() => { busy = false; $('drop-submit').disabled = false; lastPickCount = state ? state.picks.length : lastPickCount; });
+  });
 
   let toastTimer;
   function toast(msg) {
