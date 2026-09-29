@@ -44,7 +44,10 @@ After a minute or two the site is live at **https://draegs34.github.io/Guardians
 - Share the link. Whoever is **On the clock** taps an open seat pair, enters their PIN and taps **Lock it in**. One pick per turn; in snake order the member at each end of the order picks twice in a row (end of one round, start of the next).
 - If someone texts you their pick, make it for them by entering the **Commissioner PIN** instead of theirs.
 - The board refreshes every 10 seconds for everyone.
-- **Commissioner** (you): use **Commissioner tools → Undo last pick** with your PIN to fix mistakes. You can also edit the Draft Picks tab directly.
+- **Commissioner** (you), under **Commissioner tools** with your PIN:
+  - **Assign a seat pair** to any member. It's outside the draft order, so it doesn't use anyone's turn. It's saved in Draft Picks with Round = `Assigned`.
+  - **Undo last entry** removes the most recent pick or assignment.
+  - You can also edit the Draft Picks tab directly.
 - **Badges:** use the Notes column in Draft Inventory. Separate multiple badges with `;`. Home Game 4 in the ALCS and World Series is marked as available only with home-field advantage, since the lower seed hosts only Games 3–5.
 - To **pause** the draft, set *Draft open* to `FALSE` in Draft Settings.
 - The **Members** panel shows how many picks each person has and what they owe.

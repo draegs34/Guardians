@@ -163,3 +163,8 @@ select:focus, input:focus { outline: 2px solid var(--navy-2); outline-offset: 1p
 .btn:disabled { opacity: .6; cursor: wait; }
 
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 18px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.25); font-size: 14px; max-width: calc(100vw - 32px); z-index: 10; }
+
+.tool { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
+.tool h4 { margin: 0; font-size: 15px; }
+.tool .btn { justify-self: start; }
+dialog { max-height: calc(100vh - 32px); overflow: auto; }

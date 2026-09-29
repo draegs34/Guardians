@@ -90,14 +90,31 @@
   <dialog id="commish-dialog">
     <form method="dialog" id="commish-form">
       <h3>Commissioner tools</h3>
-      <p class="hint">Undo the most recent pick. The draft then goes back to that member's turn.</p>
       <label>Commissioner PIN
-        <input id="commish-pin" type="password" autocomplete="off" required>
+        <input id="commish-pin" type="password" autocomplete="off">
       </label>
+
+      <div class="tool">
+        <h4>Assign a seat pair</h4>
+        <p class="hint">Give an open game and seats to any member. This doesn't use up anyone's turn in the draft order.</p>
+        <label>Member
+          <select id="assign-member"></select>
+        </label>
+        <label>Game &amp; seats
+          <select id="assign-item"></select>
+        </label>
+        <button type="button" class="btn primary" id="assign-btn">Assign</button>
+      </div>
+
+      <div class="tool">
+        <h4>Undo last entry</h4>
+        <p class="hint">Removes the most recent pick or assignment. If it was a pick, the draft goes back to that member's turn.</p>
+        <button type="button" class="btn danger" id="undo-btn">Undo last entry</button>
+      </div>
+
       <p class="form-error" id="commish-error" role="alert"></p>
       <div class="actions">
         <button type="button" class="btn ghost" id="commish-cancel">Close</button>
-        <button type="submit" class="btn danger" id="undo-btn">Undo last pick</button>
       </div>
     </form>
   </dialog>

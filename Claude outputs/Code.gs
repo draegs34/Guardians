@@ -6,7 +6,7 @@
  *
  * It adds four tabs to your sheet (your existing tabs are never touched):
  *   Draft Settings   — title, snake on/off, pick limit, open/paused, commissioner PIN
- *   Draft Members    — draft order and names
+ *   Draft Members    — draft order, names, and each member's PIN
  *   Draft Inventory  — every game + seat pair up for grabs, with prices
  *   Draft Picks      — filled in automatically as people pick (edit only to fix mistakes)
  */
@@ -33,15 +33,15 @@ function setup() {
     ['Snake draft', 'TRUE', 'TRUE = order reverses every round (1→N, then N→1)'],
     ['Max picks per member', '', 'Leave blank for no limit. Members at the limit are skipped.'],
     ['Draft open', 'TRUE', 'Set to FALSE to pause all picking'],
-    ['Commissioner PIN', 'change-me', 'Needed only to undo picks from the page'],
+    ['Commissioner PIN', 'change-me', 'Undo picks, and make a pick for whoever is on the clock'],
   ]);
 
   ensureTab_(ss, TAB.members, [
-    ['Draft order', 'Name'],
-    [1, 'Member 1'],
-    [2, 'Member 2'],
-    [3, 'Member 3'],
-    [4, 'Member 4'],
+    ['Draft order', 'Name', 'PIN'],
+    [1, 'Member 1', '1111'],
+    [2, 'Member 2', '2222'],
+    [3, 'Member 3', '3333'],
+    [4, 'Member 4', '4444'],
   ]);
 
   const inv = [['Item ID', 'Series', 'Game', 'Date', 'Seats', 'Price', 'Notes']];
@@ -70,7 +70,7 @@ function setup() {
 
   SpreadsheetApp.getUi().alert(
     'Draft tabs are ready.\n\n' +
-    '1. Fill in Draft Members (order and names).\n' +
+    '1. Fill in Draft Members (order, names, PINs).\n' +
     '2. Check Draft Inventory (games, seats, prices).\n' +
     '3. Change the Commissioner PIN in Draft Settings.\n' +
     '4. Deploy → New deployment → Web app.'
@@ -132,11 +132,20 @@ function makePick_(data, body) {
   const turn = computeTurn(data.members, data.picks, s.maxPicks, s.snake, 1);
   if (!turn.current || data.picks.length >= data.inventory.length) return { ok: false, error: 'The draft is complete.' };
 
-  // No member PINs: whoever is on the clock gets the pick. The page sends the
-  // name it showed, so a stale screen can't pick for the wrong person.
+  // The pick always goes to whoever is on the clock. The page sends the name
+  // it showed, so a stale screen can't pick for the wrong person.
   const onClock = turn.current.name;
   if (body.name !== onClock) {
     return { ok: false, error: 'The board changed — ' + onClock + ' is on the clock now. Take another look and try again.' };
+  }
+
+  // PIN check: the on-clock member's own PIN, or the commissioner PIN.
+  // A member with a blank PIN cell can pick without one.
+  const member = data.members.filter(function (m) { return m.name === onClock; })[0];
+  const pin = String(body.pin || '').trim();
+  const isCommish = !!s.commissionerPin && pin === s.commissionerPin;
+  if (member && member.pin && pin !== member.pin && !isCommish) {
+    return { ok: false, error: pin ? 'That PIN doesn\'t match.' : 'Enter your PIN.' };
   }
 
   const item = data.inventory.filter(function (i) { return i.id === body.itemId; })[0];
@@ -223,7 +232,7 @@ function readAll_() {
   const settings = readSettings_();
   const members = rows_(TAB.members)
     .filter(function (r) { return String(r[1]).trim() !== ''; })
-    .map(function (r) { return { order: Number(r[0]) || 999, name: String(r[1]).trim() }; })
+    .map(function (r) { return { order: Number(r[0]) || 999, name: String(r[1]).trim(), pin: String(r[2] === undefined ? '' : r[2]).trim() }; })
     .sort(function (a, b) { return a.order - b.order; });
   const inventory = rows_(TAB.inventory)
     .filter(function (r) { return String(r[0]).trim() !== ''; })
@@ -289,7 +298,7 @@ function publicState_(data) {
     snake: s.snake,
     maxPicks: s.maxPicks,
     open: s.open,
-    members: data.members.map(function (m) { return { order: m.order, name: m.name }; }),
+    members: data.members.map(function (m) { return { order: m.order, name: m.name, needsPin: !!m.pin }; }), // PINs never leave the sheet
     inventory: data.inventory,
     picks: data.picks.map(function (p) {
       return { number: p.number, round: p.round, member: p.member, itemId: p.itemId, time: p.time };

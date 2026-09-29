@@ -79,7 +79,7 @@
 
     function pub() {
       const done = picks.length >= inventory.length;
-      const t = done ? { current: null, upcoming: [] } : computeTurn(members, picks, settings.maxPicks, settings.snake, members.length);
+      const t = done ? { current: null, upcoming: [] } : computeTurn(members, picks.filter((p) => !p.assigned), settings.maxPicks, settings.snake, members.length);
       t.upcoming = t.upcoming.slice(0, Math.max(0, inventory.length - picks.length - 1));
       return {
         ok: true, title: settings.title, snake: settings.snake, maxPicks: settings.maxPicks, open: settings.open,
@@ -94,10 +94,20 @@
           if (!isC) return { ok: false, error: 'Only the commissioner can undo picks.' };
           if (!picks.length) return { ok: false, error: 'There are no picks to undo.' };
           const p = picks.pop();
-          return { ok: true, message: 'Undid pick #' + p.number + ' (' + p.member + ').' };
+          return { ok: true, message: p.assigned ? 'Removed the assignment to ' + p.member + '.' : 'Undid pick #' + p.number + ' (' + p.member + ').' };
+        }
+        if (body.action === 'assign') {
+          if (!isC) return { ok: false, error: "That commissioner PIN doesn't match." };
+          const m = members.find((x) => x.name === body.name);
+          if (!m) return { ok: false, error: 'Choose a member.' };
+          const it = inventory.find((i) => i.id === body.itemId);
+          if (!it) return { ok: false, error: 'Choose a game and seats.' };
+          if (picks.some((p) => p.itemId === it.id)) return { ok: false, error: 'That one is already taken.' };
+          picks.push({ number: null, assigned: true, round: null, member: m.name, itemId: it.id, time: new Date().toISOString() });
+          return { ok: true, message: 'Assigned ' + it.series + ' ' + it.game + ', seats ' + it.seats + ' to ' + m.name + '.' };
         }
         if (!settings.open) return { ok: false, error: 'The draft is paused right now.' };
-        const t = computeTurn(members, picks, settings.maxPicks, settings.snake, 1);
+        const t = computeTurn(members, picks.filter((p) => !p.assigned), settings.maxPicks, settings.snake, 1);
         if (!t.current || picks.length >= inventory.length) return { ok: false, error: 'The draft is complete.' };
         const onClock = t.current.name;
         if (body.name !== onClock) return { ok: false, error: 'The board changed — ' + onClock + ' is on the clock now. Take another look and try again.' };
@@ -107,7 +117,7 @@
         const item = inventory.find((i) => i.id === body.itemId);
         if (!item) return { ok: false, error: "That game/seat option wasn't found." };
         if (picks.some((p) => p.itemId === item.id)) return { ok: false, error: 'Sorry — that one was just taken.' };
-        picks.push({ number: picks.length + 1, round: t.current.round, member: onClock, itemId: item.id, time: new Date().toISOString() });
+        picks.push({ number: picks.filter((p) => !p.assigned).length + 1, round: t.current.round, member: onClock, itemId: item.id, time: new Date().toISOString() });
         return { ok: true, message: onClock + ' took ' + item.series + ' ' + item.game + ', seats ' + item.seats + '.' };
       })();
       return Object.assign(pub(), r);
@@ -222,7 +232,7 @@
             const p = takenBy[it.id];
             const fresh = prevIds && p && !prevIds.has(it.id) ? ' just' : '';
             if (p) {
-              return '<div class="seat taken' + fresh + '" title="Pick #' + p.number + '"><span class="s-label">Seats ' + esc(sc) + '</span><span class="s-val">' + esc(p.member) + '</span></div>';
+              return '<div class="seat taken' + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '"><span class="s-label">Seats ' + esc(sc) + '</span><span class="s-val">' + esc(p.member) + '</span></div>';
             }
             if (!canPick) {
               return '<div class="seat"><span class="s-label">Seats ' + esc(sc) + '</span><span class="s-val">Available</span></div>';
@@ -257,7 +267,7 @@
       ? s.picks.slice().reverse().map((p) => {
           const it = s.inventory.find((i) => i.id === p.itemId);
           const what = it ? it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats : p.itemId;
-          return '<li><b>#' + p.number + ' ' + esc(p.member) + '</b> — ' + esc(what) + '</li>';
+          return '<li><b>' + (p.assigned ? '' : '#' + p.number + ' ') + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '') + '</li>';
         }).join('')
       : '<li class="empty">No picks yet.</li>';
   }
@@ -316,26 +326,50 @@
   });
 
   /* Commissioner */
+  function fillAssignLists() {
+    if (!state) return;
+    const taken = new Set(state.picks.map((p) => p.itemId));
+    $('assign-member').innerHTML = '<option value="">Choose member…</option>' +
+      state.members.map((m) => '<option>' + esc(m.name) + '</option>').join('');
+    const open = state.inventory.filter((i) => !taken.has(i.id));
+    $('assign-item').innerHTML = '<option value="">' + (open.length ? 'Choose game & seats…' : 'Nothing left to assign') + '</option>' +
+      open.map((i) => '<option value="' + esc(i.id) + '">' + esc(i.series.replace(/^AL /, '') + ' — ' + i.game + ' · Seats ' + i.seats + ' · ' + money(i.price)) + '</option>').join('');
+  }
+
   $('commish-btn').addEventListener('click', () => {
     $('commish-pin').value = '';
     $('commish-error').textContent = '';
+    fillAssignLists();
     $('commish-dialog').showModal();
+    setTimeout(() => $('commish-pin').focus(), 50);
   });
   $('commish-cancel').addEventListener('click', () => $('commish-dialog').close());
-  $('commish-form').addEventListener('submit', (e) => {
-    e.preventDefault();
+  $('commish-form').addEventListener('submit', (e) => e.preventDefault());
+
+  function commishAction(body, btn) {
     if (busy) return;
+    if (!$('commish-pin').value.trim()) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
     busy = true;
-    $('undo-btn').disabled = true;
-    apiPost({ action: 'undo', pin: $('commish-pin').value })
+    btn.disabled = true;
+    $('commish-error').textContent = '';
+    body.pin = $('commish-pin').value;
+    apiPost(body)
       .then((res) => {
         if (res && res.inventory) apply(res);
-        if (res && res.ok) { $('commish-dialog').close(); toast(res.message || 'Undone.'); }
-        else $('commish-error').textContent = (res && res.error) || 'Something went wrong.';
+        if (res && res.ok) { $('commish-dialog').close(); toast(res.message || 'Done.'); }
+        else { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; fillAssignLists(); }
       })
       .catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; })
-      .finally(() => { busy = false; $('undo-btn').disabled = false; lastPickCount = state ? state.picks.length : lastPickCount; });
+      .finally(() => { busy = false; btn.disabled = false; lastPickCount = state ? state.picks.length : lastPickCount; });
+  }
+
+  $('assign-btn').addEventListener('click', () => {
+    const name = $('assign-member').value;
+    const itemId = $('assign-item').value;
+    if (!name || !itemId) { $('commish-error').textContent = 'Choose a member and a game/seat pair.'; return; }
+    commishAction({ action: 'assign', name, itemId }, $('assign-btn'));
   });
+  $('undo-btn').addEventListener('click', () => commishAction({ action: 'undo' }, $('undo-btn')));
 
   let toastTimer;
   function toast(msg) {
