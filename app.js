@@ -227,7 +227,13 @@
       clock.querySelector('.clock-label').textContent = 'Final';
     } else {
       clock.querySelector('.clock-label').textContent = s.open ? 'On the clock' : 'Draft paused';
-      $('clock-name').textContent = s.current.name;
+      // Slow-pick indicator: over an hour since the last pick/turn change.
+      const since = turnStartedAt(s);
+      const waited = since ? Date.now() - since : 0;
+      const slow = waited >= 60 * 60 * 1000;
+      $('clock-name').innerHTML = esc(s.current.name) + (slow
+        ? ' <span class="slow-clock" title="On the clock for ' + esc(fmtWait(waited)) + '" role="img" aria-label="On the clock for ' + esc(fmtWait(waited)) + '">' + CLOCK_SVG + '<span>' + esc(fmtWait(waited)) + '</span></span>'
+        : '');
       $('clock-meta').textContent = 'Round ' + s.current.round + ' · Pick ' + s.current.pick + ' · ' + left + ' left' + (s.snake ? ' · Snake order' : '');
     }
 
@@ -517,6 +523,25 @@
     if (state) render(null);
   });
 
+  /* When did the current member go on the clock? = time of the last entry that
+     moved the draft along (a pick, a skip, or a drop-out that used a turn). */
+  function turnStartedAt(s) {
+    for (let i = s.picks.length - 1; i >= 0; i--) {
+      const p = s.picks[i];
+      if (p.type === 'pick' || p.type === 'skip' || (p.type === 'drop' && p.number)) {
+        const t = new Date(p.time).getTime();
+        return isNaN(t) ? null : t;
+      }
+    }
+    return null; // no picks yet — nothing to measure from
+  }
+  function fmtWait(ms) {
+    const m = Math.floor(ms / 60000);
+    const h = Math.floor(m / 60);
+    return h + 'h ' + String(m % 60).padStart(2, '0') + 'm';
+  }
+  const CLOCK_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+
   /* Pick-log timestamps, always shown in Eastern Time */
   const etFmt = (() => {
     try {
@@ -556,6 +581,9 @@
   }
 
   // Start
+  // Keep the slow-pick timer current even when nothing else changes.
+  setInterval(() => { if (state && !busy && !document.querySelector('dialog[open]')) render(null); }, 60000);
+
   const cached = loadCache();
   if (cached) {
     stale = true;
