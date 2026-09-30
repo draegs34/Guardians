@@ -246,6 +246,5 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .log-time { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Slow pick: over an hour on the clock */
-.slow-clock { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; margin-left: 6px; padding: 3px 10px 3px 7px; border-radius: 999px; background: #fff4d6; color: #8a5a00; font-size: 14px; font-weight: 700; letter-spacing: 0; }
-.slow-clock svg { flex: none; }
-:root[data-theme="dark"] .slow-clock { background: #3a300f; color: #f5dd98; }
+.slow-clock { display: inline-flex; vertical-align: middle; margin-left: 8px; color: var(--muted); opacity: .8; }
+.slow-clock svg { width: 20px; height: 20px; }

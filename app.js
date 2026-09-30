@@ -232,7 +232,7 @@
       const waited = since ? Date.now() - since : 0;
       const slow = waited >= 60 * 60 * 1000;
       $('clock-name').innerHTML = esc(s.current.name) + (slow
-        ? ' <span class="slow-clock" title="On the clock for ' + esc(fmtWait(waited)) + '" role="img" aria-label="On the clock for ' + esc(fmtWait(waited)) + '">' + CLOCK_SVG + '<span>' + esc(fmtWait(waited)) + '</span></span>'
+        ? ' <span class="slow-clock" aria-hidden="true">' + CLOCK_SVG + '</span>'
         : '');
       $('clock-meta').textContent = 'Round ' + s.current.round + ' · Pick ' + s.current.pick + ' · ' + left + ' left' + (s.snake ? ' · Snake order' : '');
     }
