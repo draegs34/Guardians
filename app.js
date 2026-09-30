@@ -300,10 +300,16 @@
       ? s.picks.slice().reverse().map((p) => {
           const it = s.inventory.find((i) => i.id === p.itemId);
           const num = p.number ? '#' + p.number + ' ' : '';
-          if (p.type === 'skip') return '<li><b>' + num + esc(p.member) + '</b> — <span class="meta">turn skipped</span></li>';
-          if (p.type === 'drop') return '<li><b>' + num + esc(p.member) + '</b> — <span class="meta">dropped out of the draft</span></li>';
-          const what = it ? it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats : p.itemId;
-          return '<li><b>' + (p.assigned ? '' : num) + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '') + '</li>';
+          const when = etTime(p.time);
+          const stamp = when ? '<time class="log-time" datetime="' + esc(p.time) + '">' + esc(when) + '</time>' : '';
+          let body;
+          if (p.type === 'skip') body = '<b>' + num + esc(p.member) + '</b> — <span class="meta">turn skipped</span>';
+          else if (p.type === 'drop') body = '<b>' + num + esc(p.member) + '</b> — <span class="meta">dropped out of the draft</span>';
+          else {
+            const what = it ? it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats : p.itemId;
+            body = '<b>' + (p.assigned ? '' : num) + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '');
+          }
+          return '<li>' + body + stamp + '</li>';
         }).join('')
       : '<li class="empty">No picks yet.</li>';
 
@@ -510,6 +516,19 @@
     try { if (me) localStorage.setItem(ME_KEY, me); else localStorage.removeItem(ME_KEY); } catch (err) { /* ignore */ }
     if (state) render(null);
   });
+
+  /* Pick-log timestamps, always shown in Eastern Time */
+  const etFmt = (() => {
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return null; }
+  })();
+  function etTime(iso) {
+    if (!iso || !etFmt) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return etFmt.format(d).replace(',', '') + ' ET';
+  }
 
   /* Light/dark toggle — light by default, choice remembered per device */
   function syncThemeBtn() {

@@ -92,8 +92,22 @@ function ensureTab_(ss, name, rows) {
 /* Web app endpoints                                                        */
 /* ----------------------------------------------------------------------- */
 
+// Short-lived cache so many people refreshing at once don't each re-read the
+// sheet. Picks update it immediately; direct sheet edits show within a few seconds.
+const CACHE_KEY = 'draft-state-v1';
+const CACHE_SECONDS = 5;
+
 function doGet() {
-  return json_(DraftEngine.publicState(readAll_()));
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get(CACHE_KEY);
+  if (hit) return ContentService.createTextOutput(hit).setMimeType(ContentService.MimeType.JSON);
+  const text = JSON.stringify(DraftEngine.publicState(readAll_()));
+  putCache_(text);
+  return ContentService.createTextOutput(text).setMimeType(ContentService.MimeType.JSON);
+}
+
+function putCache_(text) {
+  try { CacheService.getScriptCache().put(CACHE_KEY, text, CACHE_SECONDS); } catch (e) { /* too big or unavailable: skip */ }
 }
 
 function doPost(e) {
@@ -109,14 +123,25 @@ function doPost(e) {
     return json_({ ok: false, error: 'The draft is busy — please try again in a moment.' });
   }
   try {
-    const result = DraftEngine.apply(readAll_(), body);
+    const data = readAll_();
+    const result = DraftEngine.apply(data, body);
     if (result.ok) {
-      const sh = SpreadsheetApp.getActive().getSheetByName(TAB.picks);
-      if (result.append) sh.appendRow(result.append);
-      if (result.deleteRow) sh.deleteRow(result.deleteRow);
+      const sh = ss_().getSheetByName(TAB.picks);
+      // Update the in-memory copy too, so we don't have to re-read the sheet.
+      if (result.append) {
+        sh.appendRow(result.append);
+        data.events.push(DraftEngine.rowToEvent(result.append, sh.getLastRow()));
+      }
+      if (result.deleteRow) {
+        sh.deleteRow(result.deleteRow);
+        data.events = data.events
+          .filter(function (ev) { return ev.row !== result.deleteRow; })
+          .map(function (ev) { if (ev.row > result.deleteRow) ev.row--; return ev; });
+      }
       SpreadsheetApp.flush();
     }
-    const fresh = DraftEngine.publicState(readAll_());
+    const fresh = DraftEngine.publicState(data);
+    if (result.ok) putCache_(JSON.stringify(fresh));
     fresh.ok = result.ok;
     if (result.error) fresh.error = result.error;
     if (result.message) fresh.message = result.message;
@@ -168,12 +193,14 @@ function readSettings_() {
   };
 }
 
+let ss__ = null;
+function ss_() { return ss__ || (ss__ = SpreadsheetApp.getActive()); }
+
+// One read per tab (getDataRange), which is much faster than several small calls.
 function rows_(tabName, withRowNumbers) {
-  const sh = SpreadsheetApp.getActive().getSheetByName(tabName);
+  const sh = ss_().getSheetByName(tabName);
   if (!sh) throw new Error('Missing tab "' + tabName + '". Run setup() first.');
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-  const values = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+  const values = sh.getDataRange().getValues().slice(1);
   if (!withRowNumbers) return values;
   return values.map(function (v, i) { return { row: i + 2, values: v }; });
 }
