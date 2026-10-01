@@ -14,7 +14,7 @@
   let pendingItem = null;
   let pendingName = null;
   let busy = false;
-  const UP_NEXT_COUNT = 10; // rows in Up next, including whoever is on the clock and any struck-through dropouts
+  const UP_NEXT_COUNT = 10; // rows in Up next, including whoever is on the clock (dropouts aren't listed)
 
   // Which member this device belongs to, for turn alerts. Per-device, stored locally.
   const ME_KEY = 'guardians-draft-me';
@@ -286,7 +286,7 @@
     let up = done ? [] : [s.current].concat(s.upcoming || []);
     if (!done && window.DraftEngine) {
       try {
-        const full = DraftEngine.computeTurn(s.members, s.picks, s.maxPicks, s.snake, UP_NEXT_COUNT);
+        const full = DraftEngine.computeTurn(s.members, s.picks, s.maxPicks, s.snake, UP_NEXT_COUNT - 1);
         if (full.current && full.current.name === s.current.name && full.current.pick === s.current.pick) {
           const shown = [];
           for (const u of full.upcoming) {
@@ -299,9 +299,8 @@
         }
       } catch (e) { /* fall back to the server's list */ }
     }
-    // Cap the list at UP_NEXT_COUNT rows total, struck-through names included.
-    up = up.slice(0, UP_NEXT_COUNT);
-    while (up.length > 1 && up[up.length - 1].out) up.pop();
+    // Members who dropped out aren't listed at all; show the next UP_NEXT_COUNT picks.
+    up = up.filter((t) => !t.out).slice(0, UP_NEXT_COUNT);
     const seatsLeft = left;
     let eligibleIdx = 0;
     $('upcoming').innerHTML = up.length

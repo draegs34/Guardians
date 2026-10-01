@@ -45,7 +45,7 @@ After a minute or two the site is live at **https://draegs34.github.io/Guardians
 - If someone texts you their pick, make it for them by entering the **Commissioner PIN** instead of theirs.
 - The board refreshes every 10 seconds for everyone.
 - **Turn alerts:** each member picks their name under **Turn alerts on this device for** (remembered per phone/computer). When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner warns them when they're up next. There's no sound, and alerts only show while the page is open (background tabs check every 30 seconds).
-- **Dropping out:** a member taps **Drop out of the draft**, picks their name and enters their PIN. They keep seats already picked, get no more turns, and show struck through in Up next. If they're on the clock, it uses their turn. This is logged as `DROPPED OUT`.
+- **Dropping out:** a member taps **Drop out of the draft**, picks their name and enters their PIN. They keep seats already picked, get no more turns, and are removed from Up next. If they're on the clock, it uses their turn. This is logged as `DROPPED OUT`.
 - **Commissioner** (you), under **Commissioner tools** with your PIN:
   - **Assign a seat pair** to any member. It's outside the draft order, so it doesn't use anyone's turn. It's saved in Draft Picks with Round = `Assigned`.
   - **Skip to next member** passes the on-clock member's turn (logged as `SKIPPED`).
