@@ -248,3 +248,7 @@ body.stale .seat:not(.taken) { opacity: .7; }
 /* Slow pick: over an hour on the clock */
 .slow-clock { display: inline-flex; vertical-align: middle; margin-left: 8px; color: var(--muted); opacity: .8; }
 .slow-clock svg { width: 20px; height: 20px; }
+
+/* Turns beyond the seats left: only happen if someone ahead drops out */
+.upcoming li.standby { color: var(--muted); }
+.upcoming li.standby .meta { font-style: italic; }

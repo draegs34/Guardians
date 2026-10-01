@@ -279,12 +279,35 @@
         }).join('') + '</div>';
     }).join('');
 
-    // Up next
-    const up = done ? [] : [s.current].concat(s.upcoming || []);
+    // Up next. The server trims this list to the number of seats left, but if
+    // someone ahead drops out the draft keeps going, so rebuild a longer list
+    // here (same rules, engine.js) and mark the extras as "if needed".
+    let up = done ? [] : [s.current].concat(s.upcoming || []);
+    if (!done && window.DraftEngine) {
+      try {
+        const full = DraftEngine.computeTurn(s.members, s.picks, s.maxPicks, s.snake, s.members.length);
+        if (full.current && full.current.name === s.current.name && full.current.pick === s.current.pick) {
+          const shown = [];
+          for (const u of full.upcoming) {
+            const prev = shown[shown.length - 1];
+            if (u.out && prev && prev.out && prev.name === u.name) continue;
+            shown.push(u);
+          }
+          while (shown.length && shown[shown.length - 1].out) shown.pop();
+          up = [s.current].concat(shown);
+        }
+      } catch (e) { /* fall back to the server's list */ }
+    }
+    const seatsLeft = left;
+    let eligibleIdx = 0;
     $('upcoming').innerHTML = up.length
-      ? up.map((t) => t.out
-          ? '<li class="out"><s>' + esc(t.name) + '</s><span class="meta">Out</span></li>'
-          : '<li' + (me && t.name === me ? ' class="me"' : '') + '><span>' + esc(t.name) + '</span><span class="meta">Rd ' + t.round + ' · #' + t.pick + '</span></li>').join('')
+      ? up.map((t) => {
+          if (t.out) return '<li class="out"><s>' + esc(t.name) + '</s><span class="meta">Out</span></li>';
+          const extra = eligibleIdx++ >= seatsLeft; // only gets a turn if someone ahead drops out
+          const cls = [me && t.name === me ? 'me' : '', extra ? 'standby' : ''].filter(Boolean).join(' ');
+          return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span>' + esc(t.name) + '</span><span class="meta">' +
+            (extra ? 'If needed' : 'Rd ' + t.round + ' · #' + t.pick) + '</span></li>';
+        }).join('')
       : '<li class="empty">Nothing left to pick.</li>';
 
     // Totals
