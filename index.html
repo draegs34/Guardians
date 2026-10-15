@@ -29,6 +29,10 @@
     <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
+  <div id="price-banner" class="demo-banner price-banner" hidden>
+    <div class="wrap"><span id="price-banner-text"></span> <button class="link-btn" id="price-review" type="button">Review &amp; apply</button></div>
+  </div>
+
   <div id="turn-alert" class="turn-alert" role="alert" hidden>
     <div class="wrap turn-alert-inner">
       <span class="turn-alert-dot" aria-hidden="true"></span>
@@ -112,6 +116,13 @@
       <label>Commissioner PIN
         <input id="commish-pin" type="password" autocomplete="off">
       </label>
+
+      <div class="tool" id="prices-tool" hidden>
+        <h4>Update prices from Season Ticket Manager</h4>
+        <p class="hint">New price per pair for every open and future seat. Picks already made keep the price they were drafted at.</p>
+        <ul class="price-list" id="price-list"></ul>
+        <button type="button" class="btn primary" id="prices-btn">Update prices</button>
+      </div>
 
       <div class="tool">
         <h4>Assign a seat pair</h4>

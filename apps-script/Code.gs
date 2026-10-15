@@ -124,6 +124,15 @@ function doPost(e) {
   }
   try {
     const data = readAll_();
+    if (body.action === 'setPrices') {
+      const r = setPrices_(data, body);
+      const fresh2 = DraftEngine.publicState(r.ok ? readAll_() : data);
+      if (r.ok) putCache_(JSON.stringify(fresh2));
+      fresh2.ok = r.ok;
+      if (r.error) fresh2.error = r.error;
+      if (r.message) fresh2.message = r.message;
+      return json_(fresh2);
+    }
     const result = DraftEngine.apply(data, body);
     if (result.ok) {
       const sh = ss_().getSheetByName(TAB.picks);
@@ -149,6 +158,38 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Commissioner-only: update Draft Inventory prices by round.
+ * body.prices = { ALDS: 432, ALCS: 646, WS: 1090 } — keyed by the Item ID prefix.
+ * Picks already in Draft Picks keep the price recorded when they were made.
+ */
+function setPrices_(data, body) {
+  const pin = String(body.pin || '').trim();
+  if (!data.settings.commissionerPin || pin !== data.settings.commissionerPin) {
+    return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  }
+  const prices = body.prices || {};
+  const sh = ss_().getSheetByName(TAB.inventory);
+  const last = sh.getLastRow();
+  if (last < 2) return { ok: false, error: 'Draft Inventory is empty.' };
+  const ids = sh.getRange(2, 1, last - 1, 1).getValues();
+  const priceRange = sh.getRange(2, 6, last - 1, 1);
+  const cur = priceRange.getValues();
+  let changed = 0;
+  const next = cur.map(function (row, i) {
+    const prefix = String(ids[i][0]).trim().split('-')[0].toUpperCase();
+    if (!prefix || !Object.prototype.hasOwnProperty.call(prices, prefix)) return row;
+    const p = Number(prices[prefix]);
+    if (!isFinite(p) || p < 0) return row;
+    if (Number(row[0]) !== p) changed++;
+    return [p];
+  });
+  if (!changed) return { ok: true, message: 'Prices already match.' };
+  priceRange.setValues(next);
+  SpreadsheetApp.flush();
+  return { ok: true, message: 'Updated ' + changed + ' seat price' + (changed === 1 ? '' : 's') + '.' };
 }
 
 /* ----------------------------------------------------------------------- */

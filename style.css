@@ -252,3 +252,11 @@ body.stale .seat:not(.taken) { opacity: .7; }
 /* Turns beyond the seats left: only happen if someone ahead drops out */
 .upcoming li.standby { color: var(--muted); }
 .upcoming li.standby .meta { font-style: italic; }
+
+/* Prices sent from the Season Ticket Manager */
+.price-banner { background: #e6f2ea; color: #134a2c; border-color: #b9dbc5; }
+:root[data-theme="dark"] .price-banner { background: #12301f; color: #bfe8cf; border-color: #1f4d33; }
+.price-banner .link-btn { font-weight: 700; }
+.price-list { list-style: none; margin: 0 0 10px; padding: 0; }
+.price-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(127,127,127,.25); }
+.price-list em { font-style: normal; opacity: .65; font-size: 12px; }

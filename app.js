@@ -58,6 +58,11 @@
       events: rows.map((r, i) => DraftEngine.rowToEvent(r, i + 2)),
     });
     function post(body) {
+      if (body.action === 'setPrices') {
+        if (body.pin !== settings.commissionerPin) return Object.assign(DraftEngine.publicState(data()), { ok: false, error: 'That commissioner PIN doesn\'t match.' });
+        inventory.forEach((i) => { const k = i.id.split('-')[0].toUpperCase(); if (k in body.prices) i.price = body.prices[k]; });
+        return Object.assign(DraftEngine.publicState(data()), { ok: true, message: 'Prices updated.' });
+      }
       const r = DraftEngine.apply(data(), body);
       if (r.ok && r.append) rows.push(r.append);
       if (r.ok && r.deleteRow) rows.splice(r.deleteRow - 2, 1);
@@ -207,6 +212,7 @@
   }
 
   function render(prevIds) {
+    if (typeof renderPriceTool === 'function') { try { renderPriceTool(); } catch (e) { /* tool not ready */ } }
     const s = state;
     if (!titleTimer) document.title = s.title || 'Postseason Draft';
     $('title').textContent = s.title || 'Postseason Draft';
@@ -416,26 +422,78 @@
       open.map((i) => '<option value="' + esc(i.id) + '">' + esc(i.series.replace(/^AL /, '') + ' — ' + i.game + ' · Seats ' + i.seats + ' · ' + money(i.price)) + '</option>').join('');
   }
 
+  /* Prices sent from the Season Ticket Manager: #prices=ALDS:432,ALCS:646,WS:1090 */
+  const ROUND_NAMES = { WC: 'Wild Card', ALDS: 'Division Series', ALCS: 'Championship Series', WS: 'World Series' };
+  function readPriceHash() {
+    const m = location.hash.match(/prices=([A-Za-z0-9:.,]+)/);
+    if (!m) return null;
+    const out = {};
+    m[1].split(',').forEach((pair) => {
+      const [k, v] = pair.split(':');
+      const n = Number(v);
+      if (k && isFinite(n) && n >= 0) out[k.toUpperCase()] = n;
+    });
+    return Object.keys(out).length ? out : null;
+  }
+  let sentPrices = readPriceHash();
+  function currentPrice(prefix) {
+    const it = state && state.inventory.find((i) => i.id.split('-')[0].toUpperCase() === prefix);
+    return it ? it.price : null;
+  }
+  function renderPriceTool() {
+    const show = !!sentPrices;
+    $('price-banner').hidden = !show;
+    $('prices-tool').hidden = !show;
+    if (!show) return;
+    const keys = Object.keys(sentPrices).filter((k) => currentPrice(k) !== null);
+    const diff = keys.filter((k) => currentPrice(k) !== sentPrices[k]);
+    $('price-banner-text').textContent = diff.length
+      ? 'Season Ticket Manager sent new prices for ' + diff.map((k) => k).join(', ') + '.'
+      : 'Season Ticket Manager prices already match this draft.';
+    $('price-review').hidden = !diff.length;
+    $('price-list').innerHTML = keys.map((k) => {
+      const c = currentPrice(k), n = sentPrices[k];
+      return '<li><span>' + esc(ROUND_NAMES[k] || k) + '</span><span>' + (c === n ? money(n) + ' <em>no change</em>' : '<s>' + money(c) + '</s> → <strong>' + money(n) + '</strong>') + '</span></li>';
+    }).join('');
+    $('prices-btn').disabled = !diff.length;
+  }
+  function clearPriceHash() {
+    sentPrices = null;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+    renderPriceTool();
+  }
+  window.addEventListener('hashchange', () => { sentPrices = readPriceHash(); renderPriceTool(); });
+  $('price-review').addEventListener('click', () => $('commish-btn').click());
+  $('prices-btn').addEventListener('click', () => {
+    if (!sentPrices) return;
+    const prices = sentPrices;
+    commishAction({ action: 'setPrices', prices }, $('prices-btn'), (res) => { if (res && res.ok) clearPriceHash(); });
+  });
+
   $('commish-btn').addEventListener('click', () => {
     $('commish-pin').value = '';
     $('commish-error').textContent = '';
     fillAssignLists();
+    renderPriceTool();
     $('commish-dialog').showModal();
     setTimeout(() => $('commish-pin').focus(), 50);
   });
   $('commish-cancel').addEventListener('click', () => $('commish-dialog').close());
   $('commish-form').addEventListener('submit', (e) => e.preventDefault());
 
-  function commishAction(body, btn) {
+  function commishAction(body, btn, after) {
     if (busy) return;
     if (!$('commish-pin').value.trim()) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
     busy = true;
     btn.disabled = true;
     $('commish-error').textContent = '';
     body.pin = $('commish-pin').value;
-    postVerified(body, changed)
+    const pricesLanded = (s) => Object.keys(body.prices || {}).every((k) =>
+      s.inventory.filter((i) => i.id.split('-')[0].toUpperCase() === k).every((i) => i.price === body.prices[k]));
+    postVerified(body, body.action === 'setPrices' ? pricesLanded : changed)
       .then((res) => {
         if (res && res.inventory) apply(res);
+        if (after) after(res);
         if (res && res.ok) { $('commish-dialog').close(); toast(res.message || 'Saved.'); }
         else { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; fillAssignLists(); }
       })
