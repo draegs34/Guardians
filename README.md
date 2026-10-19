@@ -1,65 +1,94 @@
-# Guardians Postseason Ticket Draft
+# Guardians Ticket Drafts
 
-A live, pick-by-pick draft page for our season ticket group. Members take turns (snake order by default) claiming postseason home games and seat pairs. Every pick is saved to our Google Sheet.
+Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The page has three tabs:
 
-- **The page** (`index.html`, `app.js`, `engine.js`, `style.css`, `config.js`) is hosted free on GitHub Pages.
-- **The data** lives in the Google Sheet. A small Apps Script (`apps-script/Code.gs`) reads and writes it.
+- **Regular season**: members draft home games one at a time. Each pick is one game with all four seats.
+- **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10).
+- **Past drafts**: read-only results of drafts the commissioner has archived.
 
-Until `config.js` has a script URL, the page runs in **demo mode** with sample members, so you can try it out.
+Both drafts run from one Google Sheet. A small Apps Script (`apps-script/Code.gs`) reads and writes it, and the page is hosted free on GitHub Pages at **https://draegs34.github.io/Guardians/**.
 
----
-
-## One-time setup (about 10 minutes)
-
-### 1. Add the script to the Google Sheet
-1. Open the draft Google Sheet → **Extensions → Apps Script**.
-2. Delete whatever is in `Code.gs`, then paste in the full contents of `apps-script/Code.gs` from this repo. Click **Save**.
-3. In the toolbar's function dropdown, choose **setup** and click **Run**. Approve the permissions prompt: it's your own script, so click *Advanced → Go to project* if Google warns you.
-4. Back in the sheet you'll see four new tabs. Your existing tabs aren't changed.
-   - **Draft Members**: draft order, names and a PIN for each member (column C). Send each person their PIN privately. Leave a PIN blank to let that member pick without one.
-   - **Draft Inventory**: every game and seat pair up for grabs, with prices. Add, remove or edit rows freely.
-   - **Draft Settings**: title, snake draft on/off, optional max picks per member, open/paused, and the **Commissioner PIN** (for undo, and for picking on someone's behalf). Change `change-me`!
-   - **Draft Picks**: filled in automatically. Only edit it to fix a mistake.
-
-### 2. Deploy the script as a web app
-1. In Apps Script, click **Deploy → New deployment**.
-2. Click the gear next to "Select type" → **Web app**.
-3. Set **Execute as: Me** and **Who has access: Anyone**. Members don't need Google accounts; their PINs protect the picks.
-4. Click **Deploy**, then copy the **Web app URL** (it ends in `/exec`).
-
-### 3. Point the page at the script
-Open `config.js` and paste the URL:
-```js
-window.DRAFT_API_URL = "https://script.google.com/macros/s/XXXXXXXX/exec";
-```
-Commit and push.
-
-### 4. Turn on GitHub Pages
-On GitHub: repo **Settings → Pages** → Source **Deploy from a branch** → Branch **main**, folder **/(root)** → **Save**.
-After a minute or two the site is live at **https://draegs34.github.io/Guardians/**.
+- Link straight to a tab: `#regular-season`, `#postseason` or `#past-drafts`.
+- Until `config.js` has a script URL, the page runs in **demo mode** with sample members and the real 2027 schedule.
 
 ---
 
-## Running the draft
-- Share the link. Whoever is **On the clock** taps an open seat pair, enters their PIN and taps **Lock it in**. One pick per turn; in snake order the member at each end of the order picks twice in a row (end of one round, start of the next).
-- If someone texts you their pick, make it for them by entering the **Commissioner PIN** instead of theirs.
-- The board refreshes every 10 seconds for everyone.
-- **Turn alerts:** each member picks their name under **Turn alerts on this device for** (remembered per phone/computer). When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner warns them when they're up next. There's no sound, and alerts only show while the page is open (background tabs check every 30 seconds).
-- **Dropping out:** a member taps **Drop out of the draft**, picks their name and enters their PIN. They keep seats already picked, get no more turns, and are removed from Up next. If they're on the clock, it uses their turn. This is logged as `DROPPED OUT`.
-- **Commissioner** (you), under **Commissioner tools** with your PIN:
-  - **Assign a seat pair** to any member. It's outside the draft order, so it doesn't use anyone's turn. It's saved in Draft Picks with Round = `Assigned`.
-  - **Skip to next member** passes the on-clock member's turn (logged as `SKIPPED`).
-  - **Undo last entry** removes the most recent pick, assignment, skip or drop-out.
-  - You can also edit the Draft Picks tab directly.
-- **Badges:** use the Notes column in Draft Inventory. Separate multiple badges with `;`. Home Game 4 in the ALCS and World Series is marked as available only with home-field advantage, since the lower seed hosts only Games 3–5.
-- To **pause** the draft, set *Draft open* to `FALSE` in Draft Settings.
-- The **Members** panel shows how many picks each person has and what they owe.
+## Updating the script (do this after pulling new code)
 
-## If you change the script later
-Edit it in Apps Script, then go to **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. The URL stays the same.
+1. In the Google Sheet, open **Extensions → Apps Script**.
+2. Replace everything in `Code.gs` with `apps-script/Code.gs` from this repo, then click **Save**.
+3. **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy**. The URL stays the same.
+4. Reload the Google Sheet. A **Guardians Draft** menu appears.
 
-*Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*
+The first time you run a menu item, Google asks for permission. It's your own script, so click *Advanced → Go to project*. It needs access to the sheet, plus permission to fetch the schedule from MLB.
+
+---
+
+## Regular season draft
+
+### Set it up (once per season)
+In the sheet, choose **Guardians Draft → Set up regular season draft**. This creates five tabs and loads the schedule from MLB. Existing tabs are never overwritten.
+
+| Tab | What it's for |
+|---|---|
+| **RS Settings** | Title, season, snake on/off, **Draft open** (starts `FALSE`), **Pick time limit on** (starts `FALSE`), **Pick time limit (hours)**, commissioner PIN |
+| **RS Members** | Name, PIN, and **Games purchased**. Starts as a copy of the postseason list; edit it freely. Games purchased is each member's limit. |
+| **RS Draft Order** | One row per draft slot. List a member **once for every 5 games** they purchased (10 games = 2 rows). A round is the number of rows (16 slots = 16 picks per round). Snake order reverses each round. |
+| **RS Games** | Every home game: MLB game ID, date, day, opponent, start time (ET), promotions, notes |
+| **RS Picks** | Filled in automatically. Only edit it to fix a mistake. |
+
+**How picking works:** members pick in the order on RS Draft Order, one game per turn. A member stops getting turns once they reach their **Games purchased**. Commissioner assignments count toward that number. If games purchased isn't a multiple of 5, the member keeps picking in later rounds until they reach it.
+
+### Keep the schedule current
+Choose **Guardians Draft → Refresh regular season schedule from MLB** any time. It pulls the latest dates, opponents, start times and promotions from MLB's official data.
+
+- Rows are matched by game ID, so picks are never affected.
+- Your **Notes** are never touched.
+- **Promotions** are only filled when MLB lists them, so anything you typed in yourself stays.
+- As of October 2026, MLB lists all 81 home games, but start times are still TBD and promotions haven't been announced yet.
+
+### Highlights and filters on the page
+- **Home Opener**: the first home game.
+- **Holidays**: Mother's Day, Memorial Day, Father's Day, the Fourth of July and Labor Day. These are highlighted with a red edge.
+- **Weekday day game**: a Monday–Friday game starting before 5 PM ET, highlighted with a gold edge. These only show once MLB posts a start time.
+- **Promotions** from the Promotions column, and any **Notes** (separate several with `;`).
+- **Filters**: All or Available; Weekends, Weekday day games, Holidays or Promotions; Month; Opponent.
+
+### Pick time limit (off for now)
+Set **Pick time limit on** to `TRUE` and enter the hours in **Pick time limit (hours)**. The page then shows a countdown, and a member whose time runs out is skipped automatically. The log says "turn skipped (time ran out)".
+
+- The clock starts with the first pick.
+- If you pause the draft (`Draft open` = `FALSE`) for longer than the limit, turn the time limit off before reopening. Otherwise whoever is on the clock is skipped right away.
+- The small gray clock icon still appears next to anyone who has been on the clock for over an hour.
+
+---
+
+## Postseason draft
+This works the same as before, using the **Draft Settings**, **Draft Members**, **Draft Inventory** and **Draft Picks** tabs. For a brand-new sheet, choose **Guardians Draft → Set up postseason tabs**.
+
+---
+
+## Running a draft (both)
+- **Picking**: whoever is **On the clock** taps an open game or seat pair, enters their PIN and taps **Lock it in**.
+- **Picks texted to you**: make the pick for that member by entering your **Commissioner PIN** instead of theirs.
+- **Updates**: the board refreshes every 10 seconds.
+- **Turn alerts**: each member chooses their name under **Turn alerts on this device for**. This is remembered per device and per draft. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
+- **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
+- **Commissioner tools** (enter your PIN first):
+  - **Assign** a game to any member. This doesn't use a turn.
+  - **Skip to next member**.
+  - **Undo last entry**: removes the most recent pick, assignment, skip or drop-out.
+  - **Archive this draft**: click twice to confirm. This copies the picks to a new **Archive · …** tab in the sheet, clears the board so it's ready for next time, and adds the draft to **Past drafts**. Settings, members and games are left as they are.
+- **Pausing**: set **Draft open** to `FALSE`.
+- **Prices from the Season Ticket Manager** (postseason): opening the draft link the Manager sends (`…#prices=ALDS:432,ALCS:646,WS:1090`) shows a green banner. **Commissioner tools → Update prices from Season Ticket Manager** applies the new prices to Draft Inventory. Picks already made keep the price they were drafted at.
+
+> **Season Ticket Manager:** its draft-feed pull reads the **postseason** draft, the same as before. Once you archive the postseason draft, the feed shows no picks. Pull the final picks into the Manager **before** archiving.
+
+---
 
 ## For developers
-- **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files. Otherwise phones may keep running an old cached copy.
-- The draft rules live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other.
+- **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
+- **Draft rules:** these live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other.
+- **Choosing a draft:** the script's web app takes `?draft=rs` or `?draft=post` (the default), plus `?view=archives`. POST bodies carry `"draft"`.
+
+*Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*

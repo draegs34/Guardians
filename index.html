@@ -3,30 +3,35 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Postseason Ticket Draft</title>
-  <meta name="description" content="Live pick-by-pick draft for our season ticket group's postseason home games.">
+  <title>Guardians Ticket Draft</title>
+  <meta name="description" content="Pick-by-pick drafts for our season ticket group's regular season and postseason home games.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>try { if (localStorage.getItem('guardians-draft-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
-  <link rel="stylesheet" href="style.css?v=202610011431">
+  <link rel="stylesheet" href="style.css?v=202610191500">
 </head>
 <body>
   <header class="top">
     <div class="wrap top-inner">
       <div>
         <p class="eyebrow">Season ticket group</p>
-        <h1 id="title">Postseason Draft</h1>
+        <h1 id="title">Ticket Draft</h1>
       </div>
       <div class="top-right">
         <button type="button" class="theme-btn" id="theme-btn" aria-pressed="false">☾ Dark</button>
         <div class="sync" id="sync" aria-live="polite"><span class="mini-spin" aria-hidden="true"></span>Connecting…</div>
       </div>
     </div>
+    <nav class="wrap draft-switch" id="draft-switch" aria-label="Choose a draft">
+      <button type="button" data-view="rs">Regular season</button>
+      <button type="button" data-view="post">Postseason</button>
+      <button type="button" data-view="archive">Past drafts</button>
+    </nav>
   </header>
 
   <div id="demo-banner" class="demo-banner" hidden>
-    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. Add your Apps Script URL to <code>config.js</code> to go live.</div>
+    <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. The regular season games are the real 2027 schedule from MLB. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
   <div id="price-banner" class="demo-banner price-banner" hidden>
@@ -41,6 +46,11 @@
   </div>
 
   <main class="wrap">
+    <section class="archive-view" id="archive-view" hidden>
+      <div class="section-head"><h2>Past drafts</h2></div>
+      <div id="archive-list"><p class="empty">Loading…</p></div>
+    </section>
+
     <section class="clock" id="clock" aria-live="polite">
       <div class="clock-label">Getting the latest picks</div>
       <div class="clock-name" id="clock-name"><span class="loader" aria-hidden="true"><i></i><i></i><i></i></span></div>
@@ -55,12 +65,13 @@
     <div class="layout">
       <section class="board-col">
         <div class="section-head">
-          <h2>Games</h2>
+          <h2 id="board-heading">Games</h2>
           <div class="legend">
             <span><i class="dot open"></i>Available</span>
             <span><i class="dot taken"></i>Taken</span>
           </div>
         </div>
+        <div id="rs-filters" class="rs-filters" hidden></div>
         <div id="board" aria-busy="true"><div class="series sk-series"><div class="series-head"><div class="sk sk-line sk-dark w40"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div></div><div class="series sk-series"><div class="series-head"><div class="sk sk-line sk-dark w40"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div><div class="sk-game"><div><div class="sk sk-line w60"></div><div class="sk sk-line w30"></div></div><div class="sk sk-seat"></div><div class="sk sk-seat"></div></div></div></div>
       </section>
 
@@ -77,7 +88,7 @@
         <section class="card">
           <h2>Members</h2>
           <table class="totals">
-            <thead><tr><th>Name</th><th class="num">Picks</th><th class="num">Owed</th></tr></thead>
+            <thead id="totals-head"><tr><th>Name</th><th class="num">Picks</th><th class="num">Owed</th></tr></thead>
             <tbody id="totals"></tbody>
           </table>
         </section>
@@ -125,12 +136,12 @@
       </div>
 
       <div class="tool">
-        <h4>Assign a seat pair</h4>
-        <p class="hint">Give an open game and seats to any member. This doesn't use up anyone's turn in the draft order.</p>
+        <h4 id="assign-heading">Assign a seat pair</h4>
+        <p class="hint" id="assign-hint">Give an open game and seats to any member. This doesn't use up anyone's turn in the draft order.</p>
         <label>Member
           <select id="assign-member"></select>
         </label>
-        <label>Game &amp; seats
+        <label><span id="assign-item-label">Game &amp; seats</span>
           <select id="assign-item"></select>
         </label>
         <button type="button" class="btn primary" id="assign-btn">Assign</button>
@@ -138,7 +149,7 @@
 
       <div class="tool">
         <h4>Advance the draft</h4>
-        <p class="hint">Skip <strong id="skip-who"></strong>'s turn and move to the next member. It uses up their turn but gives them no seats.</p>
+        <p class="hint">Skip <strong id="skip-who"></strong>'s turn and move to the next member. It uses up their turn but gives them nothing.</p>
         <button type="button" class="btn primary" id="skip-btn">Skip to next member</button>
       </div>
 
@@ -146,6 +157,12 @@
         <h4>Undo last entry</h4>
         <p class="hint">Removes the most recent pick, assignment, skip or drop-out, so a skipped or dropped member gets their turn back.</p>
         <button type="button" class="btn danger" id="undo-btn">Undo last entry</button>
+      </div>
+
+      <div class="tool">
+        <h4>Archive this draft</h4>
+        <p class="hint">Saves every pick in <strong id="archive-title"></strong> to its own tab in the Google Sheet and clears the board so it's ready for next time. Archived drafts stay viewable under <em>Past drafts</em>.</p>
+        <button type="button" class="btn danger" id="archive-btn">Archive this draft…</button>
       </div>
 
       <p class="form-error" id="commish-error" role="alert"></p>
@@ -159,7 +176,7 @@
   <dialog id="drop-dialog">
     <form method="dialog" id="drop-form">
       <h3>Drop out of the draft</h3>
-      <p class="hint">You'll keep any seats you've already picked, but you won't get any more turns. If you're on the clock now, this uses your turn.</p>
+      <p class="hint">You'll keep anything you've already picked, but you won't get any more turns. If you're on the clock now, this uses your turn.</p>
       <label>Your name
         <select id="drop-name"></select>
       </label>
@@ -177,8 +194,8 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610011431"></script>
-  <script src="engine.js?v=202610011431"></script>
-  <script src="app.js?v=202610011431"></script>
+  <script src="config.js?v=202610191500"></script>
+  <script src="engine.js?v=202610191500"></script>
+  <script src="app.js?v=202610191500"></script>
 </body>
 </html>

@@ -253,6 +253,72 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .upcoming li.standby { color: var(--muted); }
 .upcoming li.standby .meta { font-style: italic; }
 
+/* ---------- Draft switcher (header tabs) ---------- */
+.top-inner { padding-bottom: 12px; }
+.draft-switch { display: flex; gap: 4px; overflow-x: auto; padding-top: 0; padding-bottom: 0; }
+.draft-switch button { font: inherit; font-size: 14px; font-weight: 700; color: #aebdd2; background: transparent; border: 0; border-radius: 9px 9px 0 0; padding: 10px 16px 11px; cursor: pointer; white-space: nowrap; }
+.draft-switch button:hover { color: #fff; }
+.draft-switch button[aria-current="page"] { background: var(--bg); color: var(--text); }
+.draft-switch button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.top { border-bottom-width: 0; }
+.top::after { content: ""; display: block; height: 4px; background: var(--red); }
+
+/* ---------- Regular season filters ---------- */
+.rs-filters { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.rs-filters .frow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fchip { font: inherit; font-size: 13px; font-weight: 600; border-radius: 999px; padding: 6px 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+.fchip:hover { border-color: var(--navy-2); }
+.fchip[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+:root[data-theme="dark"] .fchip[aria-pressed="true"] { background: #e8edf5; border-color: #e8edf5; color: #0b1422; }
+.rs-filters .selects label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-size: 13px; }
+.rs-filters .selects select { width: auto; padding: 6px 8px; font-size: 14px; }
+.fcount { margin-left: auto; font-size: 13px; color: var(--muted); }
+
+/* ---------- Regular season game rows ---------- */
+.rsg { display: grid; grid-template-columns: 56px minmax(0, 1fr) minmax(130px, 200px); gap: 12px; align-items: center; padding: 10px 12px 10px 14px; border-top: 1px solid var(--line); }
+.rs-month .series-head + .rsg { border-top: 0; }
+.rsg-date { display: flex; flex-direction: column; align-items: center; line-height: 1.05; border-radius: 9px; padding: 6px 0; background: var(--taken-bg); }
+.rsg-date .mon { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rsg-date .dnum { font-size: 22px; font-weight: 800; }
+.rsg-date .dow { font-size: 12px; font-weight: 600; color: var(--muted); }
+.rsg-date.wknd { background: #e3ecf7; }
+:root[data-theme="dark"] .rsg-date.wknd { background: #1c3350; }
+.rsg-info { min-width: 0; }
+.rsg.is-taken .rsg-info .game-name { color: var(--muted); }
+.rsg.hl-holiday { box-shadow: inset 4px 0 0 var(--red); }
+.rsg.hl-day { box-shadow: inset 4px 0 0 #d39b1c; }
+.cond.tag-opener { background: var(--navy); color: #fff; }
+.cond.tag-holiday { background: var(--red-soft); color: var(--red); }
+.cond.tag-day { background: #fff4d6; color: #8a5a00; }
+.cond.tag-promo { background: #e3ecf7; color: var(--navy-2); }
+:root[data-theme="dark"] .cond.tag-day { background: #3a300f; color: #f5dd98; }
+:root[data-theme="dark"] .cond.tag-promo { background: #1c3350; color: #b9d2f0; }
+:root[data-theme="dark"] .cond.tag-opener { background: #e8edf5; color: #0b1422; }
+@media (max-width: 520px) {
+  .rsg { grid-template-columns: 52px minmax(0, 1fr); }
+  .rsg-act { grid-column: 1 / -1; }
+}
+
+.notice-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; color: var(--muted); line-height: 1.55; }
+.notice-card strong { color: var(--text); }
+
+/* ---------- Past drafts ---------- */
+.archive-view { margin-top: 20px; }
+.arch { padding: 0; overflow: hidden; }
+.arch summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; align-items: baseline; padding: 14px 16px; cursor: pointer; list-style: none; }
+.arch summary::-webkit-details-marker { display: none; }
+.arch summary::before { content: "▸"; color: var(--muted); margin-right: 4px; }
+.arch[open] summary::before { content: "▾"; }
+.arch-title { font-weight: 700; font-size: 16px; margin-right: auto; }
+.arch .tbl { overflow-x: auto; border-top: 1px solid var(--line); }
+.arch-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+.arch-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 8px 12px; background: var(--taken-bg); }
+.arch-table td { padding: 7px 12px; border-top: 1px solid var(--line); }
+.arch-table tr.dim td { color: var(--muted); }
+
+.btn.danger.armed { background: var(--red); }
+@media (max-width: 520px) { .draft-switch button { padding: 9px 11px 10px; font-size: 13px; } }
+
 /* Prices sent from the Season Ticket Manager */
 .price-banner { background: #e6f2ea; color: #134a2c; border-color: #b9dbc5; }
 :root[data-theme="dark"] .price-banner { background: #12301f; color: #bfe8cf; border-color: #1f4d33; }
