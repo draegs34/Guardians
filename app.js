@@ -7,6 +7,13 @@
   const UP_NEXT_COUNT = 10; // rows in Up next, including whoever is on the clock (dropouts aren't listed)
 
   const $ = (id) => document.getElementById(id);
+  // Member dropdowns list people by last name ("Molly & Tom Jones" sorts under Jones; Jr./Sr./II/III are ignored).
+  const lastFirst = (n) => {
+    const w = String(n || '').trim().split(/\s+/).filter((x) => !/^(jr|sr|ii|iii|iv)\.?,?$/i.test(x));
+    return ((w.length > 1 ? w[w.length - 1] : w[0] || '') + ' ' + w.slice(0, -1).join(' ')).toLowerCase();
+  };
+  const byLast = (a, b) => lastFirst(a).localeCompare(lastFirst(b)) || String(a).localeCompare(String(b));
+  const sortedNames = (members) => members.map((m) => m.name).filter(Boolean).sort(byLast);
   const money = (n) => '$' + Number(n || 0).toLocaleString('en-US');
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const store = {
@@ -832,7 +839,7 @@
     $('assign-item-label').textContent = rs ? 'Game' : 'Game & seats';
     const taken = new Set(state.picks.filter((p) => p.itemId).map((p) => p.itemId));
     $('assign-member').innerHTML = '<option value="">Choose member…</option>' +
-      state.members.map((m) => '<option>' + esc(m.name) + '</option>').join('');
+      sortedNames(state.members).map((n) => '<option>' + esc(n) + '</option>').join('');
     const open = state.inventory.filter((i) => !taken.has(i.id));
     $('assign-item').innerHTML = '<option value="">' + (open.length ? (rs ? 'Choose a game…' : 'Choose game & seats…') : 'Nothing left to assign') + '</option>' +
       open.map((i) => '<option value="' + esc(i.id) + '">' + esc(rs ? i.label : i.series.replace(/^AL /, '') + ' — ' + i.game + ' · Seats ' + i.seats + ' · ' + money(i.price)) + '</option>').join('');
@@ -953,7 +960,7 @@
     if (!state || !state.members) return;
     const active = state.members.filter((m) => !m.out);
     $('drop-name').innerHTML = '<option value="">Choose your name…</option>' +
-      active.map((m) => '<option>' + esc(m.name) + '</option>').join('');
+      sortedNames(active).map((n) => '<option>' + esc(n) + '</option>').join('');
     $('drop-pin').value = '';
     $('drop-confirm').checked = false;
     $('drop-error').textContent = '';
@@ -1043,7 +1050,7 @@
     }
     const s = a.settings || {};
     const picked = new Set(((states[view] && states[view].picks) || []).filter((p) => p.itemId).map((p) => p.itemId));
-    const names = a.members.map((m) => m.name).filter(Boolean);
+    const names = sortedNames(a.members);
 
     let html = '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
       field('Draft title', inp('settings.title', s.title)) +
@@ -1270,7 +1277,7 @@
       return;
     }
     const D = sync.data;
-    const names = D.members.map((m) => m.name).sort((a, b) => a.localeCompare(b));
+    const names = sortedNames(D.members);
     sentEmails.forEach((e) => { if (e.to === undefined) e.to = guessMember(e.from, names) || '__add'; if (e.emailOn === undefined) e.emailOn = true; if (e.gamesOn === undefined) e.gamesOn = true; });
     const rows = [];
     const same = [];
@@ -1373,7 +1380,7 @@
   }
   function openNotify() {
     if (!state || !state.members) { toast('One moment, the draft is still loading.'); wantNotify = true; return; }
-    const names = state.members.map((m) => m.name);
+    const names = sortedNames(state.members);
     $('notify-name').innerHTML = '<option value="">Choose your name…</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
     $('notify-name').value = names.includes(notifyName) ? notifyName : (names.includes(me) ? me : '');
     $('notify-pin').value = '';
@@ -1535,7 +1542,7 @@
 
   function renderMe(s, done) {
     const sel = $('me-select');
-    const names = s.members.map((m) => m.name);
+    const names = sortedNames(s.members);
     const sig = view + '|' + names.join('|');
     if (sel.dataset.sig !== sig) {
       sel.innerHTML = '<option value="">Nobody (off)</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
