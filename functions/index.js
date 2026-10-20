@@ -153,6 +153,14 @@ exports.timeLimitSweep = onSchedule({ schedule: 'every 10 minutes', region: 'us-
   }
 });
 
+/** Quiet hours for reminders: none from 11 PM to 8 AM Eastern. One that comes due overnight goes out at 8 AM. */
+const QUIET_START = 23;
+const QUIET_END = 8;
+function quietNow(when) {
+  const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(when || new Date()));
+  return QUIET_START > QUIET_END ? (h >= QUIET_START || h < QUIET_END) : (h >= QUIET_START && h < QUIET_END);
+}
+
 /** Follow-up reminders: every N hours after the last alert, up to M times per turn (Setup → Reminders). */
 async function remindSweep(key) {
   const snap = await db.doc('drafts/' + key).get();
@@ -162,9 +170,12 @@ async function remindSweep(key) {
   const hours = Number(s.reminderHours) || 0;
   const max = Math.round(Number(s.reminderCount) || 0);
   if (!s.reminderOn || hours <= 0 || max <= 0) return;
+  if (quietNow()) return;
   const st = Engine.publicState(toEngineData(key, pub, {}));
   if (!st.open || !st.current) return;
   const cur = st.current;
+  // Never remind someone who has dropped out.
+  if ((st.members || []).some((m) => lc(m.name) === lc(cur.name) && m.out)) return;
   const turnId = cur.pick + '|' + cur.name;
   const logRef = db.doc('notify/log-' + key);
   const due = await db.runTransaction(async (tx) => {
@@ -179,6 +190,11 @@ async function remindSweep(key) {
     return { n: sent + 1, since: log.at };
   });
   if (!due) return;
+  // Re-check right before sending, in case they dropped out or picked in the meantime.
+  const fresh = (await db.doc('drafts/' + key).get()).data();
+  const now = fresh && Engine.publicState(toEngineData(key, fresh, {}));
+  if (!now || !now.open || !now.current || now.current.pick + '|' + now.current.name !== turnId) return;
+  if ((now.members || []).some((m) => lc(m.name) === lc(cur.name) && m.out)) return;
   const p = (((await PREFS().get()).data() || {}).prefs || {})[lc(cur.name)];
   if (!p) return;
   const et = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) + ' ET';
@@ -725,9 +741,10 @@ async function maybeNotify(key, before, after) {
     const link = SITE_URL.value() + '#' + (key === 'rs' ? 'regular-season' : 'postseason');
     const title = after.title || 'Ticket draft';
     const deadline = after.deadline ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(after.deadline)) + ' ET' : '';
+    const outNames = new Set((after.members || []).filter((m) => m.out).map((m) => lc(m.name)));
     await Promise.allSettled(todo.map((t) => {
       const p = prefs[lc(t.name)];
-      if (!p) return null;
+      if (!p || outNames.has(lc(t.name))) return null;
       if (t.type === 'next' && !p.nextUp) return null;
       const msg = t.type === 'turn'
         ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + t.name + '!',

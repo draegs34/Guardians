@@ -1057,7 +1057,7 @@
       chk('settings.reminderOn', s.reminderOn, '<strong>Follow-up reminders</strong> to whoever is on the clock') +
       '<label class="sf inline"><span>Every</span>' + inp('settings.reminderHours', s.reminderHours || 12, 'inputmode="decimal" style="width:80px"') + '<span>hours</span></label>' +
       '<label class="sf inline"><span>Up to</span>' + inp('settings.reminderCount', s.reminderCount || 2, 'inputmode="numeric" style="width:70px"') + '<span>times per turn</span></label>' +
-      '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). Nothing is sent while the draft is paused. Checked every 10 minutes.</p></section>';
+      '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p></section>';
 
     html += '<section class="card sc"><h3>Members</h3><p class="hint">' + (rs ? 'Games purchased is each member\'s limit for this draft.' : 'The list order is the draft order.') + ' Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it themselves under <em>Email &amp; push alerts</em>. Emails are shared by both drafts.</p>' +
       '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th>' + (rs ? '<th>Games</th>' : '') + '<th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +

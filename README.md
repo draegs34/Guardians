@@ -100,7 +100,7 @@ Click **Apply changes** to save.
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
 
 ### Follow-up reminders
-In **Commissioner tools → Open setup → Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), pause while the draft is paused, and start over for each new turn. The server checks every 10 minutes.
+In **Commissioner tools → Open setup → Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), are never sent to anyone who has dropped out, pause while the draft is paused, and start over for each new turn. **Quiet hours:** no reminders from 11 PM to 8 AM Eastern; one that comes due overnight goes out at 8 AM (change `QUIET_START` / `QUIET_END` in `functions/index.js`). The server checks every 10 minutes.
 
 ### One-time setup
 1. **Gmail app password.** In the Gmail account the emails should come from, open **myaccount.google.com → Security → 2-Step Verification** and turn it on if it isn't already. Then go to **myaccount.google.com/apppasswords**, create one named "Ticket Draft", and copy the 16-letter password.
