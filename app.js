@@ -1412,6 +1412,8 @@
 
   /* Home Screen icon badge: "1" while it's this device's member's turn in either draft. */
   let badgeShown = null;
+  // A push can set the badge while the page sits in the background, so re-check whenever it comes back.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { badgeShown = null; syncBadge(); } });
   function syncBadge() {
     if (DEMO || !('setAppBadge' in navigator)) return;
     const on = ['post', 'rs'].some((k) => {
