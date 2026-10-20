@@ -43,14 +43,16 @@
     return Object.keys(out).length ? out : null;
   }
   let wantNotify = /^#notifications/.test(location.hash);
-  /* Member emails sent from the Season Ticket Manager arrive as #emails=<base64url JSON [[name, email], …]> */
+  /* Members sent from the Season Ticket Manager arrive as #members=<base64url JSON [[name, email, games], …]>
+     (older links used #emails= with [[name, email], …]). */
   function readEmailHash() {
-    const m = location.hash.match(/emails=([A-Za-z0-9_-]+)/);
+    const m = location.hash.match(/(?:members|emails)=([A-Za-z0-9_-]+)/);
     if (!m) return null;
     try {
       const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
       const json = decodeURIComponent(escape(atob(b64 + '==='.slice((b64.length + 3) % 4))));
-      const list = JSON.parse(json).filter((x) => Array.isArray(x) && x[0] && x[1]).map((x) => ({ from: String(x[0]), email: String(x[1]).trim() }));
+      const list = JSON.parse(json).filter((x) => Array.isArray(x) && String(x[0] || '').trim())
+        .map((x) => ({ from: String(x[0]).trim(), email: String(x[1] || '').trim(), games: x[2] == null || x[2] === '' ? null : Math.max(0, Math.round(Number(x[2]) || 0)) }));
       return list.length ? list : null;
     } catch (e) { return null; }
   }
@@ -146,10 +148,17 @@
         d.inventory.forEach((i) => { const key = i.id.split('-')[0].toUpperCase(); if (key in body.prices) i.price = body.prices[key]; });
         return Object.assign(DraftEngine.publicState(data(k)), { ok: true, message: 'Prices updated.' });
       }
-      if (body.action === 'setEmails') {
+      if (body.action === 'syncMembers') {
         if (String(body.pin || '').trim() !== d.settings.commissionerPin) return { ok: false, error: "That commissioner PIN doesn't match." };
-        (body.emails || []).forEach((e) => { const p = demoPrefs[e.name] = demoPrefs[e.name] || { email: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] }; if (!p.email || body.replace) { p.email = e.email; p.emailOn = true; } });
-        return { ok: true, message: 'Demo mode: ' + (body.emails || []).length + ' emails saved.' };
+        if (body.preview) {
+          const all = {};
+          ['rs', 'post'].forEach((x) => drafts[x].members.forEach((m) => { const a = all[m.name] = all[m.name] || { name: m.name, inRs: false, inPost: false, games: null, email: (demoPrefs[m.name] || {}).email || '' }; if (x === 'rs') { a.inRs = true; a.games = m.cap || 0; } else a.inPost = true; }));
+          return { ok: true, drafts: { rs: true, post: true }, members: Object.values(all) };
+        }
+        (body.games || []).forEach((g) => { const m = drafts.rs.members.find((x) => x.name === g.name); if (m) m.cap = g.games; });
+        (body.add || []).forEach((a) => { ['rs', 'post'].forEach((x) => { if (body.addTo[x] && !drafts[x].members.some((m) => m.name === a.name)) drafts[x].members.push({ name: a.name, pin: '', cap: x === 'rs' ? a.games || 0 : 0, order: drafts[x].members.length + 1 }); }); if (a.email) body.emails.push({ name: a.name, email: a.email }); });
+        (body.emails || []).forEach((e) => { const p = demoPrefs[e.name] = demoPrefs[e.name] || { email: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] }; p.email = e.email; p.emailOn = true; });
+        return Object.assign(DraftEngine.publicState(data(k)), { ok: true, message: 'Demo mode: members updated.' });
       }
       if (/^notify/.test(body.action || '')) {
         const m = d.members.find((x) => x.name === body.name);
@@ -1216,14 +1225,12 @@
 
 
   /* ------------------------------------------------------------------ */
-  /* Member emails sent from the Season Ticket Manager                    */
+  /* Members sent from the Season Ticket Manager: new members, email      */
+  /* addresses and games purchased, reviewed by the commissioner.         */
   /* ------------------------------------------------------------------ */
   const normName = (n) => String(n || '').toLowerCase().replace(/[^a-z]/g, '');
-  function draftMemberNames() {
-    const set = new Set();
-    ['post', 'rs'].forEach((k) => ((states[k] && states[k].members) || []).forEach((m) => set.add(m.name)));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }
+  const lcEq = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  let sync = null; // { data: {drafts, members:[{name, inRs, inPost, games, email}]}, addRs, addPost }
   function guessMember(from, names) {
     const exact = names.find((n) => normName(n) === normName(from));
     if (exact) return exact;
@@ -1232,63 +1239,118 @@
     const hits = names.filter((n) => String(n).toLowerCase().split(/[^a-z]+/).filter(Boolean).every((w) => words.includes(w)));
     return hits.length === 1 ? hits[0] : '';
   }
-  let emailOtherLoading = false;
-  function ensureBothDrafts() {
-    const other = view === 'rs' ? 'post' : 'rs';
-    if (states[other] || emailOtherLoading || view === 'archive') return;
-    emailOtherLoading = true;
-    apiGet(other).then((s) => { if (s && !s.notSetUp && s.members) { states[other] = s; renderEmailTool(); } }).catch(() => {}).finally(() => { emailOtherLoading = false; });
-  }
   function renderEmailBanner() {
     const show = !!sentEmails && view !== 'archive' && !!state && !state.notSetUp;
     $('email-banner').hidden = !show;
-    if (show) $('email-banner-text').textContent = sentEmails.length + ' member email' + (sentEmails.length === 1 ? '' : 's') + ' arrived from the Season Ticket Manager.';
+    if (show) $('email-banner-text').textContent = sentEmails.length + ' member' + (sentEmails.length === 1 ? '' : 's') + ' arrived from the Season Ticket Manager.';
+  }
+  // What would change for one Manager row, given its match.
+  function syncRow(e) {
+    const D = sync.data;
+    const cur = e.to && e.to !== '__add' ? D.members.find((m) => m.name === e.to) : null;
+    const r = { cur, emailChange: false, gamesChange: false };
+    if (cur) {
+      r.emailChange = !!e.email && !lcEq(e.email, cur.email);
+      r.gamesChange = cur.inRs && e.games != null && e.games !== Number(cur.games || 0);
+    }
+    return r;
   }
   function renderEmailTool() {
     const show = !!sentEmails && view !== 'archive';
     $('emails-tool').hidden = !show;
     if (!show) return;
-    ensureBothDrafts();
-    const names = draftMemberNames();
-    sentEmails.forEach((e) => { if (e.to === undefined || (!e.to && !e.touched)) e.to = guessMember(e.from, names); });
-    $('email-map').innerHTML = sentEmails.map((e, i) =>
-      '<div class="em-row' + (e.to ? '' : ' unmatched') + '"><div><div class="em-who">' + esc(e.from) + '</div><div class="em-addr">' + esc(e.email) + '</div></div>' +
-      '<select data-em="' + i + '" aria-label="Draft member for ' + esc(e.from) + '"><option value="">Skip (not in draft)</option>' +
-      names.map((n) => '<option' + (n === e.to ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></div>').join('');
+    const body = $('sync-body');
+    if (!sync || !sync.data) {
+      body.innerHTML = '<p class="hint">' + sentEmails.length + ' active members came from the Manager. Enter your commissioner PIN above, then review what would change: new members, email addresses and games purchased.</p>' +
+        '<button type="button" class="btn primary" id="sync-review">Review changes</button>';
+      return;
+    }
+    const D = sync.data;
+    const names = D.members.map((m) => m.name).sort((a, b) => a.localeCompare(b));
+    sentEmails.forEach((e) => { if (e.to === undefined) e.to = guessMember(e.from, names) || '__add'; if (e.emailOn === undefined) e.emailOn = true; if (e.gamesOn === undefined) e.gamesOn = true; });
+    const rows = [];
+    const same = [];
+    sentEmails.forEach((e, i) => {
+      const r = syncRow(e);
+      if (r.cur && !r.emailChange && !r.gamesChange) { same.push(e.from === e.to ? e.from : e.from + ' (' + e.to + ')'); return; }
+      const sel = '<select data-sm="' + i + '" aria-label="Draft member for ' + esc(e.from) + '">' +
+        '<option value="__add"' + (e.to === '__add' ? ' selected' : '') + '>Add as a new member</option>' +
+        '<option value=""' + (!e.to ? ' selected' : '') + '>Skip</option>' +
+        '<optgroup label="Same person as…">' + names.map((n) => '<option' + (n === e.to ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</optgroup></select>';
+      let detail = '';
+      if (e.to === '__add') detail = '<div class="em-note">New member' + (e.games != null ? ' · ' + e.games + ' games' : '') + (e.email ? ' · ' + esc(e.email) : '') + '</div>';
+      else if (!e.to) detail = '<div class="em-note">Not added</div>';
+      else {
+        if (r.emailChange) detail += '<label class="check"><input type="checkbox" data-sm-email="' + i + '"' + (e.emailOn ? ' checked' : '') + '> <span>Email: ' + (r.cur.email ? '<s>' + esc(r.cur.email) + '</s> → ' : 'add ') + '<strong>' + esc(e.email) + '</strong></span></label>';
+        if (r.gamesChange) detail += '<label class="check"><input type="checkbox" data-sm-games="' + i + '"' + (e.gamesOn ? ' checked' : '') + '> <span>Games: <s>' + (Number(r.cur.games) || 0) + '</s> → <strong>' + e.games + '</strong></span></label>';
+      }
+      rows.push('<div class="em-row' + (e.to === '__add' ? ' is-new' : '') + '"><div><div class="em-who">' + esc(e.from) + '</div>' + detail + '</div>' + sel + '</div>');
+    });
+    const adds = sentEmails.filter((e) => e.to === '__add').length;
+    body.innerHTML =
+      (rows.length ? '<div class="email-map">' + rows.join('') + '</div>' : '<p class="hint"><strong>Everything already matches.</strong></p>') +
+      (same.length ? '<p class="hint">Already up to date: ' + esc(same.join(', ')) + '.</p>' : '') +
+      (adds ? '<div class="sync-where"><span class="hint">Add new members to</span>' +
+        (D.drafts.rs ? '<label class="check"><input type="checkbox" id="sync-add-rs"' + (sync.addRs ? ' checked' : '') + '> <span>Regular season</span></label>' : '') +
+        (D.drafts.post ? '<label class="check"><input type="checkbox" id="sync-add-post"' + (sync.addPost ? ' checked' : '') + '> <span>Postseason</span></label>' : '') +
+        '</div><p class="hint">New members can pick without a PIN until you set one in Setup. In the regular season, give them draft-order slots in Setup → Draft order.</p>' : '') +
+      (rows.length ? '<button type="button" class="btn primary" id="sync-apply">Apply changes</button>' : '');
   }
-  $('email-map').addEventListener('change', (ev) => {
-    const sel = ev.target.closest('select[data-em]');
-    if (!sel) return;
-    const e = sentEmails[Number(sel.dataset.em)];
-    e.to = sel.value;
-    e.touched = true;
-    sel.closest('.em-row').classList.toggle('unmatched', !sel.value);
+  function syncPayload() {
+    const emails = [], games = [], add = [];
+    sentEmails.forEach((e) => {
+      if (e.to === '__add') { add.push({ name: e.from, games: e.games, email: e.email }); return; }
+      if (!e.to) return;
+      const r = syncRow(e);
+      if (r.emailChange && e.emailOn) emails.push({ name: e.to, email: e.email });
+      if (r.gamesChange && e.gamesOn) games.push({ name: e.to, games: e.games });
+    });
+    return { emails, games, add, addTo: { rs: !!sync.addRs, post: !!sync.addPost } };
+  }
+  $('sync-body').addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t.dataset.sm != null) { sentEmails[Number(t.dataset.sm)].to = t.value; renderEmailTool(); return; }
+    if (t.dataset.smEmail != null) { sentEmails[Number(t.dataset.smEmail)].emailOn = t.checked; return; }
+    if (t.dataset.smGames != null) { sentEmails[Number(t.dataset.smGames)].gamesOn = t.checked; return; }
+    if (t.id === 'sync-add-rs') sync.addRs = t.checked;
+    if (t.id === 'sync-add-post') sync.addPost = t.checked;
+  });
+  $('sync-body').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button');
+    if (!b || busy) return;
+    if (!$('commish-pin').value.trim()) { $('commish-error').textContent = 'Enter your commissioner PIN.'; $('commish-pin').focus(); return; }
+    const pin = $('commish-pin').value;
+    const finish = () => { busy = false; b.disabled = false; };
+    busy = true;
+    b.disabled = true;
+    $('commish-error').textContent = '';
+    if (b.id === 'sync-review') {
+      apiPost({ action: 'syncMembers', preview: true, pin }).then((res) => {
+        if (!res || !res.ok) { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
+        sync = { data: res, addRs: !!res.drafts.rs, addPost: false };
+        renderEmailTool();
+      }).catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; }).finally(finish);
+    } else if (b.id === 'sync-apply') {
+      const body = Object.assign({ action: 'syncMembers', pin }, syncPayload());
+      if (body.add.length && !body.addTo.rs && !body.addTo.post) { $('commish-error').textContent = 'Choose which draft to add new members to, or set them to Skip.'; finish(); return; }
+      apiPost(body).then((res) => {
+        if (res && res.ok) {
+          sentEmails = null;
+          sync = null;
+          try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
+          renderEmailBanner();
+          renderEmailTool();
+          $('commish-dialog').close();
+          toast(res.message || 'Members updated.');
+          if (!liveOn[view]) refresh();
+        } else $('commish-error').textContent = (res && res.error) || 'Something went wrong.';
+      }).catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; }).finally(finish);
+    } else finish();
   });
   $('email-review').addEventListener('click', () => $('commish-btn').click());
   window.addEventListener('hashchange', () => {
     const e = readEmailHash();
-    if (e) { sentEmails = e; renderEmailBanner(); }
-  });
-  $('emails-btn').addEventListener('click', () => {
-    if (!sentEmails || busy) return;
-    if (!$('commish-pin').value.trim()) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
-    const emails = sentEmails.filter((e) => e.to).map((e) => ({ name: e.to, email: e.email }));
-    if (!emails.length) { $('commish-error').textContent = 'Match at least one email to a draft member.'; return; }
-    busy = true;
-    $('emails-btn').disabled = true;
-    $('commish-error').textContent = '';
-    apiPost({ action: 'setEmails', pin: $('commish-pin').value, emails, replace: $('email-replace').checked })
-      .then((res) => {
-        if (res && res.ok) {
-          sentEmails = null;
-          try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
-          renderEmailBanner();
-          $('commish-dialog').close();
-          toast(res.message || 'Emails updated.');
-        } else $('commish-error').textContent = (res && res.error) || 'Something went wrong.';
-      })
-      .catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; })
-      .finally(() => { busy = false; $('emails-btn').disabled = false; });
+    if (e) { sentEmails = e; sync = null; renderEmailBanner(); }
   });
 
   /* ------------------------------------------------------------------ */

@@ -392,5 +392,15 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .email-map .em-who { font-weight: 600; font-size: 14px; }
 .email-map .em-addr { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .email-map select { padding: 7px 10px; font-size: 15px; }
-.email-map .em-row.unmatched select { border-color: var(--red); }
+.email-map .em-row.is-new { background: var(--open-bg); margin: 0 -8px; padding: 8px; border-radius: 8px; }
+.email-map .em-note { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.email-map label.check { font-size: 13px; margin-top: 4px; }
+.email-map label.check s { color: var(--muted); }
+.sync-where { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+@media (max-width: 560px) { .email-map .em-row { grid-template-columns: 1fr; } }
+#sync-body { display: grid; gap: 10px; }
+#sync-body .btn { justify-self: start; }
+.email-map .em-row { grid-template-columns: minmax(0, 1fr) 190px; }
+.email-map label.check { align-items: flex-start; }
+.email-map label.check input { margin-top: 2px; }
 @media (max-width: 560px) { .email-map .em-row { grid-template-columns: 1fr; } }

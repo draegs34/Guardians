@@ -97,7 +97,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     if (typeof body === 'string') body = JSON.parse(body || '{}');
     if (!body || typeof body !== 'object') body = JSON.parse((req.rawBody || '{}').toString());
     const key = body.draft === 'rs' ? 'rs' : 'post';
-    if (body.action === 'setEmails') return res.json(await setEmails(key, body));
+    if (body.action === 'syncMembers') return res.json(await syncMembers(key, body));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
     const before = await turnSnapshot(key);
     const out = await handle(key, body);
@@ -534,45 +534,95 @@ async function notifyAction(key, body) {
   return { ok: false, error: 'Unknown action.' };
 }
 
-/* Member emails sent from the Season Ticket Manager (commissioner only). */
-async function setEmails(key, body) {
+/* Members sent from the Season Ticket Manager (commissioner only): preview what's
+   there now, then add new members, update games purchased and email addresses. */
+async function syncMembers(key, body) {
   const sec = (await db.doc('secrets/' + key).get()).data() || {};
   if (!sec.commissionerPin || String(body.pin || '').trim() !== sec.commissionerPin) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
-  const names = new Map();
-  for (const k of ['post', 'rs']) {
-    const d = (await db.doc('drafts/' + k).get()).data() || {};
-    (d.members || []).forEach((m) => names.set(lc(m.name), m.name));
+  const str = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 200);
+  const okEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+  if (body.preview) {
+    const prefs = ((await PREFS().get()).data() || {}).prefs || {};
+    const drafts = {};
+    const all = new Map();
+    for (const k of ['rs', 'post']) {
+      const snap = await db.doc('drafts/' + k).get();
+      drafts[k] = snap.exists;
+      ((snap.exists && snap.data().members) || []).forEach((m) => {
+        const a = all.get(lc(m.name)) || { name: m.name, inRs: false, inPost: false, games: null, email: (prefs[lc(m.name)] || {}).email || '' };
+        if (k === 'rs') { a.inRs = true; a.games = Number(m.cap) || 0; } else a.inPost = true;
+        all.set(lc(m.name), a);
+      });
+    }
+    return { ok: true, drafts, members: Array.from(all.values()) };
   }
-  const list = Array.isArray(body.emails) ? body.emails.slice(0, 200) : [];
-  const n = { added: 0, changed: 0, same: 0, kept: 0, unknown: [], bad: [] };
-  await db.runTransaction(async (tx) => {
-    const ref = PREFS();
-    const doc = (await tx.get(ref)).data() || {};
-    const prefs = doc.prefs || {};
-    list.forEach((x) => {
-      const name = names.get(lc(x && x.name));
-      const email = String((x && x.email) || '').trim().slice(0, 200);
-      if (!name) { n.unknown.push(String((x && x.name) || '')); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { n.bad.push(name); return; }
-      const p = prefs[lc(name)];
-      if (!p || !p.email) {
-        prefs[lc(name)] = Object.assign({ name, pushOn: false, nextUp: false, tokens: [] }, p || {}, { name, email, emailOn: true });
-        n.added++;
-      } else if (lc(p.email) === lc(email)) n.same++;
-      else if (body.replace) { p.email = email; n.changed++; }
-      else n.kept++;
+
+  const games = (Array.isArray(body.games) ? body.games : []).slice(0, 200);
+  const add = (Array.isArray(body.add) ? body.add : []).slice(0, 200).map((a) => ({ name: str(a && a.name, 80), games: Math.max(0, Math.round(Number(a && a.games) || 0)), email: str(a && a.email) })).filter((a) => a.name);
+  const emails = (Array.isArray(body.emails) ? body.emails : []).slice(0, 200).map((e) => ({ name: str(e && e.name, 80), email: str(e && e.email) }));
+  const addTo = { rs: !!(body.addTo && body.addTo.rs), post: !!(body.addTo && body.addTo.post) };
+  const out = { added: { rs: [], post: [] }, games: 0, emails: 0, bad: [] };
+  const known = new Set();
+
+  for (const k of ['rs', 'post']) {
+    const ref = db.doc('drafts/' + k);
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return;
+      const members = (snap.data().members || []).map((m) => Object.assign({}, m));
+      const byLc = new Map(members.map((m) => [lc(m.name), m]));
+      let dirty = false;
+      if (k === 'rs') {
+        games.forEach((g) => {
+          const m = byLc.get(lc(g && g.name));
+          const n = Math.max(0, Math.round(Number(g && g.games) || 0));
+          if (m && Number(m.cap || 0) !== n) { m.cap = n; out.games++; dirty = true; }
+        });
+      }
+      if (addTo[k]) {
+        add.forEach((a) => {
+          if (byLc.has(lc(a.name))) return;
+          const m = { name: a.name, order: members.length + 1, cap: k === 'rs' ? a.games : 0, needsPin: false };
+          members.push(m);
+          byLc.set(lc(a.name), m);
+          out.added[k].push(a.name);
+          dirty = true;
+        });
+      }
+      members.forEach((m) => known.add(lc(m.name)));
+      if (dirty) tx.update(ref, { members, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     });
-    tx.set(ref, { prefs }, { merge: true });
-  });
+  }
+
+  add.forEach((a) => { if (a.email) emails.push({ name: a.name, email: a.email }); });
+  if (emails.length) {
+    await db.runTransaction(async (tx) => {
+      const ref = PREFS();
+      const prefs = ((await tx.get(ref)).data() || {}).prefs || {};
+      emails.forEach((e) => {
+        if (!known.has(lc(e.name))) return;
+        if (!okEmail(e.email)) { out.bad.push(e.name); return; }
+        const p = prefs[lc(e.name)];
+        if (p && lc(p.email) === lc(e.email)) return;
+        // A member's first address turns email alerts on; a changed address keeps their on/off choice.
+        prefs[lc(e.name)] = p && p.email ? Object.assign(p, { email: e.email }) : Object.assign({ pushOn: false, nextUp: false, tokens: [] }, p || {}, { name: e.name, email: e.email, emailOn: true });
+        out.emails++;
+      });
+      tx.set(ref, { prefs }, { merge: true });
+    });
+  }
+
   const bits = [];
-  if (n.added) bits.push('Added ' + n.added + ' email' + (n.added === 1 ? '' : 's') + ' (email alerts turned on)');
-  if (n.changed) bits.push('updated ' + n.changed);
-  if (n.same) bits.push(n.same + ' already matched');
-  if (n.kept) bits.push(n.kept + ' kept the address the member entered');
-  if (n.unknown.length) bits.push('not in either draft: ' + n.unknown.join(', '));
-  if (n.bad.length) bits.push('skipped invalid address for ' + n.bad.join(', '));
-  const msg = bits.join('; ');
-  return { ok: true, message: msg ? msg.charAt(0).toUpperCase() + msg.slice(1) + '.' : 'Nothing to update.', result: n };
+  const label = { rs: 'the regular season draft', post: 'the postseason draft' };
+  ['rs', 'post'].forEach((k) => { if (out.added[k].length) bits.push('added ' + out.added[k].join(', ') + ' to ' + label[k]); });
+  if (out.games) bits.push('updated games for ' + out.games + ' member' + (out.games === 1 ? '' : 's'));
+  if (out.emails) bits.push('updated ' + out.emails + ' email address' + (out.emails === 1 ? '' : 'es'));
+  if (out.bad.length) bits.push('skipped an invalid email for ' + out.bad.join(', '));
+  let msg = bits.join('; ');
+  msg = msg ? msg.charAt(0).toUpperCase() + msg.slice(1) + '.' : 'Nothing needed changing.';
+  if (out.added.rs.length) msg += ' Give new members draft-order slots in Setup.';
+  return { ok: true, message: msg, result: out };
 }
 
 /* Commissioner Setup can fill in members' email addresses. */
