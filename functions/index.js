@@ -149,8 +149,48 @@ async function sweepTx(key) {
 exports.timeLimitSweep = onSchedule({ schedule: 'every 10 minutes', region: 'us-central1', secrets: [GMAIL_APP_PASSWORD] }, async () => {
   for (const key of KEYS) {
     try { await sweep(key); } catch (e) { console.error('sweep', key, e); }
+    try { await remindSweep(key); } catch (e) { console.error('reminders', key, e); }
   }
 });
+
+/** Follow-up reminders: every N hours after the last alert, up to M times per turn (Setup → Reminders). */
+async function remindSweep(key) {
+  const snap = await db.doc('drafts/' + key).get();
+  if (!snap.exists) return;
+  const pub = snap.data();
+  const s = pub.settings || {};
+  const hours = Number(s.reminderHours) || 0;
+  const max = Math.round(Number(s.reminderCount) || 0);
+  if (!s.reminderOn || hours <= 0 || max <= 0) return;
+  const st = Engine.publicState(toEngineData(key, pub, {}));
+  if (!st.open || !st.current) return;
+  const cur = st.current;
+  const turnId = cur.pick + '|' + cur.name;
+  const logRef = db.doc('notify/log-' + key);
+  const due = await db.runTransaction(async (tx) => {
+    const log = (await tx.get(logRef)).data() || {};
+    if (log.turn !== turnId) return null; // the first "you're on the clock" alert hasn't gone out yet
+    const sent = Number(log.reminders) || 0;
+    if (sent >= max) return null;
+    const last = Date.parse(log.lastAt || log.at || '');
+    // The sweep runs every 10 minutes, so allow 5 minutes early rather than up to 10 late.
+    if (!last || Date.now() - last < hours * 3600e3 - 5 * 60e3) return null;
+    tx.set(logRef, { reminders: sent + 1, lastAt: new Date().toISOString() }, { merge: true });
+    return { n: sent + 1, since: log.at };
+  });
+  if (!due) return;
+  const p = (((await PREFS().get()).data() || {}).prefs || {})[lc(cur.name)];
+  if (!p) return;
+  const et = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) + ' ET';
+  const title = st.title || 'Ticket draft';
+  await deliver(p, {
+    subject: "Reminder: you're still on the clock — " + title,
+    title: 'Reminder: it\'s still your pick, ' + cur.name,
+    body: 'You\'ve been on the clock in the ' + title + ' since ' + (due.since ? et(due.since) : 'earlier') + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (st.deadline ? ' Please pick by ' + et(st.deadline) + '.' : ''),
+    link: SITE_URL.value() + '#' + (key === 'rs' ? 'regular-season' : 'postseason'),
+    badge: 1,
+  });
+}
 
 /* ------------------------------------------------------------------ */
 /* Actions                                                              */
@@ -285,6 +325,10 @@ function validateAdmin(key, a) {
     open: !!s.open,
     timeLimitOn: !!s.timeLimitOn,
     timeLimitHours: Math.max(0, Number(s.timeLimitHours) || 0),
+    // Follow-up reminders to whoever is on the clock
+    reminderOn: !!s.reminderOn,
+    reminderHours: Math.min(168, Math.max(0.5, Number(s.reminderHours) || 12)),
+    reminderCount: Math.min(10, Math.max(1, Math.round(Number(s.reminderCount) || 2))),
   };
   const members = [];
   const pins = {};
@@ -670,7 +714,9 @@ async function maybeNotify(key, before, after) {
       const out = [];
       if (log.turn !== turnId) out.push({ type: 'turn', name: cur.name });
       if (next && log.next !== nextId && log.turn !== turnId) out.push({ type: 'next', name: next.name });
-      tx.set(logRef, { turn: turnId, next: nextId, at: new Date().toISOString() }, { merge: true });
+      const now = new Date().toISOString();
+      // A new turn starts the reminder clock over.
+      tx.set(logRef, log.turn !== turnId ? { turn: turnId, next: nextId, at: now, lastAt: now, reminders: 0 } : { next: nextId }, { merge: true });
       return out;
     });
     if (!todo.length) return;

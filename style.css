@@ -406,3 +406,4 @@ body.stale .seat:not(.taken) { opacity: .7; }
 @media (max-width: 560px) { .email-map .em-row { grid-template-columns: 1fr; } }
 
 .opt { font-weight: 400; color: var(--muted); }
+.checks.reminders { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }

@@ -99,6 +99,9 @@ Click **Apply changes** to save.
 
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
 
+### Follow-up reminders
+In **Commissioner tools → Open setup → Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), pause while the draft is paused, and start over for each new turn. The server checks every 10 minutes.
+
 ### One-time setup
 1. **Gmail app password.** In the Gmail account the emails should come from, open **myaccount.google.com → Security → 2-Step Verification** and turn it on if it isn't already. Then go to **myaccount.google.com/apppasswords**, create one named "Ticket Draft", and copy the 16-letter password.
 2. **Store it in Firebase** (Terminal, in the repo folder): `firebase functions:secrets:set GMAIL_APP_PASSWORD` and paste the password when asked. It is stored encrypted in Google Secret Manager and never goes in the repo.
