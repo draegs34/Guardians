@@ -97,6 +97,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     if (typeof body === 'string') body = JSON.parse(body || '{}');
     if (!body || typeof body !== 'object') body = JSON.parse((req.rawBody || '{}').toString());
     const key = body.draft === 'rs' ? 'rs' : 'post';
+    if (body.action === 'setEmails') return res.json(await setEmails(key, body));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
     const before = await turnSnapshot(key);
     const out = await handle(key, body);
@@ -531,6 +532,47 @@ async function notifyAction(key, body) {
     return { ok: true, message: sent.length ? 'Sent a test by ' + sent.join(' and ') + '.' : 'Nothing sent. Turn on email or push first.' };
   }
   return { ok: false, error: 'Unknown action.' };
+}
+
+/* Member emails sent from the Season Ticket Manager (commissioner only). */
+async function setEmails(key, body) {
+  const sec = (await db.doc('secrets/' + key).get()).data() || {};
+  if (!sec.commissionerPin || String(body.pin || '').trim() !== sec.commissionerPin) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  const names = new Map();
+  for (const k of ['post', 'rs']) {
+    const d = (await db.doc('drafts/' + k).get()).data() || {};
+    (d.members || []).forEach((m) => names.set(lc(m.name), m.name));
+  }
+  const list = Array.isArray(body.emails) ? body.emails.slice(0, 200) : [];
+  const n = { added: 0, changed: 0, same: 0, kept: 0, unknown: [], bad: [] };
+  await db.runTransaction(async (tx) => {
+    const ref = PREFS();
+    const doc = (await tx.get(ref)).data() || {};
+    const prefs = doc.prefs || {};
+    list.forEach((x) => {
+      const name = names.get(lc(x && x.name));
+      const email = String((x && x.email) || '').trim().slice(0, 200);
+      if (!name) { n.unknown.push(String((x && x.name) || '')); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { n.bad.push(name); return; }
+      const p = prefs[lc(name)];
+      if (!p || !p.email) {
+        prefs[lc(name)] = Object.assign({ name, pushOn: false, nextUp: false, tokens: [] }, p || {}, { name, email, emailOn: true });
+        n.added++;
+      } else if (lc(p.email) === lc(email)) n.same++;
+      else if (body.replace) { p.email = email; n.changed++; }
+      else n.kept++;
+    });
+    tx.set(ref, { prefs }, { merge: true });
+  });
+  const bits = [];
+  if (n.added) bits.push('Added ' + n.added + ' email' + (n.added === 1 ? '' : 's') + ' (email alerts turned on)');
+  if (n.changed) bits.push('updated ' + n.changed);
+  if (n.same) bits.push(n.same + ' already matched');
+  if (n.kept) bits.push(n.kept + ' kept the address the member entered');
+  if (n.unknown.length) bits.push('not in either draft: ' + n.unknown.join(', '));
+  if (n.bad.length) bits.push('skipped invalid address for ' + n.bad.join(', '));
+  const msg = bits.join('; ');
+  return { ok: true, message: msg ? msg.charAt(0).toUpperCase() + msg.slice(1) + '.' : 'Nothing to update.', result: n };
 }
 
 /* Commissioner Setup can fill in members' email addresses. */

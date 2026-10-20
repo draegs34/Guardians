@@ -43,6 +43,18 @@
     return Object.keys(out).length ? out : null;
   }
   let wantNotify = /^#notifications/.test(location.hash);
+  /* Member emails sent from the Season Ticket Manager arrive as #emails=<base64url JSON [[name, email], …]> */
+  function readEmailHash() {
+    const m = location.hash.match(/emails=([A-Za-z0-9_-]+)/);
+    if (!m) return null;
+    try {
+      const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(escape(atob(b64 + '==='.slice((b64.length + 3) % 4))));
+      const list = JSON.parse(json).filter((x) => Array.isArray(x) && x[0] && x[1]).map((x) => ({ from: String(x[0]), email: String(x[1]).trim() }));
+      return list.length ? list : null;
+    } catch (e) { return null; }
+  }
+  let sentEmails = readEmailHash();
   let sentPrices = readPriceHash();
   let view = sentPrices ? 'post' : initialView();
 
@@ -133,6 +145,11 @@
         if (k !== 'post' || body.pin !== d.settings.commissionerPin) return Object.assign(DraftEngine.publicState(data(k)), { ok: false, error: "That commissioner PIN doesn't match." });
         d.inventory.forEach((i) => { const key = i.id.split('-')[0].toUpperCase(); if (key in body.prices) i.price = body.prices[key]; });
         return Object.assign(DraftEngine.publicState(data(k)), { ok: true, message: 'Prices updated.' });
+      }
+      if (body.action === 'setEmails') {
+        if (String(body.pin || '').trim() !== d.settings.commissionerPin) return { ok: false, error: "That commissioner PIN doesn't match." };
+        (body.emails || []).forEach((e) => { const p = demoPrefs[e.name] = demoPrefs[e.name] || { email: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] }; if (!p.email || body.replace) { p.email = e.email; p.emailOn = true; } });
+        return { ok: true, message: 'Demo mode: ' + (body.emails || []).length + ' emails saved.' };
       }
       if (/^notify/.test(body.action || '')) {
         const m = d.members.find((x) => x.name === body.name);
@@ -392,6 +409,7 @@
 
   function render(prevIds) {
     try { renderPriceTool(); } catch (e) { /* tool not ready */ }
+    try { renderEmailBanner(); } catch (e) { /* tool not ready */ }
     const s = state;
     if (!s || s.notSetUp) { if (s) renderNotSetUp(); return; }
     const rs = isRS(s);
@@ -864,6 +882,7 @@
     disarmArchive();
     fillAssignLists();
     renderPriceTool();
+    renderEmailTool();
     $('setup-tool').hidden = !window.FIREBASE_CONFIG;
     $('commish-dialog').showModal();
     setTimeout(() => $('commish-pin').focus(), 50);
@@ -1195,6 +1214,83 @@
   }
 
 
+
+  /* ------------------------------------------------------------------ */
+  /* Member emails sent from the Season Ticket Manager                    */
+  /* ------------------------------------------------------------------ */
+  const normName = (n) => String(n || '').toLowerCase().replace(/[^a-z]/g, '');
+  function draftMemberNames() {
+    const set = new Set();
+    ['post', 'rs'].forEach((k) => ((states[k] && states[k].members) || []).forEach((m) => set.add(m.name)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+  function guessMember(from, names) {
+    const exact = names.find((n) => normName(n) === normName(from));
+    if (exact) return exact;
+    // e.g. "Molly & Tom Jones" in the Manager vs "Molly Jones" here: every word of the draft name appears in the Manager name
+    const words = String(from).toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    const hits = names.filter((n) => String(n).toLowerCase().split(/[^a-z]+/).filter(Boolean).every((w) => words.includes(w)));
+    return hits.length === 1 ? hits[0] : '';
+  }
+  let emailOtherLoading = false;
+  function ensureBothDrafts() {
+    const other = view === 'rs' ? 'post' : 'rs';
+    if (states[other] || emailOtherLoading || view === 'archive') return;
+    emailOtherLoading = true;
+    apiGet(other).then((s) => { if (s && !s.notSetUp && s.members) { states[other] = s; renderEmailTool(); } }).catch(() => {}).finally(() => { emailOtherLoading = false; });
+  }
+  function renderEmailBanner() {
+    const show = !!sentEmails && view !== 'archive' && !!state && !state.notSetUp;
+    $('email-banner').hidden = !show;
+    if (show) $('email-banner-text').textContent = sentEmails.length + ' member email' + (sentEmails.length === 1 ? '' : 's') + ' arrived from the Season Ticket Manager.';
+  }
+  function renderEmailTool() {
+    const show = !!sentEmails && view !== 'archive';
+    $('emails-tool').hidden = !show;
+    if (!show) return;
+    ensureBothDrafts();
+    const names = draftMemberNames();
+    sentEmails.forEach((e) => { if (e.to === undefined || (!e.to && !e.touched)) e.to = guessMember(e.from, names); });
+    $('email-map').innerHTML = sentEmails.map((e, i) =>
+      '<div class="em-row' + (e.to ? '' : ' unmatched') + '"><div><div class="em-who">' + esc(e.from) + '</div><div class="em-addr">' + esc(e.email) + '</div></div>' +
+      '<select data-em="' + i + '" aria-label="Draft member for ' + esc(e.from) + '"><option value="">Skip (not in draft)</option>' +
+      names.map((n) => '<option' + (n === e.to ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></div>').join('');
+  }
+  $('email-map').addEventListener('change', (ev) => {
+    const sel = ev.target.closest('select[data-em]');
+    if (!sel) return;
+    const e = sentEmails[Number(sel.dataset.em)];
+    e.to = sel.value;
+    e.touched = true;
+    sel.closest('.em-row').classList.toggle('unmatched', !sel.value);
+  });
+  $('email-review').addEventListener('click', () => $('commish-btn').click());
+  window.addEventListener('hashchange', () => {
+    const e = readEmailHash();
+    if (e) { sentEmails = e; renderEmailBanner(); }
+  });
+  $('emails-btn').addEventListener('click', () => {
+    if (!sentEmails || busy) return;
+    if (!$('commish-pin').value.trim()) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
+    const emails = sentEmails.filter((e) => e.to).map((e) => ({ name: e.to, email: e.email }));
+    if (!emails.length) { $('commish-error').textContent = 'Match at least one email to a draft member.'; return; }
+    busy = true;
+    $('emails-btn').disabled = true;
+    $('commish-error').textContent = '';
+    apiPost({ action: 'setEmails', pin: $('commish-pin').value, emails, replace: $('email-replace').checked })
+      .then((res) => {
+        if (res && res.ok) {
+          sentEmails = null;
+          try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
+          renderEmailBanner();
+          $('commish-dialog').close();
+          toast(res.message || 'Emails updated.');
+        } else $('commish-error').textContent = (res && res.error) || 'Something went wrong.';
+      })
+      .catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; })
+      .finally(() => { busy = false; $('emails-btn').disabled = false; });
+  });
+
   /* ------------------------------------------------------------------ */
   /* Email & push alerts: each member chooses what they get               */
   /* ------------------------------------------------------------------ */
@@ -1522,7 +1618,7 @@
   // Keep the slow-pick clock and pick countdown current even when nothing else changes.
   setInterval(() => { if (state && !busy && view !== 'archive' && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
-  if (history.replaceState && !sentPrices) history.replaceState(null, '', '#' + VIEWS[view]);
+  if (history.replaceState && !sentPrices && !sentEmails) history.replaceState(null, '', '#' + VIEWS[view]);
   syncSwitch();
   if (view === 'archive') { $('title').textContent = 'Past drafts'; document.title = 'Past drafts'; renderArchives(); }
   else showDraft();

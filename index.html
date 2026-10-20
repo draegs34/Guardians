@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610201723">
+  <link rel="stylesheet" href="style.css?v=202610201730">
 </head>
 <body>
   <header class="top">
@@ -41,6 +41,9 @@
     <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. The regular season games are the real 2027 schedule from MLB. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
+  <div id="email-banner" class="demo-banner price-banner" hidden>
+    <div class="wrap"><span id="email-banner-text"></span> <button class="link-btn" id="email-review" type="button">Review &amp; apply</button></div>
+  </div>
   <div id="price-banner" class="demo-banner price-banner" hidden>
     <div class="wrap"><span id="price-banner-text"></span> <button class="link-btn" id="price-review" type="button">Review &amp; apply</button></div>
   </div>
@@ -143,6 +146,14 @@
       <label>Commissioner PIN
         <input id="commish-pin" type="password" autocomplete="off">
       </label>
+
+      <div class="tool" id="emails-tool" hidden>
+        <h4>Member emails from Season Ticket Manager</h4>
+        <p class="hint">Check that each address is matched to the right draft member. Emails turn on turn alerts by email for members who don't have an address yet. These cover both drafts.</p>
+        <div class="email-map" id="email-map"></div>
+        <label class="check"><input type="checkbox" id="email-replace"> <span>Also replace addresses members entered themselves</span></label>
+        <button type="button" class="btn primary" id="emails-btn">Update emails</button>
+      </div>
 
       <div class="tool" id="prices-tool" hidden>
         <h4>Update prices from Season Ticket Manager</h4>
@@ -259,9 +270,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610201723"></script>
-  <script src="engine.js?v=202610201723"></script>
-  <script type="module" src="live.js?v=202610201723"></script>
-  <script src="app.js?v=202610201723"></script>
+  <script src="config.js?v=202610201730"></script>
+  <script src="engine.js?v=202610201730"></script>
+  <script type="module" src="live.js?v=202610201730"></script>
+  <script src="app.js?v=202610201730"></script>
 </body>
 </html>

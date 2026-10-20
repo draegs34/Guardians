@@ -89,6 +89,8 @@ Push alerts are normal system notifications (lock screen, Notification Center, b
 
 Settings are shared by both drafts and are matched by member name. The commissioner can also fill in emails on the Setup screen's **Members** table; a new address there turns email on for that member. Every email has a link back to these settings.
 
+**From the Season Ticket Manager:** on the Manager's **Setup** tab, **Send emails to draft page** opens the draft with every active member's address. A green banner appears; open **Commissioner tools**, check each address is matched to the right draft member (names are matched automatically, and you can fix any that aren't), enter your PIN and click **Update emails**. Members without an address get it, with email alerts turned on. Addresses members entered themselves are kept unless you tick **Also replace addresses members entered themselves**.
+
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
 
 ### One-time setup
