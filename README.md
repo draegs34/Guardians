@@ -85,6 +85,8 @@ Members can get a message when it's their turn, even with the page closed. Each 
 - **Also tell me when I'm up next**: an extra heads-up one pick before their turn.
 - **Send me a test** checks that everything works.
 
+Push alerts are normal system notifications (lock screen, Notification Center, banners). On phones and installed apps, the Home Screen icon also shows a **1** while it's that member's turn; it clears once they've picked.
+
 Settings are shared by both drafts and are matched by member name. The commissioner can also fill in emails on the Setup screen's **Members** table; a new address there turns email on for that member. Every email has a link back to these settings.
 
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.

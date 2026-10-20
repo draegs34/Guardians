@@ -1405,6 +1405,28 @@
       bar.hidden = true;
     }
     setTitleFlash(mine);
+    syncBadge();
+  }
+
+  /* Home Screen icon badge: "1" while it's this device's member's turn in either draft. */
+  let badgeShown = null;
+  function syncBadge() {
+    if (DEMO || !('setAppBadge' in navigator)) return;
+    const on = ['post', 'rs'].some((k) => {
+      const s = states[k];
+      const who = k === view ? me : store.get(meKey(k));
+      if (!s || !s.open || !s.current || !who || s.current.name !== who) return false;
+      const m = (s.members || []).find((x) => x.name === who);
+      return !(m && m.out);
+    });
+    if (on === badgeShown) return;
+    badgeShown = on;
+    (on ? navigator.setAppBadge(1) : navigator.clearAppBadge()).catch(() => {});
+    if (!on && 'serviceWorker' in navigator && navigator.serviceWorker.getRegistration) {
+      // Also tidy away an old "you're on the clock" notification once the turn has passed.
+      navigator.serviceWorker.getRegistration().then((reg) => reg && reg.getNotifications({ tag: 'draft-turn' }))
+        .then((list) => (list || []).forEach((n) => { if (/on the clock|Test/i.test(n.title || '')) n.close(); })).catch(() => {});
+    }
   }
 
   function setTitleFlash(on) {

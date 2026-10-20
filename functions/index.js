@@ -523,6 +523,7 @@ async function notifyAction(key, body) {
       title: 'Test notification',
       body: 'This is a test. You\'ll get messages like this when it\'s your turn to pick.',
       link: SITE_URL.value(),
+      badge: 1,
     });
     return { ok: true, message: sent.length ? 'Sent a test by ' + sent.join(' and ') + '.' : 'Nothing sent. Turn on email or push first.' };
   }
@@ -585,7 +586,7 @@ async function maybeNotify(key, before, after) {
       if (t.type === 'next' && !p.nextUp) return null;
       const msg = t.type === 'turn'
         ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + t.name + '!',
-            body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link }
+            body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link, badge: 1 }
         : { subject: "You're up next — " + title, title: "You're up next, " + t.name,
             body: cur.name + ' is picking now in the ' + title + '. You\'re next.', link };
       return deliver(p, msg);
@@ -627,6 +628,7 @@ async function deliver(p, msg) {
     jobs.push(admin.messaging().sendEachForMulticast({
       tokens,
       notification: { title: msg.title, body: msg.body },
+      data: { badge: msg.badge ? String(msg.badge) : '0' },
       webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + 'icon-192.png', badge: SITE_URL.value() + 'icon-192.png', tag: 'draft-turn', renotify: true } },
     }).then(async (r) => {
       if (r.successCount) sent.push('push');
