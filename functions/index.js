@@ -518,6 +518,9 @@ async function notifyAction(key, body) {
   if (body.action === 'notifyTest') {
     const p = (((await ref.get()).data() || {}).prefs || {})[lc(name)];
     if (!p) return { ok: false, error: 'Save your settings first.' };
+    // A short wait lets the member close the app or lock the phone, so the test shows as a real banner.
+    const wait = Math.min(15, Math.max(0, Number(body.delay) || 0));
+    if (wait) await new Promise((r) => setTimeout(r, wait * 1000));
     const sent = await deliver(p, {
       subject: 'Test from the Guardians Ticket Draft',
       title: 'Test notification',
