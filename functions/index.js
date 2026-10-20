@@ -480,12 +480,16 @@ async function checkMemberPin(key, name, pin) {
 }
 
 function cleanPrefs(old, incoming, name) {
-  const p = Object.assign({ name, email: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] }, old || {});
+  const p = Object.assign({ name, email: '', email2: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] }, old || {});
   if (incoming) {
     if ('email' in incoming) p.email = String(incoming.email || '').trim().slice(0, 200);
+    if ('email2' in incoming) p.email2 = String(incoming.email2 || '').trim().slice(0, 200);
     ['emailOn', 'pushOn', 'nextUp'].forEach((k) => { if (k in incoming) p[k] = !!incoming[k]; });
   }
   if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) return { error: 'That email address doesn\'t look right.' };
+  if (p.email2 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email2)) return { error: 'The second email address doesn\'t look right.' };
+  if (!p.email && p.email2) { p.email = p.email2; p.email2 = ''; }
+  if (p.email2 && lc(p.email2) === lc(p.email)) p.email2 = '';
   p.name = name;
   return { prefs: p };
 }
@@ -497,7 +501,7 @@ async function notifyAction(key, body) {
   const ref = PREFS();
   if (body.action === 'notifyGet') {
     const p = (((await ref.get()).data() || {}).prefs || {})[lc(name)] || {};
-    return { ok: true, prefs: { email: p.email || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
+    return { ok: true, prefs: { email: p.email || '', email2: p.email2 || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
   }
   if (body.action === 'notifySave') {
     const result = await db.runTransaction(async (tx) => {
@@ -512,7 +516,7 @@ async function notifyAction(key, body) {
       p.tokens = Array.from(tokens).slice(-10);
       prefs[lc(name)] = p;
       tx.set(ref, { prefs }, { merge: true });
-      return { ok: true, message: 'Notification settings saved.', prefs: { email: p.email, emailOn: p.emailOn, pushOn: p.pushOn, nextUp: p.nextUp, devices: p.tokens.length } };
+      return { ok: true, message: 'Notification settings saved.', prefs: { email: p.email, email2: p.email2 || '', emailOn: p.emailOn, pushOn: p.pushOn, nextUp: p.nextUp, devices: p.tokens.length } };
     });
     return result;
   }
@@ -708,7 +712,7 @@ async function deliver(p, msg) {
     const settings = SITE_URL.value() + '#notifications';
     jobs.push(mailer().sendMail({
       from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
-      to: p.email,
+      to: [p.email, p.email2].filter(Boolean).join(', '),
       subject: msg.subject,
       text: msg.body + '\n\nOpen the draft: ' + msg.link + '\n\nChange your notification settings: ' + settings,
       html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +

@@ -80,7 +80,7 @@ The Google Sheet then becomes a backup; nothing reads from it anymore. To change
 
 Members can get a message when it's their turn, even with the page closed. Each member taps **🔔 Email & push alerts**, enters their name and PIN, and chooses:
 
-- **Email**: their address, and whether to get an email on their turn.
+- **Email**: their address (filled in automatically when the commissioner or the Season Ticket Manager has one), an optional **second address** (e.g. a spouse's), and whether to get an email on their turn. Alerts go to both addresses.
 - **Push notifications**: **Turn on for this device**, once on each phone or computer they want alerts on. On iPhone/iPad, push only works after adding the page to the Home Screen (Share → Add to Home Screen) and opening it from that icon.
 - **Also tell me when I'm up next**: an extra heads-up one pick before their turn.
 - **Send me a test** checks that everything works.

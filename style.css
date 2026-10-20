@@ -404,3 +404,5 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .email-map label.check { align-items: flex-start; }
 .email-map label.check input { margin-top: 2px; }
 @media (max-width: 560px) { .email-map .em-row { grid-template-columns: 1fr; } }
+
+.opt { font-weight: 400; color: var(--muted); }

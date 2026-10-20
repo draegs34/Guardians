@@ -1391,6 +1391,7 @@
     const p = notifyPrefs || {};
     $('notify-for').textContent = notifyName;
     $('notify-email').value = p.email || '';
+    $('notify-email2').value = p.email2 || '';
     $('notify-email-on').checked = !!p.emailOn;
     $('notify-next').checked = !!p.nextUp;
     renderPushStatus();
@@ -1443,7 +1444,7 @@
       .catch((e) => { console.warn(e); $('notify-error').textContent = "Couldn't reach the draft. Try again."; })
       .finally(() => { notifyBusy = false; btn.disabled = false; });
   }
-  const notifyForm = () => ({ email: $('notify-email').value.trim(), emailOn: $('notify-email-on').checked, nextUp: $('notify-next').checked });
+  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, nextUp: $('notify-next').checked });
 
   $('notify-btn').addEventListener('click', openNotify);
   $('notify-cancel').addEventListener('click', () => $('notify-dialog').close());
@@ -1469,7 +1470,7 @@
   });
   $('notify-save').addEventListener('click', () => withNotifyBusy($('notify-save'), async () => {
     const f = notifyForm();
-    if (f.emailOn && !f.email) { $('notify-error').textContent = 'Enter your email address, or untick the email box.'; return; }
+    if (f.emailOn && !f.email && !f.email2) { $('notify-error').textContent = 'Enter your email address, or untick the email box.'; return; }
     if (notifyDone(await notifyPost({ action: 'notifySave', prefs: f }))) { toast('Saved. ' + summaryOf(notifyPrefs)); $('notify-dialog').close(); }
   }));
   $('notify-test').addEventListener('click', () => withNotifyBusy($('notify-test'), async () => {
