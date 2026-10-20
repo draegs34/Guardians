@@ -1,7 +1,10 @@
 {
   "functions": {
     "source": "functions",
-    "predeploy": ["cp \"$PROJECT_DIR/engine.js\" \"$RESOURCE_DIR/engine.js\""]
+    "predeploy": [
+      "cp \"$PROJECT_DIR/engine.js\" \"$RESOURCE_DIR/engine.js\"",
+      "npm --prefix \"$RESOURCE_DIR\" install --no-audit --no-fund"
+    ]
   },
   "firestore": {
     "rules": "firestore.rules",
