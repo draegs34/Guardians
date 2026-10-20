@@ -45,6 +45,8 @@
   let sentPrices = readPriceHash();
   let view = sentPrices ? 'post' : initialView();
 
+  const liveOn = {};            // drafts receiving live Firebase updates (live.js)
+  let lastPoll = 0;
   const states = {};            // latest board per draft
   const staleViews = new Set(); // drafts showing a saved copy while live data loads
   let state = null;             // states[view]
@@ -223,6 +225,7 @@
   function refresh() {
     if (view === 'archive') return loadArchives();
     const draft = view;
+    lastPoll = Date.now();
     return apiGet(draft).then((s) => {
       if (draft !== view) return; // switched drafts while this was loading
       if (s && s.notSetUp) { staleViews.delete(draft); states[draft] = s; state = s; markSynced(); renderNotSetUp(); return; }
@@ -358,7 +361,9 @@
     $('clock-name').textContent = 'Coming soon';
     $('clock-meta').textContent = 'The ' + label + ' draft hasn\'t been set up yet.';
     $('board').removeAttribute('aria-busy');
-    $('board').innerHTML = '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: in the Google Sheet, choose <em>Guardians Draft → Set up ' + label + (view === 'rs' ? ' draft' : ' tabs') + '</em>.</div>';
+    $('board').innerHTML = window.FIREBASE_CONFIG
+      ? '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: open <em>Commissioner tools</em> to import your data or start it empty.</div>'
+      : '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: in the Google Sheet, choose <em>Guardians Draft → Set up ' + label + (view === 'rs' ? ' draft' : ' tabs') + '</em>.</div>';
     $('rs-filters').hidden = true;
     $('upcoming').innerHTML = '<li class="empty">Nothing yet.</li>';
     $('log').innerHTML = '<li class="empty">No picks yet.</li>';
@@ -670,8 +675,10 @@
     lastPickCount = null;
     setTitleFlash(false);
     $('turn-alert').hidden = true;
+    if (setupOpen) setupVisible(false);
     syncSwitch();
     if (v === 'archive') {
+      if (window.DraftLive) window.DraftLive.watch(null);
       document.title = 'Past drafts';
       $('title').textContent = 'Past drafts';
       renderArchives();
@@ -681,6 +688,7 @@
     me = store.get(meKey(v)) || '';
     $('me-select').dataset.sig = '';
     showDraft();
+    if (window.DraftLive) window.DraftLive.watch(v);
     refresh();
   }
   function showDraft() {
@@ -828,12 +836,17 @@
   });
 
   $('commish-btn').addEventListener('click', () => {
-    if (!state || state.notSetUp) { toast('This draft isn\'t set up yet.'); return; }
+    if (!state || state.notSetUp) {
+      if (window.FIREBASE_CONFIG) openSetup('');
+      else toast('This draft isn\'t set up yet.');
+      return;
+    }
     $('commish-pin').value = '';
     $('commish-error').textContent = '';
     disarmArchive();
     fillAssignLists();
     renderPriceTool();
+    $('setup-tool').hidden = !window.FIREBASE_CONFIG;
     $('commish-dialog').showModal();
     setTimeout(() => $('commish-pin').focus(), 50);
   });
@@ -920,6 +933,247 @@
       .catch(() => { $('drop-error').textContent = "Couldn't reach the draft."; })
       .finally(() => { busy = false; $('drop-submit').disabled = false; lastPickCount = state && state.picks ? state.picks.length : lastPickCount; });
   });
+
+  /* ------------------------------------------------------------------ */
+  /* Commissioner setup (Firebase backend): members, PINs, draft order,  */
+  /* games, settings, MLB schedule, CSV download, and importing data.    */
+  /* ------------------------------------------------------------------ */
+  let setupOpen = false;
+  let adminPin = '';
+  let adminData = null;   // what the setup screen is editing
+  let setupBusy = false;
+
+  function setupVisible(on) {
+    setupOpen = on;
+    $('setup-view').hidden = !on;
+    ['clock', 'me-bar', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = on || view === 'archive'; });
+    if (on) window.scrollTo(0, 0);
+  }
+  function openSetup(pin) {
+    adminPin = pin || '';
+    adminData = null;
+    setupVisible(true);
+    $('setup-title').textContent = (view === 'rs' ? 'Regular season' : 'Postseason') + ' draft';
+    if (!state || state.notSetUp || !adminPin) { renderSetup(); return; }
+    $('setup-body').innerHTML = '<p class="empty">Loading setup…</p>';
+    apiPost({ action: 'adminGet', pin: adminPin }).then((res) => {
+      if (!res || !res.ok) { $('setup-body').innerHTML = '<div class="notice-card">' + esc((res && res.error) || 'Couldn\'t load setup.') + (res && /isn't available|Unknown action/i.test(res.error || '') ? '' : '') + '</div>'; return; }
+      adminData = res.admin;
+      renderSetup();
+    }).catch(() => { $('setup-body').innerHTML = '<div class="notice-card">Couldn\'t reach the draft. Try again in a moment.</div>'; });
+  }
+  $('setup-back').addEventListener('click', () => { setupVisible(false); syncSwitch(); if (state) { if (state.notSetUp) renderNotSetUp(); else render(null); } });
+  $('setup-btn').addEventListener('click', () => {
+    const pin = $('commish-pin').value.trim();
+    if (!pin) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
+    $('commish-dialog').close();
+    openSetup(pin);
+  });
+
+  const field = (label, html, hint) => '<label class="sf"><span>' + label + '</span>' + html + (hint ? '<small>' + hint + '</small>' : '') + '</label>';
+  const inp = (bind, val, attrs) => '<input data-bind="' + bind + '" value="' + esc(val == null ? '' : val) + '" ' + (attrs || '') + '>';
+  const chk = (bind, on, text) => '<label class="check"><input type="checkbox" data-bind="' + bind + '"' + (on ? ' checked' : '') + '> ' + text + '</label>';
+  const iconBtn = (act, i, label, sym, dis) => '<button type="button" class="icon-btn" data-act="' + act + '" data-i="' + i + '" aria-label="' + label + '"' + (dis ? ' disabled title="' + esc(dis) + '"' : '') + '>' + sym + '</button>';
+
+  function renderSetup() {
+    const rs = view === 'rs';
+    const a = adminData;
+    const importCard =
+      '<section class="card sc"><h3>Import data</h3>' +
+      '<p class="hint">Moving from the Google Sheet: in the sheet choose <em>Guardians Draft → Export everything for Firebase</em>, copy the text and paste it here. ' +
+      'It replaces the drafts and past drafts it contains. Use the <strong>setup key</strong> you chose when deploying (or your current commissioner PIN).</p>' +
+      '<textarea id="import-text" rows="5" placeholder="Paste the export here"></textarea>' +
+      field('Setup key or commissioner PIN', '<input id="import-key" type="password" autocomplete="off">') +
+      '<div class="row-btns"><button type="button" class="btn primary" data-act="import">Import</button></div></section>';
+    if (!a) {
+      $('setup-body').innerHTML = (state && !state.notSetUp && !adminPin ? '' :
+        '<div class="notice-card">This draft isn\'t set up in Firebase yet. Import your data from the Google Sheet, or start it empty and fill it in here.</div>') +
+        importCard +
+        '<section class="card sc"><h3>Start this draft empty</h3><p class="hint">Creates the ' + (rs ? 'regular season' : 'postseason') + ' draft with one placeholder member. You can then add members, games and settings here.</p>' +
+        field('Commissioner PIN for this draft', '<input id="fresh-pin" autocomplete="off">') +
+        field('Setup key', '<input id="fresh-key" type="password" autocomplete="off">', 'The private phrase you chose when deploying.') +
+        '<div class="row-btns"><button type="button" class="btn" data-act="fresh">Create empty draft</button></div></section>';
+      return;
+    }
+    const s = a.settings || {};
+    const picked = new Set(((states[view] && states[view].picks) || []).filter((p) => p.itemId).map((p) => p.itemId));
+    const names = a.members.map((m) => m.name).filter(Boolean);
+
+    let html = '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
+      field('Draft title', inp('settings.title', s.title)) +
+      (rs ? field('Season', inp('settings.season', s.season, 'inputmode="numeric"'), 'Used when loading the schedule from MLB') : field('Max picks per member', inp('settings.maxPicks', s.maxPicks || '', 'inputmode="numeric" placeholder="No limit"'))) +
+      field('New commissioner PIN', '<input data-bind="newCommissionerPin" autocomplete="off" placeholder="Leave blank to keep it">') +
+      '</div><div class="checks">' +
+      chk('settings.open', s.open, '<strong>Draft open</strong> (members can pick)') +
+      chk('settings.snake', s.snake !== false, 'Snake order (reverses every round)') +
+      (rs ? chk('settings.timeLimitOn', s.timeLimitOn, 'Pick time limit') + '<label class="sf inline"><span>Hours per pick</span>' + inp('settings.timeLimitHours', s.timeLimitHours || 24, 'inputmode="numeric" style="width:90px"') + '</label>' : '') +
+      '</div></section>';
+
+    html += '<section class="card sc"><h3>Members</h3><p class="hint">' + (rs ? 'Games purchased is each member\'s limit for this draft.' : 'The list order is the draft order.') + ' Leave a PIN blank to let someone pick without one.</p>' +
+      '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th>' + (rs ? '<th>Games</th>' : '') + '<th></th></tr></thead><tbody>' +
+      a.members.map((m, i) => '<tr><td>' + inp('members.' + i + '.name', m.name, 'placeholder="Name"') + '</td><td>' + inp('members.' + i + '.pin', m.pin, 'autocomplete="off" class="pin-in"') + '</td>' +
+        (rs ? '<td>' + inp('members.' + i + '.cap', m.cap || '', 'inputmode="numeric" class="num-in"') + '</td>' : '') +
+        '<td class="acts">' + (rs ? '' : iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '')) +
+        iconBtn('del-member', i, 'Remove ' + m.name, '✕') + '</td></tr>').join('') +
+      '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="add-member">+ Add member</button></div></section>';
+
+    if (rs) {
+      const slotCount = {};
+      a.order.forEach((n) => { slotCount[n] = (slotCount[n] || 0) + 1; });
+      const warn = a.members.filter((m) => m.name && Number(m.cap) > 0 && (slotCount[m.name] || 0) !== Math.floor(Number(m.cap) / 5))
+        .map((m) => esc(m.name) + ' has ' + (slotCount[m.name] || 0) + ' slot' + ((slotCount[m.name] || 0) === 1 ? '' : 's') + ' (' + m.cap + ' games → ' + Math.floor(Number(m.cap) / 5) + ')');
+      html += '<section class="card sc"><h3>Draft order</h3><p class="hint">One row per slot in a round: list each member once for every 5 games purchased. ' +
+        '<strong>' + a.order.length + ' slots = ' + a.order.length + ' picks per round.</strong> Snake order reverses each round.</p>' +
+        (warn.length ? '<p class="warn">Check: ' + warn.join('; ') + '.</p>' : '') +
+        '<ol class="slots">' + a.order.map((n, i) => '<li><span class="slot-no">' + (i + 1) + '</span><select data-bind="order.' + i + '">' +
+          (names.includes(n) ? '' : '<option value="' + esc(n) + '" selected>' + esc(n || 'Choose…') + '</option>') +
+          names.map((x) => '<option' + (x === n ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' +
+          iconBtn('up-slot', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-slot', i, 'Move down', '↓', i === a.order.length - 1 ? 'Already last' : '') + iconBtn('del-slot', i, 'Remove slot', '✕') + '</li>').join('') + '</ol>' +
+        '<div class="row-btns"><button type="button" class="btn ghost" data-act="add-slot">+ Add slot</button>' +
+        '<button type="button" class="btn ghost" data-act="fill-order">Rebuild from games purchased</button></div></section>';
+    }
+
+    html += '<section class="card sc"><h3>' + (rs ? 'Home games' : 'Games & seat pairs') + '</h3>' +
+      (rs ? '<p class="hint">Load or refresh from MLB any time: dates, opponents and start times update, promotions fill in when MLB lists them, and your notes are kept. Save your other changes first.</p>' +
+        '<div class="row-btns"><button type="button" class="btn primary" data-act="load-mlb">Load / refresh schedule from MLB</button></div>'
+        : '<p class="hint">Notes show as badges; separate several with ";". Item IDs starting ALDS-, ALCS-, WS- get prices from the Season Ticket Manager.</p>') +
+      '<div class="tbl"><table class="stable games"><thead><tr>' +
+      (rs ? '<th>Date</th><th>Opponent</th><th>Time (ET)</th><th>Promotions</th><th>Notes</th>' : '<th>Item ID</th><th>Series</th><th>Game</th><th>Date</th><th>Seats</th><th>Price</th><th>Notes</th>') + '<th></th></tr></thead><tbody>' +
+      a.inventory.map((g, i) => {
+        const lock = picked.has(g.id) ? 'Already picked — undo the pick first' : '';
+        const c = (k, extra) => '<td>' + inp('inventory.' + i + '.' + k, g[k], extra) + '</td>';
+        return '<tr' + (lock ? ' class="picked"' : '') + '>' + (rs
+          ? c('date', 'placeholder="2027-04-01" class="date-in"') + c('opponent') + c('time', 'class="time-in"') + c('promos') + c('notes')
+          : c('id', 'class="id-in"') + c('series') + c('game') + c('date', 'class="time-in"') + c('seats', 'class="time-in"') + c('price', 'inputmode="decimal" class="num-in"') + c('notes')) +
+          '<td class="acts">' + iconBtn('del-game', i, 'Remove game', '✕', lock) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="row-btns"><button type="button" class="btn ghost" data-act="add-game">+ Add ' + (rs ? 'game' : 'seat pair') + '</button></div></section>';
+
+    html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
+      '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
+    html += importCard;
+    html += '<div class="save-bar"><span class="hint" id="setup-msg"></span><button type="button" class="btn primary" data-act="save">Save setup</button></div>';
+    $('setup-body').innerHTML = html;
+  }
+
+  function setPath(obj, path, val) {
+    const parts = path.split('.');
+    let o = obj;
+    for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
+    o[parts[parts.length - 1]] = val;
+  }
+  $('setup-body').addEventListener('input', (e) => {
+    const el = e.target.closest('[data-bind]');
+    if (!el || !adminData) return;
+    const path = el.dataset.bind;
+    if (path === 'newCommissionerPin') { adminData.newCommissionerPin = el.value.trim(); return; }
+    setPath(adminData, path, el.type === 'checkbox' ? el.checked : el.value);
+    if (/^order\.|\.cap$/.test(path)) { const y = window.scrollY; renderSetup(); window.scrollTo(0, y); }
+  });
+  $('setup-body').addEventListener('change', (e) => {
+    const el = e.target.closest('[data-bind]');
+    if (el && el.type === 'checkbox' && adminData) setPath(adminData, el.dataset.bind, el.checked);
+  });
+
+  function move(list, i, d) { const j = i + d; if (j < 0 || j >= list.length) return; const t = list[i]; list[i] = list[j]; list[j] = t; }
+  $('setup-body').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b || setupBusy) return;
+    const i = Number(b.dataset.i);
+    const a = adminData;
+    const y = window.scrollY;
+    const redraw = () => { renderSetup(); window.scrollTo(0, y); };
+    switch (b.dataset.act) {
+      case 'add-member': a.members.push({ name: '', pin: '', cap: 0 }); return redraw();
+      case 'del-member': a.members.splice(i, 1); return redraw();
+      case 'up-member': move(a.members, i, -1); return redraw();
+      case 'down-member': move(a.members, i, 1); return redraw();
+      case 'add-slot': a.order.push(a.members[0] ? a.members[0].name : ''); return redraw();
+      case 'del-slot': a.order.splice(i, 1); return redraw();
+      case 'up-slot': move(a.order, i, -1); return redraw();
+      case 'down-slot': move(a.order, i, 1); return redraw();
+      case 'fill-order': {
+        const out = [];
+        a.members.forEach((m) => { for (let k = 0; k < Math.floor(Number(m.cap) / 5); k++) out.push(m.name); });
+        if (!out.length) { toast('Enter Games purchased for members first.'); return; }
+        a.order = out;
+        toast('Order rebuilt: ' + out.length + ' slots. Rearrange them into your draft order, then save.');
+        return redraw();
+      }
+      case 'add-game':
+        a.inventory.push(view === 'rs' ? { id: 'custom-' + Date.now(), date: '', opponent: '', time: 'TBD', promos: '', notes: '' } : { id: '', series: '', game: '', date: '', seats: '', price: 0, notes: '' });
+        return redraw();
+      case 'del-game': a.inventory.splice(i, 1); return redraw();
+      case 'csv': return downloadCsv();
+      case 'save': return saveSetup(b);
+      case 'load-mlb': return setupCall(b, { action: 'loadSchedule', pin: adminPin }, true);
+      case 'import': return doImport(b);
+      case 'fresh': return doFresh(b);
+    }
+  });
+
+  function setupCall(btn, body, reload) {
+    setupBusy = true;
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Working…';
+    return apiPost(body).then((res) => {
+      if (res && res.inventory && body.action !== 'import') apply(res);
+      if (res && res.ok) {
+        toast(res.message || 'Saved.');
+        if (reload) return apiPost({ action: 'adminGet', pin: body.newPin || adminPin }).then((r2) => { if (r2 && r2.ok) { adminData = r2.admin; renderSetup(); } });
+      } else {
+        toast((res && res.error) || 'Something went wrong.');
+        const m = $('setup-msg'); if (m) m.textContent = (res && res.error) || '';
+      }
+      return res;
+    }).catch(() => toast("Couldn't reach the draft. Try again.")).finally(() => { setupBusy = false; btn.disabled = false; btn.textContent = label; });
+  }
+  function saveSetup(btn) {
+    const a = adminData;
+    const body = { action: 'adminSave', pin: adminPin, admin: { settings: a.settings, members: a.members, order: a.order, inventory: a.inventory } };
+    if (a.newCommissionerPin) { body.admin.newCommissionerPin = a.newCommissionerPin; body.newPin = a.newCommissionerPin; }
+    setupCall(btn, body, true).then((res) => { if (res && res.ok && body.newPin) { adminPin = body.newPin; toast('Saved. Your new commissioner PIN is active.'); } });
+  }
+  function doImport(btn) {
+    let payload;
+    try { payload = JSON.parse($('import-text').value); } catch (e) { toast('That doesn\'t look like the export text. Copy all of it and try again.'); return; }
+    const key = $('import-key').value.trim();
+    if (!key) { toast('Enter your setup key or commissioner PIN.'); return; }
+    setupCall(btn, { action: 'import', setupKey: key, payload }).then((res) => {
+      if (res && res.ok) { states.post = undefined; states.rs = undefined; setupVisible(false); syncSwitch(); refresh(); }
+    });
+  }
+  function doFresh(btn) {
+    const pin = $('fresh-pin').value.trim();
+    const key = $('fresh-key').value.trim();
+    if (!pin || !key) { toast('Enter a commissioner PIN and your setup key.'); return; }
+    const payload = {};
+    payload[view] = { settings: { title: view === 'rs' ? 'Regular Season Draft' : 'Postseason Draft', open: false, snake: true, season: String(new Date().getFullYear() + 1) }, commissionerPin: pin, members: [{ name: 'Member 1' }], order: ['Member 1'], inventory: [], events: [] };
+    setupCall(btn, { action: 'import', setupKey: key, payload }).then((res) => { if (res && res.ok) openSetup(pin); });
+  }
+
+  function downloadCsv() {
+    const s = states[view];
+    if (!s || !s.picks) { toast('No picks to download yet.'); return; }
+    const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rows = [['Pick #', 'Round', 'Member', 'Type', 'Game', 'Date', 'Seats', 'Price', 'Time (ET)']];
+    s.picks.forEach((p) => {
+      const it = s.inventory.find((i) => i.id === p.itemId) || {};
+      const type = p.type === 'assign' ? 'Assigned' : p.type === 'skip' ? (/auto/i.test(p.note || '') ? 'Skipped (time ran out)' : 'Skipped') : p.type === 'drop' ? 'Dropped out' : 'Pick';
+      const game = it.label || (it.series ? it.series + ' ' + it.game : p.game || '');
+      rows.push([p.number || '', p.round || '', p.member, type, game, it.date || p.date || '', it.seats || p.seats || '', it.price || p.price || '', etTime(p.time)]);
+    });
+    const blob = new Blob([rows.map((r) => r.map(q).join(',')).join('\r\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = (s.title || 'draft').replace(/[^\w-]+/g, '-') + '-picks.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
 
   /* ------------------------------------------------------------------ */
   /* Turn alerts (visual only — no sounds)                                */
@@ -1031,6 +1285,23 @@
     toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
   }
 
+  /* Hooks for live.js (Firebase live updates) */
+  window.DraftApp = {
+    currentView: () => view,
+    onLive(draft, s) {
+      liveOn[draft] = true;
+      if (draft !== view) { if (s && !s.notSetUp) states[draft] = s; return; }
+      if (s && s.notSetUp) { states[draft] = s; state = s; markSynced(); if (!setupOpen) renderNotSetUp(); return; }
+      staleViews.delete(draft);
+      if (setupOpen) { states[draft] = s; state = s; lastPickCount = s.picks.length; markSynced(); return; }
+      apply(s);
+      markSynced();
+      $('sync').textContent = 'Live';
+      $('sync').classList.add('live');
+    },
+    liveOff(draft) { liveOn[draft] = false; },
+  };
+
   /* ------------------------------------------------------------------ */
   /* Start                                                                */
   /* ------------------------------------------------------------------ */
@@ -1046,6 +1317,7 @@
   let lastBg = 0;
   setInterval(() => {
     if (busy || view === 'archive') return;
+    if (liveOn[view] && Date.now() - lastPoll < 60000) return; // live updates are on; just a slow safety check
     if (!document.hidden) { refresh(); return; }
     if (me && Date.now() - lastBg >= 30000) { lastBg = Date.now(); refresh(); }
   }, REFRESH_MS);

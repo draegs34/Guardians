@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>try { if (localStorage.getItem('guardians-draft-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
-  <link rel="stylesheet" href="style.css?v=202610191500">
+  <link rel="stylesheet" href="style.css?v=202610192206">
 </head>
 <body>
   <header class="top">
@@ -49,6 +49,14 @@
     <section class="archive-view" id="archive-view" hidden>
       <div class="section-head"><h2>Past drafts</h2></div>
       <div id="archive-list"><p class="empty">Loading…</p></div>
+    </section>
+
+    <section class="setup-view" id="setup-view" hidden>
+      <div class="setup-head">
+        <div><p class="eyebrow-dark">Commissioner setup</p><h2 id="setup-title">Setup</h2></div>
+        <button type="button" class="btn ghost" id="setup-back">← Back to the draft</button>
+      </div>
+      <div id="setup-body"></div>
     </section>
 
     <section class="clock" id="clock" aria-live="polite">
@@ -159,6 +167,12 @@
         <button type="button" class="btn danger" id="undo-btn">Undo last entry</button>
       </div>
 
+      <div class="tool" id="setup-tool" hidden>
+        <h4>Setup</h4>
+        <p class="hint">Members, PINs, draft order, games, settings, the MLB schedule, a CSV download of picks, and importing data.</p>
+        <button type="button" class="btn primary" id="setup-btn">Open setup</button>
+      </div>
+
       <div class="tool">
         <h4>Archive this draft</h4>
         <p class="hint">Saves every pick in <strong id="archive-title"></strong> to its own tab in the Google Sheet and clears the board so it's ready for next time. Archived drafts stay viewable under <em>Past drafts</em>.</p>
@@ -194,8 +208,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610191500"></script>
-  <script src="engine.js?v=202610191500"></script>
-  <script src="app.js?v=202610191500"></script>
+  <script src="config.js?v=202610192206"></script>
+  <script src="engine.js?v=202610192206"></script>
+  <script type="module" src="live.js?v=202610192206"></script>
+  <script src="app.js?v=202610192206"></script>
 </body>
 </html>

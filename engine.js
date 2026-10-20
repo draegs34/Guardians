@@ -352,3 +352,6 @@ var DraftEngine = (function () {
   };
 })();
 /* ======================== END DRAFT ENGINE ================================ */
+
+// Lets the Firebase Cloud Functions (Node) load this same file.
+if (typeof module !== "undefined" && module.exports) module.exports = DraftEngine;

@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The draft boards and archived drafts are public to read (that's how the
+    // page updates instantly). Only the Cloud Functions can change them.
+    match /drafts/{key} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /archives/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // PINs live here. Nobody can read or write this from the web.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

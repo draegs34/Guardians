@@ -1,1 +1,7 @@
 .DS_Store
+node_modules/
+functions/engine.js
+.firebase/
+*.log
+functions/.env*
+.firebaserc.local

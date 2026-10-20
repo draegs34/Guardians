@@ -45,6 +45,8 @@ function onOpen() {
     .addItem('Set up regular season draft', 'setupRegularSeason')
     .addSeparator()
     .addItem('Refresh regular season schedule from MLB', 'refreshSchedule')
+    .addSeparator()
+    .addItem('Export everything for Firebase', 'exportForFirebase')
     .addToUi();
 }
 
@@ -250,6 +252,58 @@ function promoNames_(g) {
     if (n && names.indexOf(n) < 0) names.push(n);
   });
   return names.join('; ');
+}
+
+/* ----------------------------------------------------------------------- */
+/* Moving to Firebase: one-time export                                      */
+/* ----------------------------------------------------------------------- */
+
+/**
+ * Shows everything (settings, members with PINs, draft order, games, picks and
+ * archived drafts) as one block of text to paste into the site's
+ * Commissioner tools → Import. Contains PINs: don't share it.
+ */
+function exportForFirebase() {
+  const json = JSON.stringify(buildExport_());
+  const html = HtmlService.createHtmlOutput(
+    '<div style="font:14px Arial,sans-serif">' +
+    '<p><b>Copy all of this</b>, then on the draft site open <i>Commissioner tools → Setup &amp; import → Import</i> and paste it. It includes PINs, so don\'t share it.</p>' +
+    '<textarea id="t" readonly style="width:100%;height:300px;font:11px monospace">' + json.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</textarea>' +
+    '<p><button onclick="var t=document.getElementById(\'t\');t.select();document.execCommand(\'copy\');this.textContent=\'Copied!\'">Copy to clipboard</button> ' +
+    '<span style="color:#666">' + Math.round(json.length / 1024) + ' KB</span></p></div>'
+  ).setWidth(640).setHeight(460);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Export for Firebase');
+}
+
+function buildExport_() {
+  const out = { exportedAt: new Date().toISOString() };
+  ['post', 'rs'].forEach(function (key) {
+    if (!isSetUp_(key)) return;
+    const d = readAll_(key);
+    const s = d.settings;
+    const tabs = DRAFTS[key].tabs;
+    const events = rows_(tabs.picks, true)
+      .filter(function (r) { return String(r.values[2]).trim() !== ''; })
+      .map(function (r) {
+        const v = r.values;
+        const ev = DraftEngine.rowToEvent(v, r.row);
+        delete ev.row;
+        ev.series = String(v[4] || ''); ev.game = String(v[5] || '');
+        ev.date = v[6] instanceof Date ? toIso_(v[6]) : String(v[6] || '');
+        ev.seats = String(v[7] || ''); ev.price = v[8] === '' ? '' : Number(v[8]) || 0;
+        return ev;
+      });
+    out[key] = {
+      settings: { title: s.title, season: s.season, snake: s.snake, maxPicks: s.maxPicks, open: s.open, timeLimitOn: s.timeLimitOn, timeLimitHours: s.timeLimitHours },
+      commissionerPin: s.commissionerPin,
+      members: d.members.map(function (m) { return { name: m.name, pin: m.pin, cap: m.cap || 0 }; }),
+      order: d.order || [],
+      inventory: d.inventory,
+      events: events,
+    };
+  });
+  out.archives = readArchives_().archives;
+  return out;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -937,3 +991,6 @@ var DraftEngine = (function () {
   };
 })();
 /* ======================== END DRAFT ENGINE ================================ */
+
+// Lets the Firebase Cloud Functions (Node) load this same file.
+if (typeof module !== "undefined" && module.exports) module.exports = DraftEngine;

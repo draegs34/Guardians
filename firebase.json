@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "source": "functions",
+    "predeploy": ["cp \"$PROJECT_DIR/engine.js\" \"$RESOURCE_DIR/engine.js\""]
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

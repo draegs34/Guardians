@@ -24,6 +24,58 @@ The first time you run a menu item, Google asks for permission. It's your own sc
 
 ---
 
+## Moving to Firebase (optional backend upgrade)
+
+Firebase replaces the Google Sheet as the backend:
+
+- **Instant updates:** picks show up for everyone immediately, with no 10-second refresh and no Google "wake-up" delay.
+- **Server-side rules:** Cloud Functions enforce PINs, turns, game limits and the time limit.
+- **Setup screens on the site:** **Commissioner tools → Open setup** covers members, PINs, draft order, games, the MLB schedule, settings and a CSV download of picks.
+
+The site keeps working on the Google Sheet until you switch `config.js`.
+
+**What's in the repo:**
+
+- `functions/`: the Cloud Functions. They use the same `engine.js` rules.
+- `firestore.rules`: anyone can read the draft boards; only the functions can write, and PINs are never readable.
+- `firebase.json`: deploy config.
+- `live.js`: live board updates.
+
+### A. Create the Firebase project (console.firebase.google.com)
+1. **Add project.** Name it something like `guardians-draft`. Turn Google Analytics off, then click **Create**.
+2. **Upgrade to the Blaze plan.** Click **Spark** (bottom left) → **Upgrade**, and add a billing account. Cloud Functions require this plan, but a group our size stays inside the free tier. Set a budget alert (e.g. $5) when it offers.
+3. **Create the database.** Go to **Build → Firestore Database → Create database**. Choose a US location (e.g. `nam5`), then **Start in production mode**.
+4. **Register the website.** Click ⚙️ **Project settings → General → Your apps → Web (</>)**. Name it "Draft site" (skip Firebase Hosting) and click **Register**. Keep the `firebaseConfig` values (`apiKey`, `authDomain`, `projectId`, `appId`).
+
+### B. Deploy the backend (Terminal on your Mac, one time)
+```bash
+node -v                          # if this fails, install Node.js "LTS" from nodejs.org first
+npm install -g firebase-tools    # add "sudo " in front if it says permission denied
+firebase login
+cd ~/Documents/GitHub/Guardians
+firebase use --add               # pick your project, alias: default
+firebase deploy --only functions,firestore
+```
+The deploy asks for **SETUP_KEY**. Type a private phrase you'll use once to import your data; it's not a PIN. When it finishes, it prints a **Function URL (api)**. Copy it.
+
+### C. Export from the Google Sheet
+1. Update Apps Script with the latest `apps-script/Code.gs`. This adds an export menu item, and no new deployment is needed.
+2. Pause both drafts (**Draft open** = `FALSE`) so nothing changes mid-move.
+3. Choose **Guardians Draft → Export everything for Firebase** and copy all of the text. It includes PINs, so don't share it.
+
+### D. Switch the site
+1. In `config.js`:
+   - set `window.FIREBASE_CONFIG = { apiKey, authDomain, projectId, appId }`
+   - set `window.DRAFT_API_URL` to the **api** URL from step B
+   - then commit and push
+2. Open the site. Each draft says it isn't set up yet. Click **Commissioner tools**, paste the export into **Import data**, enter your **setup key** and click **Import**.
+3. Check both drafts, then reopen them under **Commissioner tools → Open setup → Draft open**.
+4. **Season Ticket Manager:** on its Setup tab, change **Draft feed** to the new api URL. The feed returns the same data as before, and price updates keep working.
+
+The Google Sheet then becomes a backup; nothing reads from it anymore. To change the rules later, edit `engine.js` and run `firebase deploy --only functions` again. The deploy copies `engine.js` into `functions/` automatically.
+
+---
+
 ## Regular season draft
 
 ### Set it up (once per season)
@@ -88,7 +140,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 
 ## For developers
 - **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
-- **Draft rules:** these live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other.
+- **Draft rules:** these live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other. The Firebase functions load `engine.js` directly; it's copied into `functions/` when you deploy.
 - **Choosing a draft:** the script's web app takes `?draft=rs` or `?draft=post` (the default), plus `?view=archives`. POST bodies carry `"draft"`.
 
 *Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*
