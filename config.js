@@ -10,6 +10,9 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "880050105997",
   appId: "1:880050105997:web:fdef2adce9acfa18ec7cc4"
 };
+// Push notifications: the public "Web Push certificate" key from Firebase console →
+// Project settings → Cloud Messaging → Web configuration. Leave empty to offer email only.
+window.FIREBASE_VAPID_KEY = "";
 // window.FIREBASE_CONFIG = {
 //   apiKey: "…",
 //   authDomain: "your-project.firebaseapp.com",

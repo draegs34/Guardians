@@ -1,0 +1,15 @@
+{
+  "name": "Guardians Ticket Draft",
+  "short_name": "Ticket Draft",
+  "description": "Pick-by-pick drafts for our season ticket group.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#0C2340",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

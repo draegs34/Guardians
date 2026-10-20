@@ -16,8 +16,9 @@
  */
 const { onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { defineString } = require('firebase-functions/params');
+const { defineString, defineSecret } = require('firebase-functions/params');
 const admin = require('firebase-admin');
+const nodemailer = require('nodemailer');
 const Engine = require('./engine');
 
 admin.initializeApp();
@@ -25,6 +26,12 @@ const db = admin.firestore();
 
 // Asked for once when you deploy. Needed only for the first import / "start fresh".
 const SETUP_KEY = defineString('SETUP_KEY', { description: 'A private phrase you will type once on the site to import your data (not your commissioner PIN).' });
+
+// Notifications: the Gmail account that sends draft emails, its App Password
+// (stored as a Firebase secret), and the site address used in links.
+const GMAIL_USER = defineString('GMAIL_USER', { default: '', description: 'Gmail address that sends draft emails (leave blank to turn email off)' });
+const GMAIL_APP_PASSWORD = defineSecret('GMAIL_APP_PASSWORD');
+const SITE_URL = defineString('SITE_URL', { default: 'https://draegs34.github.io/Guardians/', description: 'Address of the draft site' });
 
 const TEAM_ID = 114; // Cleveland Guardians
 const KEYS = ['post', 'rs'];
@@ -77,7 +84,7 @@ function publicMembers(members, pins) {
 /* HTTP API                                                             */
 /* ------------------------------------------------------------------ */
 
-exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, region: 'us-central1' }, async (req, res) => {
+exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, region: 'us-central1', secrets: [GMAIL_APP_PASSWORD] }, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
     if (req.method === 'GET') {
@@ -90,7 +97,11 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     if (typeof body === 'string') body = JSON.parse(body || '{}');
     if (!body || typeof body !== 'object') body = JSON.parse((req.rawBody || '{}').toString());
     const key = body.draft === 'rs' ? 'rs' : 'post';
-    return res.json(await handle(key, body));
+    if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
+    const before = await turnSnapshot(key);
+    const out = await handle(key, body);
+    if (out && out.ok !== false && out.inventory) await maybeNotify(key, before, out);
+    return res.json(out);
   } catch (e) {
     console.error(e);
     return res.status(200).json({ ok: false, error: 'Something went wrong on the server. Please try again.' });
@@ -114,6 +125,12 @@ async function readArchives() {
 
 /** Writes any auto-skips (pick time limit) for a draft. Returns fresh engine data. */
 async function sweep(key) {
+  const before = await turnSnapshot(key);
+  const data = await sweepTx(key);
+  if (data && before && before.picks !== data.events.length) await maybeNotify(key, before, Engine.publicState(data));
+  return data;
+}
+async function sweepTx(key) {
   return db.runTransaction(async (tx) => {
     const ref = db.doc('drafts/' + key);
     const [snap, secSnap] = await Promise.all([tx.get(ref), tx.get(db.doc('secrets/' + key))]);
@@ -128,7 +145,7 @@ async function sweep(key) {
 }
 
 // Every 10 minutes: skip anyone whose pick time ran out (only does anything when the limit is on).
-exports.timeLimitSweep = onSchedule({ schedule: 'every 10 minutes', region: 'us-central1' }, async () => {
+exports.timeLimitSweep = onSchedule({ schedule: 'every 10 minutes', region: 'us-central1', secrets: [GMAIL_APP_PASSWORD] }, async () => {
   for (const key of KEYS) {
     try { await sweep(key); } catch (e) { console.error('sweep', key, e); }
   }
@@ -141,7 +158,16 @@ exports.timeLimitSweep = onSchedule({ schedule: 'every 10 minutes', region: 'us-
 async function handle(key, body) {
   if (body.action === 'import') return importAll(body);
   if (body.action === 'loadSchedule') return loadSchedule(key, body);
+  if (body.action === 'adminGet') body._prefs = ((await db.doc('notify/members').get()).data() || {}).prefs || {};
+  if (body.action === 'adminSave') {
+    const r = await handleTx(key, body);
+    if (r.ok) await saveAdminEmails(body.admin && body.admin.members);
+    return r;
+  }
+  return handleTx(key, body);
+}
 
+async function handleTx(key, body) {
   return db.runTransaction(async (tx) => {
     const ref = db.doc('drafts/' + key);
     const secRef = db.doc('secrets/' + key);
@@ -166,7 +192,7 @@ async function handle(key, body) {
           ok: true,
           admin: {
             settings: pub.settings || {},
-            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0 })),
+            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '' })),
             order: pub.order || [],
             inventory: pub.inventory || [],
           },
@@ -420,4 +446,214 @@ function cleanEvent(e) {
     series: String(e.series || ''), game: String(e.game || ''), date: String(e.date || ''), seats: String(e.seats || ''),
     price: e.price === '' || e.price == null ? '' : Number(e.price) || 0,
   };
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Notifications: email + push when it's a member's turn                */
+/* ------------------------------------------------------------------ */
+// Preferences live in notify/members (never readable from the web):
+//   prefs: { "<lowercase name>": { name, email, emailOn, pushOn, nextUp, tokens:[…] } }
+// They're shared by both drafts, matched by member name.
+
+const lc = (s) => String(s || '').trim().toLowerCase();
+const PREFS = () => db.doc('notify/members');
+
+async function turnSnapshot(key) {
+  const snap = await db.doc('drafts/' + key).get();
+  if (!snap.exists) return null;
+  const st = Engine.publicState(toEngineData(key, snap.data(), {}));
+  return { open: st.open, current: st.current, picks: (snap.data().events || []).length };
+}
+
+async function checkMemberPin(key, name, pin) {
+  const sec = (await db.doc('secrets/' + key).get()).data() || {};
+  pin = String(pin || '').trim();
+  if (sec.commissionerPin && pin === sec.commissionerPin) return true;
+  const pins = sec.pins || {};
+  const real = Object.keys(pins).find((n) => lc(n) === lc(name));
+  const pub = (await db.doc('drafts/' + key).get()).data() || {};
+  const isMember = (pub.members || []).some((m) => lc(m.name) === lc(name));
+  if (!isMember) return false;
+  return real ? pins[real] === pin : true; // members without a PIN don't need one
+}
+
+function cleanPrefs(old, incoming, name) {
+  const p = Object.assign({ name, email: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] }, old || {});
+  if (incoming) {
+    if ('email' in incoming) p.email = String(incoming.email || '').trim().slice(0, 200);
+    ['emailOn', 'pushOn', 'nextUp'].forEach((k) => { if (k in incoming) p[k] = !!incoming[k]; });
+  }
+  if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) return { error: 'That email address doesn\'t look right.' };
+  p.name = name;
+  return { prefs: p };
+}
+
+async function notifyAction(key, body) {
+  const name = String(body.name || '').trim();
+  if (!name) return { ok: false, error: 'Choose your name.' };
+  if (!(await checkMemberPin(key, name, body.pin))) return { ok: false, error: 'That PIN doesn\'t match.' };
+  const ref = PREFS();
+  if (body.action === 'notifyGet') {
+    const p = (((await ref.get()).data() || {}).prefs || {})[lc(name)] || {};
+    return { ok: true, prefs: { email: p.email || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
+  }
+  if (body.action === 'notifySave') {
+    const result = await db.runTransaction(async (tx) => {
+      const doc = (await tx.get(ref)).data() || {};
+      const prefs = doc.prefs || {};
+      const c = cleanPrefs(prefs[lc(name)], body.prefs, name);
+      if (c.error) return { ok: false, error: c.error };
+      const p = c.prefs;
+      const tokens = new Set(p.tokens || []);
+      if (body.addToken) tokens.add(String(body.addToken));
+      if (body.removeToken) tokens.delete(String(body.removeToken));
+      p.tokens = Array.from(tokens).slice(-10);
+      prefs[lc(name)] = p;
+      tx.set(ref, { prefs }, { merge: true });
+      return { ok: true, message: 'Notification settings saved.', prefs: { email: p.email, emailOn: p.emailOn, pushOn: p.pushOn, nextUp: p.nextUp, devices: p.tokens.length } };
+    });
+    return result;
+  }
+  if (body.action === 'notifyTest') {
+    const p = (((await ref.get()).data() || {}).prefs || {})[lc(name)];
+    if (!p) return { ok: false, error: 'Save your settings first.' };
+    const sent = await deliver(p, {
+      subject: 'Test from the Guardians Ticket Draft',
+      title: 'Test notification',
+      body: 'This is a test. You\'ll get messages like this when it\'s your turn to pick.',
+      link: SITE_URL.value(),
+    });
+    return { ok: true, message: sent.length ? 'Sent a test by ' + sent.join(' and ') + '.' : 'Nothing sent. Turn on email or push first.' };
+  }
+  return { ok: false, error: 'Unknown action.' };
+}
+
+/* Commissioner Setup can fill in members' email addresses. */
+async function saveAdminEmails(members) {
+  if (!Array.isArray(members)) return;
+  const ref = PREFS();
+  await db.runTransaction(async (tx) => {
+    const doc = (await tx.get(ref)).data() || {};
+    const prefs = doc.prefs || {};
+    let changed = false;
+    members.forEach((m) => {
+      const name = String(m.name || '').trim();
+      if (!name || !('email' in m)) return;
+      const email = String(m.email || '').trim();
+      const old = prefs[lc(name)];
+      if (!old && !email) return;
+      if (old && (old.email || '') === email) return;
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+      // New address from the commissioner: email turns on unless the member had turned it off.
+      prefs[lc(name)] = Object.assign({ name, emailOn: true, pushOn: false, nextUp: false, tokens: [] }, old || {}, { name, email });
+      changed = true;
+    });
+    if (changed) tx.set(ref, { prefs }, { merge: true });
+  });
+}
+
+/* After any change: if someone new is on the clock (or up next), tell them once. */
+async function maybeNotify(key, before, after) {
+  try {
+    if (!after || !after.open || !after.current) return;
+    const cur = after.current;
+    const turnId = cur.pick + '|' + cur.name;
+    const beforeId = before && before.open && before.current ? before.current.pick + '|' + before.current.name : '';
+    if (turnId === beforeId) return;
+    const next = (after.upcoming || []).find((u) => !u.out && u.name !== cur.name);
+    const nextId = next ? next.pick + '|' + next.name : '';
+
+    const logRef = db.doc('notify/log-' + key);
+    const todo = await db.runTransaction(async (tx) => {
+      const log = (await tx.get(logRef)).data() || {};
+      const out = [];
+      if (log.turn !== turnId) out.push({ type: 'turn', name: cur.name });
+      if (next && log.next !== nextId && log.turn !== turnId) out.push({ type: 'next', name: next.name });
+      tx.set(logRef, { turn: turnId, next: nextId, at: new Date().toISOString() }, { merge: true });
+      return out;
+    });
+    if (!todo.length) return;
+
+    const prefs = ((await PREFS().get()).data() || {}).prefs || {};
+    const link = SITE_URL.value() + '#' + (key === 'rs' ? 'regular-season' : 'postseason');
+    const title = after.title || 'Ticket draft';
+    const deadline = after.deadline ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(after.deadline)) + ' ET' : '';
+    await Promise.allSettled(todo.map((t) => {
+      const p = prefs[lc(t.name)];
+      if (!p) return null;
+      if (t.type === 'next' && !p.nextUp) return null;
+      const msg = t.type === 'turn'
+        ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + t.name + '!',
+            body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link }
+        : { subject: "You're up next — " + title, title: "You're up next, " + t.name,
+            body: cur.name + ' is picking now in the ' + title + '. You\'re next.', link };
+      return deliver(p, msg);
+    }));
+  } catch (e) {
+    console.error('notify', e); // never let a notification problem break a pick
+  }
+}
+
+let transporter = null;
+function mailer() {
+  const user = GMAIL_USER.value();
+  let pass = '';
+  try { pass = GMAIL_APP_PASSWORD.value(); } catch (e) { pass = ''; }
+  if (!user || !pass) return null;
+  if (!transporter) transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass: pass.replace(/\s+/g, '') } });
+  return transporter;
+}
+
+async function deliver(p, msg) {
+  const sent = [];
+  const jobs = [];
+  if (p.emailOn && p.email && mailer()) {
+    const settings = SITE_URL.value() + '#notifications';
+    jobs.push(mailer().sendMail({
+      from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
+      to: p.email,
+      subject: msg.subject,
+      text: msg.body + '\n\nOpen the draft: ' + msg.link + '\n\nChange your notification settings: ' + settings,
+      html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
+        '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">' + escHtml(msg.title) + '</p>' +
+        '<p style="margin:0 0 16px">' + escHtml(msg.body) + '</p>' +
+        '<p style="margin:0 0 24px"><a href="' + msg.link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open the draft</a></p>' +
+        '<p style="font-size:12px;color:#5d6b82;margin:0">Private draft page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Change your notification settings</a>.</p></div>',
+    }).then(() => sent.push('email')).catch((e) => console.error('email', e.message)));
+  }
+  const tokens = p.pushOn ? (p.tokens || []) : [];
+  if (tokens.length) {
+    jobs.push(admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: { title: msg.title, body: msg.body },
+      webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + 'icon-192.png', badge: SITE_URL.value() + 'icon-192.png', tag: 'draft-turn', renotify: true } },
+    }).then(async (r) => {
+      if (r.successCount) sent.push('push');
+      const dead = [];
+      r.responses.forEach((x, i) => {
+        const code = x.error && x.error.code;
+        if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token' || code === 'messaging/invalid-argument') dead.push(tokens[i]);
+      });
+      if (dead.length) await removeTokens(p.name, dead);
+    }).catch((e) => console.error('push', e.message)));
+  }
+  await Promise.allSettled(jobs);
+  return sent;
+}
+
+async function removeTokens(name, dead) {
+  const ref = PREFS();
+  await db.runTransaction(async (tx) => {
+    const doc = (await tx.get(ref)).data() || {};
+    const prefs = doc.prefs || {};
+    const p = prefs[lc(name)];
+    if (!p) return;
+    p.tokens = (p.tokens || []).filter((t) => !dead.includes(t));
+    tx.set(ref, { prefs }, { merge: true });
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }

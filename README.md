@@ -76,6 +76,29 @@ The Google Sheet then becomes a backup; nothing reads from it anymore. To change
 
 ---
 
+## Email & push alerts (Firebase only)
+
+Members can get a message when it's their turn, even with the page closed. Each member taps **🔔 Email & push alerts**, enters their name and PIN, and chooses:
+
+- **Email**: their address, and whether to get an email on their turn.
+- **Push notifications**: **Turn on for this device**, once on each phone or computer they want alerts on. On iPhone/iPad, push only works after adding the page to the Home Screen (Share → Add to Home Screen) and opening it from that icon.
+- **Also tell me when I'm up next**: an extra heads-up one pick before their turn.
+- **Send me a test** checks that everything works.
+
+Settings are shared by both drafts and are matched by member name. The commissioner can also fill in emails on the Setup screen's **Members** table; a new address there turns email on for that member. Every email has a link back to these settings.
+
+Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
+
+### One-time setup
+1. **Gmail app password.** In the Gmail account the emails should come from, open **myaccount.google.com → Security → 2-Step Verification** and turn it on if it isn't already. Then go to **myaccount.google.com/apppasswords**, create one named "Ticket Draft", and copy the 16-letter password.
+2. **Store it in Firebase** (Terminal, in the repo folder): `firebase functions:secrets:set GMAIL_APP_PASSWORD` and paste the password when asked. It is stored encrypted in Google Secret Manager and never goes in the repo.
+3. **Push key.** Firebase console → ⚙️ **Project settings → Cloud Messaging → Web configuration → Generate key pair**. Copy the key into `window.FIREBASE_VAPID_KEY` in `config.js`. It's a public key, so it's fine in the repo.
+4. **Deploy:** `firebase deploy --only functions`. The first time, it asks for **GMAIL_USER** (the Gmail address) and **SITE_URL** (press Enter to keep `https://draegs34.github.io/Guardians/`). Then commit and push the site.
+
+Without the app password, push still works and email is skipped; without the push key, the page offers email only.
+
+---
+
 ## Regular season draft
 
 ### Set it up (once per season)
@@ -124,7 +147,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Picking**: whoever is **On the clock** taps an open game or seat pair, enters their PIN and taps **Lock it in**.
 - **Picks texted to you**: make the pick for that member by entering your **Commissioner PIN** instead of theirs.
 - **Updates**: the board refreshes every 10 seconds.
-- **Turn alerts**: each member chooses their name under **Turn alerts on this device for**. This is remembered per device and per draft. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
+- **Turn alerts**: each member chooses their name under **Turn alerts on this device for**. (For alerts when the page is closed, see *Email & push alerts* above.) This is remembered per device and per draft. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
 - **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
 - **Commissioner tools** (enter your PIN first):
   - **Assign** a game to any member. This doesn't use a turn.
@@ -139,7 +162,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 ---
 
 ## For developers
-- **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
+- **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js`, `live.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
 - **Draft rules:** these live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other. The Firebase functions load `engine.js` directly; it's copied into `functions/` when you deploy.
 - **Choosing a draft:** the script's web app takes `?draft=rs` or `?draft=post` (the default), plus `?view=archives`. POST bodies carry `"draft"`.
 

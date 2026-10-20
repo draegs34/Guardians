@@ -42,6 +42,7 @@
     });
     return Object.keys(out).length ? out : null;
   }
+  let wantNotify = /^#notifications/.test(location.hash);
   let sentPrices = readPriceHash();
   let view = sentPrices ? 'post' : initialView();
 
@@ -114,6 +115,7 @@
       if (d.order) out.order = d.order;
       return out;
     };
+    const demoPrefs = {};
     function post(body) {
       const k = body.draft === 'rs' ? 'rs' : 'post';
       const d = drafts[k];
@@ -131,6 +133,20 @@
         if (k !== 'post' || body.pin !== d.settings.commissionerPin) return Object.assign(DraftEngine.publicState(data(k)), { ok: false, error: "That commissioner PIN doesn't match." });
         d.inventory.forEach((i) => { const key = i.id.split('-')[0].toUpperCase(); if (key in body.prices) i.price = body.prices[key]; });
         return Object.assign(DraftEngine.publicState(data(k)), { ok: true, message: 'Prices updated.' });
+      }
+      if (/^notify/.test(body.action || '')) {
+        const m = d.members.find((x) => x.name === body.name);
+        if (!m) return { ok: false, error: 'Choose your name.' };
+        if (m.pin && String(body.pin || '').trim() !== m.pin && String(body.pin || '').trim() !== d.settings.commissionerPin) return { ok: false, error: "That PIN doesn't match." };
+        const p = demoPrefs[body.name] = demoPrefs[body.name] || { email: '', emailOn: false, pushOn: false, nextUp: false, tokens: [] };
+        if (body.action === 'notifySave') {
+          Object.assign(p, body.prefs || {});
+          if (body.addToken && !p.tokens.includes(body.addToken)) p.tokens.push(body.addToken);
+          if (body.removeToken) p.tokens = p.tokens.filter((t) => t !== body.removeToken);
+          return { ok: true, message: 'Notification settings saved (demo only).', prefs: Object.assign({}, p, { devices: p.tokens.length }) };
+        }
+        if (body.action === 'notifyTest') return { ok: true, message: 'Demo mode: nothing was sent.' };
+        return { ok: true, prefs: Object.assign({}, p, { devices: p.tokens.length, hasThisDevice: !!body.token && p.tokens.includes(body.token) }), emailReady: false };
       }
       const r = DraftEngine.apply(data(k), body);
       if (r.ok && r.append) d.rows.push(r.append);
@@ -335,6 +351,8 @@
       else if (item) toast(p.member + (p.assigned ? ' was assigned ' : ' took ') + shortLabel(item));
     }
     lastPickCount = s.picks.length;
+    // Opened from the "Change your notification settings" link in an email
+    if (wantNotify && s.members && !setupOpen && !document.querySelector('dialog[open]')) { wantNotify = false; openNotify(); }
   }
 
   const isRS = (s) => s && s.kind === 'rs';
@@ -1009,10 +1027,11 @@
       (rs ? chk('settings.timeLimitOn', s.timeLimitOn, 'Pick time limit') + '<label class="sf inline"><span>Hours per pick</span>' + inp('settings.timeLimitHours', s.timeLimitHours || 24, 'inputmode="numeric" style="width:90px"') + '</label>' : '') +
       '</div></section>';
 
-    html += '<section class="card sc"><h3>Members</h3><p class="hint">' + (rs ? 'Games purchased is each member\'s limit for this draft.' : 'The list order is the draft order.') + ' Leave a PIN blank to let someone pick without one.</p>' +
-      '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th>' + (rs ? '<th>Games</th>' : '') + '<th></th></tr></thead><tbody>' +
+    html += '<section class="card sc"><h3>Members</h3><p class="hint">' + (rs ? 'Games purchased is each member\'s limit for this draft.' : 'The list order is the draft order.') + ' Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it themselves under <em>Email &amp; push alerts</em>. Emails are shared by both drafts.</p>' +
+      '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th>' + (rs ? '<th>Games</th>' : '') + '<th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
       a.members.map((m, i) => '<tr><td>' + inp('members.' + i + '.name', m.name, 'placeholder="Name"') + '</td><td>' + inp('members.' + i + '.pin', m.pin, 'autocomplete="off" class="pin-in"') + '</td>' +
         (rs ? '<td>' + inp('members.' + i + '.cap', m.cap || '', 'inputmode="numeric" class="num-in"') + '</td>' : '') +
+        '<td>' + inp('members.' + i + '.email', m.email || '', 'type="email" placeholder="Optional" class="email-in"') + '</td>' +
         '<td class="acts">' + (rs ? '' : iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '')) +
         iconBtn('del-member', i, 'Remove ' + m.name, '✕') + '</td></tr>').join('') +
       '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="add-member">+ Add member</button></div></section>';
@@ -1084,7 +1103,7 @@
     const y = window.scrollY;
     const redraw = () => { renderSetup(); window.scrollTo(0, y); };
     switch (b.dataset.act) {
-      case 'add-member': a.members.push({ name: '', pin: '', cap: 0 }); return redraw();
+      case 'add-member': a.members.push({ name: '', pin: '', cap: 0, email: '' }); return redraw();
       case 'del-member': a.members.splice(i, 1); return redraw();
       case 'up-member': move(a.members, i, -1); return redraw();
       case 'down-member': move(a.members, i, 1); return redraw();
@@ -1173,6 +1192,174 @@
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+
+  /* ------------------------------------------------------------------ */
+  /* Email & push alerts: each member chooses what they get               */
+  /* ------------------------------------------------------------------ */
+  const PUSH_TOKEN_KEY = 'guardians-draft-push-token';
+  let notifyName = '';
+  let notifyPin = '';
+  let notifyPrefs = null;
+  let notifyBusy = false;
+
+  function notifyPost(body) {
+    body.name = notifyName;
+    body.pin = notifyPin;
+    return apiPost(body);
+  }
+  function openNotify() {
+    if (!state || !state.members) { toast('One moment, the draft is still loading.'); wantNotify = true; return; }
+    const names = state.members.map((m) => m.name);
+    $('notify-name').innerHTML = '<option value="">Choose your name…</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
+    $('notify-name').value = names.includes(notifyName) ? notifyName : (names.includes(me) ? me : '');
+    $('notify-pin').value = '';
+    $('notify-error').textContent = '';
+    showNotifyStep(!!notifyPrefs && $('notify-name').value === notifyName);
+    syncNotifyPinField();
+    $('notify-dialog').showModal();
+  }
+  function syncNotifyPinField() {
+    const m = state && state.members.find((x) => x.name === $('notify-name').value);
+    $('notify-pin-wrap').hidden = !!m && !m.needsPin;
+  }
+  function showNotifyStep(settings) {
+    $('notify-who').hidden = settings;
+    $('notify-settings').hidden = !settings;
+    if (settings) fillNotify();
+  }
+  function fillNotify() {
+    const p = notifyPrefs || {};
+    $('notify-for').textContent = notifyName;
+    $('notify-email').value = p.email || '';
+    $('notify-email-on').checked = !!p.emailOn;
+    $('notify-next').checked = !!p.nextUp;
+    renderPushStatus();
+  }
+  async function renderPushStatus() {
+    const st = window.DraftPush ? await window.DraftPush.status() : 'off';
+    const p = notifyPrefs || {};
+    const mine = !!store.get(PUSH_TOKEN_KEY) && p.hasThisDevice;
+    const others = Math.max(0, (p.devices || 0) - (mine ? 1 : 0));
+    const btn = $('push-btn');
+    const more = others ? ' Also on ' + others + ' other device' + (others === 1 ? '' : 's') + '.' : '';
+    btn.hidden = false;
+    btn.disabled = false;
+    if (st === 'off') {
+      $('push-status').textContent = DEMO ? 'Push works once the draft is live.' : "Push isn't set up yet. Email works now.";
+      btn.hidden = true;
+    } else if (st === 'ios-install') {
+      $('push-status').innerHTML = 'On iPhone or iPad, first add this page to your Home Screen: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>. Then open the draft from that icon and come back here.' + esc(more);
+      btn.hidden = true;
+    } else if (st === 'unsupported') {
+      $('push-status').textContent = "This browser can't receive push notifications. Try Chrome, Edge, Firefox or Safari, or use email." + more;
+      btn.hidden = true;
+    } else if (st === 'denied') {
+      $('push-status').textContent = 'Notifications are blocked for this site. Allow them in your browser or phone settings, then try again.' + more;
+      btn.hidden = true;
+    } else if (mine) {
+      $('push-status').innerHTML = '<span class="push-on">✓ On for this device.</span>' + esc(more);
+      btn.textContent = 'Turn off for this device';
+      btn.dataset.mode = 'off';
+    } else {
+      $('push-status').textContent = 'Get a notification on this ' + (/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'phone' : 'device') + " when it's your turn." + more;
+      btn.textContent = 'Turn on for this device';
+      btn.dataset.mode = 'on';
+    }
+  }
+  function notifyDone(res) {
+    if (res && res.ok) {
+      if (res.prefs) notifyPrefs = Object.assign({}, notifyPrefs, res.prefs, { hasThisDevice: 'hasThisDevice' in res.prefs ? res.prefs.hasThisDevice : notifyPrefs && notifyPrefs.hasThisDevice });
+      return true;
+    }
+    $('notify-error').textContent = (res && res.error) || 'Something went wrong.';
+    return false;
+  }
+  function withNotifyBusy(btn, fn) {
+    if (notifyBusy) return;
+    notifyBusy = true;
+    btn.disabled = true;
+    $('notify-error').textContent = '';
+    Promise.resolve().then(fn)
+      .catch((e) => { console.warn(e); $('notify-error').textContent = "Couldn't reach the draft. Try again."; })
+      .finally(() => { notifyBusy = false; btn.disabled = false; });
+  }
+  const notifyForm = () => ({ email: $('notify-email').value.trim(), emailOn: $('notify-email-on').checked, nextUp: $('notify-next').checked });
+
+  $('notify-btn').addEventListener('click', openNotify);
+  $('notify-cancel').addEventListener('click', () => $('notify-dialog').close());
+  $('notify-name').addEventListener('change', syncNotifyPinField);
+  $('notify-change').addEventListener('click', () => { notifyPrefs = null; showNotifyStep(false); });
+  $('notify-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!$('notify-who').hidden) $('notify-load').click();
+  });
+  $('notify-load').addEventListener('click', (e) => {
+    e.preventDefault();
+    const name = $('notify-name').value;
+    if (!name) { $('notify-error').textContent = 'Choose your name.'; return; }
+    withNotifyBusy($('notify-load'), async () => {
+      notifyName = name;
+      notifyPin = $('notify-pin').value.trim();
+      const res = await notifyPost({ action: 'notifyGet', token: store.get(PUSH_TOKEN_KEY) || '' });
+      if (!res || !res.ok) { $('notify-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
+      notifyPrefs = res.prefs || {};
+      if (!me) { me = name; store.set(meKey(view), me); if (state) render(null); }
+      showNotifyStep(true);
+    });
+  });
+  $('notify-save').addEventListener('click', () => withNotifyBusy($('notify-save'), async () => {
+    const f = notifyForm();
+    if (f.emailOn && !f.email) { $('notify-error').textContent = 'Enter your email address, or untick the email box.'; return; }
+    if (notifyDone(await notifyPost({ action: 'notifySave', prefs: f }))) { toast('Saved. ' + summaryOf(notifyPrefs)); $('notify-dialog').close(); }
+  }));
+  $('notify-test').addEventListener('click', () => withNotifyBusy($('notify-test'), async () => {
+    // Save first so the test uses what's on screen.
+    if (!notifyDone(await notifyPost({ action: 'notifySave', prefs: notifyForm() }))) return;
+    const res = await notifyPost({ action: 'notifyTest' });
+    if (res && res.ok) toast(res.message || 'Test sent.');
+    else $('notify-error').textContent = (res && res.error) || 'Something went wrong.';
+  }));
+  $('push-btn').addEventListener('click', () => {
+    const btn = $('push-btn');
+    const turnOn = btn.dataset.mode !== 'off';
+    // Start the permission prompt right away (iPhone only allows it straight from a tap).
+    const tokenPromise = turnOn ? window.DraftPush.enable() : null;
+    withNotifyBusy(btn, async () => {
+      if (turnOn) {
+        let token;
+        try { token = await tokenPromise; } catch (e) {
+          $('notify-error').textContent = e && e.message === 'denied' ? 'Notifications are blocked for this site. Allow them in your settings, then try again.'
+            : e && e.message === 'dismissed' ? 'Tap Allow when your browser asks, to get notifications.' : "Couldn't turn on notifications on this device.";
+          console.warn(e);
+          return renderPushStatus();
+        }
+        const old = store.get(PUSH_TOKEN_KEY);
+        const res = await notifyPost({ action: 'notifySave', prefs: Object.assign(notifyForm(), { pushOn: true }), addToken: token, removeToken: old && old !== token ? old : undefined });
+        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; toast('Push notifications are on for this device.'); }
+      } else {
+        const token = store.get(PUSH_TOKEN_KEY);
+        const res = await notifyPost({ action: 'notifySave', prefs: notifyForm(), removeToken: token });
+        if (notifyDone(res)) {
+          store.set(PUSH_TOKEN_KEY, '');
+          notifyPrefs.hasThisDevice = false;
+          if (window.DraftPush) await window.DraftPush.disable();
+          toast('Push notifications are off for this device.');
+        }
+      }
+      renderPushStatus();
+    });
+  });
+  function summaryOf(p) {
+    const ways = [];
+    if (p.emailOn && p.email) ways.push('email');
+    if (p.devices) ways.push('push on ' + p.devices + ' device' + (p.devices === 1 ? '' : 's'));
+    return ways.length ? "You'll get " + ways.join(' and ') + " when it's your turn" + (p.nextUp ? ' and when you\'re up next.' : '.') : "You won't get any alerts outside this page.";
+  }
+  window.addEventListener('hashchange', () => { if (/^#notifications/.test(location.hash)) { clearNotifyHash(); openNotify(); } });
+  function clearNotifyHash() {
+    try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
   }
 
   /* ------------------------------------------------------------------ */
@@ -1300,6 +1487,7 @@
       $('sync').classList.add('live');
     },
     liveOff(draft) { liveOn[draft] = false; },
+    toast: (msg) => toast(msg),
   };
 
   /* ------------------------------------------------------------------ */
