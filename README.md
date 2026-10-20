@@ -127,6 +127,8 @@ In the sheet, choose **Guardians Draft → Set up regular season draft**. This c
 
 **How picking works:** members pick in the order on RS Draft Order, one game per turn. A member stops getting turns once they reach their **Games purchased**. Commissioner assignments count toward that number. If games purchased isn't a multiple of 5, the member keeps picking in later rounds until they reach it.
 
+**Randomize the order (Firebase setup screen):** in **Setup → Draft order**, **🎲 Randomize order** shuffles the slots (or builds them from Games purchased if there are none). Every slot is placed at random, except that James Draeger always gets one of the first 3 picks. Click again for a new order; nothing is saved until you click **Save setup**.
+
 ### Keep the schedule current
 Choose **Guardians Draft → Refresh regular season schedule from MLB** any time. It pulls the latest dates, opponents, start times and promotions from MLB's official data.
 

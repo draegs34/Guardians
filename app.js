@@ -1088,7 +1088,9 @@
           names.map((x) => '<option' + (x === n ? ' selected' : '') + '>' + esc(x) + '</option>').join('') + '</select>' +
           iconBtn('up-slot', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-slot', i, 'Move down', '↓', i === a.order.length - 1 ? 'Already last' : '') + iconBtn('del-slot', i, 'Remove slot', '✕') + '</li>').join('') + '</ol>' +
         '<div class="row-btns"><button type="button" class="btn ghost" data-act="add-slot">+ Add slot</button>' +
-        '<button type="button" class="btn ghost" data-act="fill-order">Rebuild from games purchased</button></div></section>';
+        '<button type="button" class="btn ghost" data-act="fill-order">Rebuild from games purchased</button>' +
+        '<button type="button" class="btn ghost" data-act="shuffle-order">🎲 Randomize order</button></div>' +
+        '<p class="hint">Randomize shuffles the slots above (or builds them from games purchased if there are none). ' + esc(FIRST3) + ' always gets one of the first 3 picks. Click again for a new order; nothing changes until you save.</p></section>';
     }
 
     html += '<section class="card sc"><h3>' + (rs ? 'Home games' : 'Games & seat pairs') + '</h3>' +
@@ -1133,6 +1135,24 @@
     if (el && el.type === 'checkbox' && adminData) setPath(adminData, el.dataset.bind, el.checked);
   });
 
+  // Randomize the regular season order: fully random, except FIRST3 always lands in the first 3 picks.
+  const FIRST3 = 'James Draeger';
+  function randInt(n) {
+    try { const u = new Uint32Array(1); crypto.getRandomValues(u); return u[0] % n; } catch (e) { return Math.floor(Math.random() * n); }
+  }
+  function shuffleOrder(list) {
+    const out = list.slice();
+    for (let i = out.length - 1; i > 0; i--) { const j = randInt(i + 1); const t = out[i]; out[i] = out[j]; out[j] = t; }
+    const isMe = (n) => String(n).trim().toLowerCase() === FIRST3.toLowerCase();
+    const top = Math.min(3, out.length);
+    if (out.some(isMe) && !out.slice(0, top).some(isMe)) {
+      const mine = out.map((n, i) => (isMe(n) ? i : -1)).filter((i) => i >= 0);
+      const from = mine[randInt(mine.length)];
+      const to = randInt(top);
+      const t = out[to]; out[to] = out[from]; out[from] = t;
+    }
+    return out;
+  }
   function move(list, i, d) { const j = i + d; if (j < 0 || j >= list.length) return; const t = list[i]; list[i] = list[j]; list[j] = t; }
   $('setup-body').addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
@@ -1150,6 +1170,14 @@
       case 'del-slot': a.order.splice(i, 1); return redraw();
       case 'up-slot': move(a.order, i, -1); return redraw();
       case 'down-slot': move(a.order, i, 1); return redraw();
+      case 'shuffle-order': {
+        let slots = a.order.filter(Boolean);
+        if (!slots.length) a.members.forEach((m) => { for (let k = 0; k < Math.floor(Number(m.cap) / 5); k++) slots.push(m.name); });
+        if (!slots.length) { toast('Enter Games purchased for members first.'); return; }
+        a.order = shuffleOrder(slots);
+        toast('New random order. Click Save setup to keep it.');
+        return redraw();
+      }
       case 'fill-order': {
         const out = [];
         a.members.forEach((m) => { for (let k = 0; k < Math.floor(Number(m.cap) / 5); k++) out.push(m.name); });
