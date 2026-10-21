@@ -1649,15 +1649,14 @@
     const who = swapMe();
     const list = swapListings || [];
     if (!list.length) { $('swap-list').innerHTML = '<div class="notice-card">No listings right now. Have a game you can\'t make? <strong>Post a listing</strong> and members will get an email.</div>'; return; }
-    const mineFirst = list.slice().sort((a, b) => (b.member === who) - (a.member === who));
-    $('swap-list').innerHTML = mineFirst.map((l) => {
+    const card = (l) => {
       const own = l.member === who;
       const posted = l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       const icons = (l.notify.email ? '<span class="sw-ico" title="Gets offers by email">' + ICON_MAIL + '<span class="sr">email</span></span>' : '') +
         (l.notify.push ? '<span class="sw-ico" title="Gets offers by push notification">' + ICON_PUSH + '<span class="sr">push</span></span>' : '');
       const offers = l.offerCount ? l.offerCount + ' offer' + (l.offerCount === 1 ? '' : 's') : 'No offers yet';
       return '<article class="card swap-card' + (own ? ' mine' : '') + '">' +
-        '<div class="sw-top"><span class="sw-who">' + esc(l.member) + (own ? ' <span class="tag">You</span>' : '') + '</span>' + (icons ? '<span class="sw-icons">' + icons + '</span>' : '') + '<span class="sw-when">' + esc(posted) + '</span></div>' +
+        '<div class="sw-top"><span class="sw-who">' + esc(l.member) + (own ? ' <span class="tag mine">Your listing</span>' : '') + '</span>' + (icons ? '<span class="sw-icons">' + icons + '</span>' : '') + '<span class="sw-when">' + esc(posted) + '</span></div>' +
         '<div class="sw-row"><span class="sw-k">Trading away</span><div class="gchips">' + gChips(l.liveGames) + '</div></div>' +
         '<div class="sw-row"><span class="sw-k">Tickets</span><span>' + l.qty + (l.split ? ' · will split into 2' : '') + '</span></div>' +
         '<div class="sw-row"><span class="sw-k">Looking for</span>' + (l.seekAny || !l.seek.length ? '<span>Any game</span>' : '<div class="gchips">' + gChips(l.seek) + '</div>') + '</div>' +
@@ -1668,7 +1667,14 @@
             : '<button type="button" class="btn primary small" data-sw="offer" data-id="' + esc(l.id) + '">Make an offer</button>' +
               (commishPin ? '<button type="button" class="btn ghost small" data-sw="edit" data-id="' + esc(l.id) + '">Edit</button>' : '')) +
         '</div></article>';
-    }).join('');
+    };
+    // Your own listings get their own section at the top.
+    const mine = list.filter((l) => l.member === who);
+    const others = list.filter((l) => l.member !== who);
+    $('swap-list').innerHTML = mine.length
+      ? '<h3 class="sw-sec">Your listings</h3>' + mine.map(card).join('') +
+        '<h3 class="sw-sec">Other members\' listings</h3>' + (others.length ? others.map(card).join('') : '<p class="empty sw-none">No other listings right now.</p>')
+      : others.map(card).join('');
   }
 
   /* One dialog, filled in for each step. */

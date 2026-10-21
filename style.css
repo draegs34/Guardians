@@ -487,7 +487,13 @@ body.stale .seat:not(.taken) { opacity: .7; }
 #swap-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
 #swap-list > .notice-card, #swap-list > .empty { grid-column: 1 / -1; }
 .swap-card { display: grid; gap: 8px; }
-.swap-card.mine { border: 1.5px solid var(--open); }
+.swap-card.mine { --mine: #2b5d9b; background: #eef4fb; border: 1.5px solid var(--mine); border-left-width: 6px; }
+:root[data-theme="dark"] .swap-card.mine { --mine: #6fa4e8; background: #16263d; }
+.tag.mine { background: var(--mine, #2b5d9b); color: #fff; }
+:root[data-theme="dark"] .tag.mine { color: #0b1422; }
+.sw-sec { grid-column: 1 / -1; margin: 6px 0 -4px; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sw-sec ~ .sw-sec { margin-top: 14px; }
+.sw-none { grid-column: 1 / -1; }
 .sw-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sw-who { font-weight: 800; font-size: 16px; }
 .sw-icons { display: inline-flex; gap: 6px; color: var(--muted); }
