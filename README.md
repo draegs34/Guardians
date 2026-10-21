@@ -97,7 +97,7 @@ The **⚙** button opens the commissioner tools for the draft you're looking at 
 
 ## Notification settings (Firebase only)
 
-Members can get a message when it's their turn, even with the page closed. Each member taps **🔔 Notification settings**, enters their name and PIN, and chooses:
+Members can get a message when it's their turn, even with the page closed. Each member taps **Notification settings** (bell button), enters their name and PIN, and chooses:
 
 - **On this device**: on-screen alerts while the page is open (a banner, a flashing browser tab and the icon badge). This replaces the old *Turn alerts on this device for* dropdown, covers both drafts, and is on by default.
 
@@ -183,7 +183,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Picking**: whoever is **On the clock** taps an open game or seat pair, enters their PIN and taps **Lock it in**.
 - **Picks texted to you**: make the pick for that member by entering your **Commissioner PIN** instead of theirs.
 - **Updates**: the board refreshes every 10 seconds.
-- **Turn alerts**: under **🔔 Notification settings**, each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound. The line next to the button shows whose alerts the device is set for.
+- **Turn alerts**: under **Notification settings** (bell button), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound. The line next to the button shows whose alerts the device is set for.
 - **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
 - **⚙ Commissioner tools** (the gear next to Setup; enter your PIN if it isn't filled in):
   - **Assign** a game to any member. This doesn't use a turn.

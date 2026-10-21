@@ -442,3 +442,6 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .big-check span { display: grid; gap: 2px; }
 .big-check strong { font-size: 15px; }
 .big-check small { color: var(--muted); font-size: 13px; font-weight: 400; }
+
+#notify-btn { display: inline-flex; align-items: center; gap: 7px; }
+#notify-btn .bell { flex: none; }
