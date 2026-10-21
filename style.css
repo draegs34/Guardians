@@ -445,3 +445,14 @@ body.stale .seat:not(.taken) { opacity: .7; }
 
 #notify-btn { display: inline-flex; align-items: center; gap: 7px; }
 #notify-btn .bell { flex: none; }
+
+/* Regular season months fold up (closed by default on phones) */
+.month-toggle { width: 100%; border: 0; font: inherit; text-align: left; cursor: pointer; align-items: center; }
+.month-toggle:focus-visible { outline: 2px solid #fff; outline-offset: -4px; }
+.month-toggle h3 { display: flex; align-items: center; gap: 8px; }
+.month-toggle .chev { display: inline-block; font-size: 13px; transition: transform .15s; }
+.rs-month.closed .chev { transform: rotate(-90deg); }
+.rs-month.closed { margin-bottom: 10px; }
+.month-body[hidden] { display: none; }
+.rs-month .month-body > .rsg:first-child { border-top: 0; }
+.month-all { font-size: 13px; white-space: nowrap; }

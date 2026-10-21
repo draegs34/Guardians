@@ -602,6 +602,10 @@
 
   /* Regular season board: one row per home game, all four seats per pick. */
   const rsFilter = { avail: 'all', tag: 'all', month: '', opp: '' };
+  // Months fold up. On phones they start closed (lots of scrolling otherwise); on bigger screens they start open.
+  const monthOpen = {};
+  const smallScreen = () => !!(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
+  const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : (!!rsFilter.month || !smallScreen()));
   function renderRsBoard(s, takenBy, canPick, prevIds) {
     const games = s.inventory.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const openerId = games.length ? games[0].id : null;
@@ -622,7 +626,7 @@
           months.map((m) => { const p = m.split('-'); return '<option value="' + m + '">' + MONTH_FULL[+p[1] - 1] + '</option>'; }).join('') +
         '</select></label><label>Opponent <select data-fsel="opp"><option value="">All</option>' +
           opps.map((o) => '<option>' + esc(o) + '</option>').join('') + '</select></label>' +
-        '<span class="fcount" id="fcount"></span></div>';
+        '<span class="fcount" id="fcount"></span><button type="button" class="link-btn month-all" id="month-all"></button></div>';
       fb.dataset.sig = sig;
     }
     fb.hidden = false;
@@ -639,6 +643,10 @@
     });
     const fc = $('fcount');
     if (fc) fc.textContent = shown.length + ' of ' + games.length + ' games';
+    const shownMonths = [...new Set(shown.map((x) => String(x.g.date).slice(0, 7)))];
+    const allOpen = shownMonths.length > 0 && shownMonths.every(isMonthOpen);
+    const ma = $('month-all');
+    if (ma) { ma.textContent = allOpen ? 'Collapse all' : 'Expand all'; ma.dataset.open = allOpen ? '1' : ''; ma.hidden = shownMonths.length < 2; }
 
     if (!shown.length) {
       $('board').innerHTML = '<div class="notice-card">' + (games.length ? 'No games match these filters.' : 'No games loaded yet. Commissioner: choose <em>Guardians Draft → Refresh regular season schedule from MLB</em> in the Google Sheet.') + '</div>';
@@ -655,7 +663,10 @@
       const p = grp.key.split('-');
       const name = p.length === 2 ? MONTH_FULL[+p[1] - 1] + ' ' + p[0] : 'Date TBD';
       const open = grp.items.filter((x) => !x.p).length;
-      return '<div class="series rs-month"><div class="series-head"><h3>' + esc(name) + '</h3><span class="price">' + open + ' of ' + grp.items.length + ' open</span></div>' +
+      const isOpen = isMonthOpen(grp.key);
+      return '<div class="series rs-month' + (isOpen ? '' : ' closed') + '"><button type="button" class="series-head month-toggle" data-month="' + esc(grp.key) + '" aria-expanded="' + isOpen + '">' +
+        '<h3><span class="chev" aria-hidden="true">▾</span>' + esc(name) + '</h3><span class="price">' + open + ' of ' + grp.items.length + ' open</span></button>' +
+        '<div class="month-body"' + (isOpen ? '' : ' hidden') + '>' +
         grp.items.map(({ g, f, p: pick }) => {
           const d = ymd(g.date);
           const tags = [];
@@ -671,11 +682,24 @@
             '<div class="rsg-info"><div class="game-name">vs ' + esc(g.opponent) + '</div><div class="game-sub">' + time + '</div>' +
               (tags.length ? '<div class="badges">' + tags.join('') + '</div>' : '') + '</div>' +
             '<div class="rsg-act">' + seatCell(g, pick, canPick, prevIds, 'Seats 7–10', g.label || g.game) + '</div></div>';
-        }).join('') + '</div>';
+        }).join('') + '</div></div>';
     }).join('');
   }
 
+  $('board').addEventListener('click', (e) => {
+    const t = e.target.closest('.month-toggle');
+    if (!t) return;
+    monthOpen[t.dataset.month] = !isMonthOpen(t.dataset.month);
+    if (state) render(null);
+  });
   $('rs-filters').addEventListener('click', (e) => {
+    const all = e.target.closest('#month-all');
+    if (all) {
+      const openAll = !all.dataset.open;
+      ((state && state.inventory) || []).forEach((g) => { monthOpen[String(g.date).slice(0, 7)] = openAll; });
+      if (state) render(null);
+      return;
+    }
     const b = e.target.closest('.fchip');
     if (!b) return;
     rsFilter[b.dataset.fk] = b.dataset.fv;
@@ -685,6 +709,7 @@
     const sel = e.target.closest('select[data-fsel]');
     if (!sel) return;
     rsFilter[sel.dataset.fsel] = sel.value;
+    if (sel.dataset.fsel === 'month' && sel.value) monthOpen[sel.value] = true; // picking a month opens it
     if (state) render(null);
   });
 
