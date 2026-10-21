@@ -758,7 +758,6 @@
       return;
     }
     me = store.get(meKey(v)) || '';
-    $('me-select').dataset.sig = '';
     showDraft();
     if (window.DraftLive) window.DraftLive.watch(v);
     refresh();
@@ -1162,7 +1161,7 @@
       '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p></section>';
 
     if (rs) {
-      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason tab too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Email &amp; push alerts</em>.</p>' +
+      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason tab too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => {
           const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
@@ -1587,6 +1586,8 @@
   function fillNotify() {
     const p = notifyPrefs || {};
     $('notify-for').textContent = notifyName;
+    // On-screen alerts: on if this device already follows this member, or if nobody is set yet.
+    $('notify-screen').checked = me ? me === notifyName : true;
     $('notify-email').value = p.email || '';
     $('notify-email2').value = p.email2 || '';
     $('notify-email-on').checked = !!p.emailOn;
@@ -1661,14 +1662,18 @@
       const res = await notifyPost({ action: 'notifyGet', token: store.get(PUSH_TOKEN_KEY) || '' });
       if (!res || !res.ok) { $('notify-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
       notifyPrefs = res.prefs || {};
-      if (!me) { me = name; store.set(meKey(view), me); if (state) render(null); }
       showNotifyStep(true);
     });
   });
+  function applyScreen() {
+    if ($('notify-screen').checked) setMe(notifyName);
+    else if (me === notifyName) setMe('');
+  }
+  $('notify-screen').addEventListener('change', applyScreen);
   $('notify-save').addEventListener('click', () => withNotifyBusy($('notify-save'), async () => {
     const f = notifyForm();
     if (f.emailOn && !f.email && !f.email2) { $('notify-error').textContent = 'Enter your email address, or untick the email box.'; return; }
-    if (notifyDone(await notifyPost({ action: 'notifySave', prefs: f }))) { toast('Saved. ' + summaryOf(notifyPrefs)); $('notify-dialog').close(); }
+    if (notifyDone(await notifyPost({ action: 'notifySave', prefs: f }))) { applyScreen(); toast('Saved. ' + summaryOf(notifyPrefs)); $('notify-dialog').close(); }
   }));
   $('notify-test').addEventListener('click', () => withNotifyBusy($('notify-test'), async () => {
     // Save first so the test uses what's on screen.
@@ -1711,9 +1716,11 @@
   });
   function summaryOf(p) {
     const ways = [];
+    if (me && me === notifyName) ways.push('on-screen alerts here');
     if (p.emailOn && p.email) ways.push('email');
     if (p.devices) ways.push('push on ' + p.devices + ' device' + (p.devices === 1 ? '' : 's'));
-    return ways.length ? "You'll get " + ways.join(' and ') + " when it's your turn" + (p.nextUp ? ' and when you\'re up next.' : '.') : "You won't get any alerts outside this page.";
+    const list = ways.length > 1 ? ways.slice(0, -1).join(', ') + ' and ' + ways[ways.length - 1] : ways[0];
+    return ways.length ? "You'll get " + list + " when it's your turn" + (p.nextUp ? ' and when you\'re up next.' : '.') : "You won't get any alerts outside this page.";
   }
   window.addEventListener('hashchange', () => { if (/^#notifications/.test(location.hash)) { clearNotifyHash(); openNotify(); } });
   function clearNotifyHash() {
@@ -1727,15 +1734,9 @@
   let baseTitle = 'Ticket Draft';
 
   function renderMe(s, done) {
-    const sel = $('me-select');
-    const names = sortedNames(s.members);
-    const sig = view + '|' + names.join('|');
-    if (sel.dataset.sig !== sig) {
-      sel.innerHTML = '<option value="">Nobody (off)</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
-      sel.dataset.sig = sig;
-    }
+    const names = s.members.map((m) => m.name);
     if (me && !names.includes(me)) me = '';
-    sel.value = me;
+    $('me-status').textContent = me ? 'On-screen alerts on this device: ' + me : '';
 
     const meMember = s.members.find((m) => m.name === me);
     const mine = !!me && !done && s.current && s.current.name === me && !(meMember && meMember.out);
@@ -1803,11 +1804,12 @@
     }
   }
 
-  $('me-select').addEventListener('change', (e) => {
-    me = e.target.value;
-    store.set(meKey(view), me);
-    if (state) render(null);
-  });
+  // On-screen alerts follow the member chosen in Notification settings (both drafts).
+  function setMe(name) {
+    me = name || '';
+    ['rs', 'post'].forEach((k) => store.set(meKey(k), me));
+    if (state && isDraftView(view)) render(null);
+  }
 
   function fmtLeft(ms) {
     const m = Math.max(0, Math.floor(ms / 60000));

@@ -372,7 +372,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 /* Email & push alerts */
 .btn:not(.primary):not(.danger):not(.ghost):not(.drop) { background: var(--surface); color: var(--text); border-color: var(--line); }
 .btn.small { padding: 7px 12px; font-size: 14px; font-weight: 600; }
-.me-bar #notify-btn { margin-left: auto; }
+.me-bar #notify-btn { margin-left: 0; }
+.me-status { font-size: 13px; color: var(--muted); }
 @media (max-width: 560px) { .me-bar #notify-btn { margin-left: 0; } }
 .actions.left { justify-content: flex-start; }
 #notify-dialog form { display: grid; gap: 12px; }

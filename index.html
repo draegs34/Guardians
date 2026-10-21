@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610211344">
+  <link rel="stylesheet" href="style.css?v=202610211400">
 </head>
 <body>
   <header class="top">
@@ -88,9 +88,8 @@
     </section>
 
     <div class="me-bar">
-      <label for="me-select">Turn alerts on this device for</label>
-      <select id="me-select"><option value="">Nobody (off)</option></select>
-      <button class="btn ghost small" id="notify-btn" type="button">🔔 Email &amp; push alerts</button>
+      <button class="btn ghost small" id="notify-btn" type="button">🔔 Notification settings</button>
+      <span class="me-status" id="me-status"></span>
     </div>
 
     <div class="layout">
@@ -224,8 +223,8 @@
   <!-- Notifications dialog -->
   <dialog id="notify-dialog">
     <form method="dialog" id="notify-form">
-      <h3>Email &amp; push alerts</h3>
-      <p class="hint">Get a message when it's your turn to pick, even when this page is closed. Choose email, push notifications on your phone or computer, or both. These settings cover both drafts.</p>
+      <h3>Notification settings</h3>
+      <p class="hint">Choose how you hear that it's your turn: on screen while this page is open, by email, and by push notification on your phone or computer, even when the page is closed. These settings cover both drafts.</p>
       <div id="notify-who">
         <label>Your name
           <select id="notify-name"></select>
@@ -240,11 +239,15 @@
       <div id="notify-settings" hidden>
         <p class="notify-for">Settings for <strong id="notify-for"></strong> <button type="button" class="link-btn" id="notify-change">Not you?</button></p>
         <fieldset class="nset">
+          <legend>On this device</legend>
+          <label class="check"><input type="checkbox" id="notify-screen"> <span>Show on-screen alerts here when it's my turn: a banner, a flashing browser tab and an icon badge</span></label>
+        </fieldset>
+        <fieldset class="nset">
           <legend>Email</legend>
           <label>Email address
             <input id="notify-email" type="email" autocomplete="email" placeholder="you@example.com">
           </label>
-          <label>Second email address <span class="opt">(optional)</span>
+          <label><span>Second email address <span class="opt">(optional)</span></span>
             <input id="notify-email2" type="email" autocomplete="off" placeholder="e.g. a spouse or work address">
           </label>
           <label class="check"><input type="checkbox" id="notify-email-on"> Email me when it's my turn</label>
@@ -269,9 +272,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610211344"></script>
-  <script src="engine.js?v=202610211344"></script>
-  <script type="module" src="live.js?v=202610211344"></script>
-  <script src="app.js?v=202610211344"></script>
+  <script src="config.js?v=202610211400"></script>
+  <script src="engine.js?v=202610211400"></script>
+  <script type="module" src="live.js?v=202610211400"></script>
+  <script src="app.js?v=202610211400"></script>
 </body>
 </html>
