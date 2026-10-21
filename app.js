@@ -1897,12 +1897,12 @@
     swapPost({ action: 'swapOffers', id: L.id, name: swapAuth.name, pin: swapAuth.pin }).then((r) => {
       if (!r || !r.ok) { $('swap-dlg-body').innerHTML = ''; return swapErr((r && r.error) || 'Something went wrong.'); }
       const offers = r.offers || [];
-      $('swap-dlg-body').innerHTML = '<p class="hint">Trading away: ' + esc(L.liveGames.map(gLabel).join(', ')) + '. Accept or reject each offer; they\'ll hear back the way they asked. Accepted games come off your listing, and once they\'re all traded it\'s marked fulfilled.</p>' +
+      $('swap-dlg-body').innerHTML = '<p class="hint">Trading away: ' + esc(L.liveGames.map(gLabel).join(', ')) + '. Accept or reject each offer; they\'ll hear back the way they asked. Accepting one rejects the other offers for the same game(s). Accepted games come off your listing, and once they\'re all traded it\'s marked fulfilled.</p>' +
         (offers.length ? offers.map((o) => {
           const when = o.createdAt ? new Date(o.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
           const mail = o.email ? '<a class="btn ghost small" href="mailto:' + esc([o.email, o.email2].filter(Boolean).join(',')) + '?subject=' + encodeURIComponent('Ticket Swap: ' + L.liveGames.map(gLabel).join(', ')) + '">Email ' + esc(o.from.split(' ')[0]) + '</a>' : '<span class="hint">No email on file</span>';
           const st = o.status || 'pending';
-          const tag = st === 'accepted' ? ' <span class="tag ok">Accepted</span>' : st === 'rejected' ? ' <span class="tag">Rejected</span>' : o.seen ? '' : ' <span class="tag new">New</span>';
+          const tag = st === 'accepted' ? ' <span class="tag ok">Accepted</span>' : st === 'rejected' ? ' <span class="tag">Rejected' + (o.autoRejected ? ' (traded to someone else)' : '') + '</span>' : o.seen ? '' : ' <span class="tag new">New</span>';
           const decide = st === 'pending' ? '<button type="button" class="btn small ghost" data-resp="reject" data-oid="' + esc(o.id) + '">Reject</button><button type="button" class="btn small primary" data-resp="accept" data-oid="' + esc(o.id) + '">Accept</button>' : '';
           return '<div class="offer offer-' + st + (o.seen || st !== 'pending' ? '' : ' new') + '"><div class="sw-top"><span class="sw-who">' + esc(o.from) + tag + '</span><span class="sw-when">' + esc(when) + '</span></div>' +
             '<div class="sw-row"><span class="sw-k">Wants</span><div class="gchips">' + gChips(o.wants) + '</div></div>' +

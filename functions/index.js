@@ -1187,6 +1187,24 @@ async function swapAction(body) {
       closed = !liveLeft.length;
       await ref.set(Object.assign({}, x, { games: left.length ? left : x.games, status: closed ? 'fulfilled' : x.status, updatedAt: now }));
       message += closed ? ' Your listing is now marked fulfilled.' : ' ' + L(o.wants) + (o.wants.length === 1 ? ' is' : ' are') + ' off your listing; the rest stay listed.';
+      // Other open offers for any of those games can't happen now: reject them and let those members know.
+      const qs = await db.collection('swapOffers').get();
+      const others = qs.docs.filter((d) => {
+        const y = d.data();
+        return d.id !== oref.id && y.listingId === o.listingId && (y.status || 'pending') === 'pending' &&
+          (closed || (y.wants || []).some((gid) => (o.wants || []).includes(gid)));
+      });
+      for (const d of others) {
+        const y = d.data();
+        await d.ref.set(Object.assign({}, y, { status: 'rejected', autoRejected: true, respondedAt: now, seen: true }));
+        const yn = y.notify || {};
+        if (yn.email || yn.push) {
+          const yp = prefsOf(y.from);
+          await deliver({ emailOn: !!yn.email, pushOn: !!yn.push, email: yp.email || '', email2: yp.email2 || '', tokens: yp.tokens || [], name: y.from },
+            { subject: 'Ticket Swap: ' + x.member + ' traded with someone else', title: 'Offer not accepted', body: x.member + ' accepted another offer, so your offer for ' + L(y.wants || []) + ' is closed.', link, badge: 0, tag: 'ticket-swap-reply' }).catch((e) => console.error('swap auto-reject', e));
+        }
+      }
+      if (others.length) message += ' ' + others.length + ' other offer' + (others.length === 1 ? ' for the same game' + (o.wants.length === 1 ? '' : 's') + ' was' : 's for the same game' + (o.wants.length === 1 ? '' : 's') + ' were') + ' rejected automatically.';
     }
     const p = prefsOf(o.from);
     const via = { emailOn: !!n.email, pushOn: !!n.push, email: p.email || '', email2: p.email2 || '', tokens: p.tokens || [], name: o.from };
