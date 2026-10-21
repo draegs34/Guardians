@@ -107,6 +107,34 @@ function publicMembers(members, pins) {
   });
 }
 
+/* A member changes their own PIN (Notification & PIN settings). The regular season list is the
+   source of truth; the postseason copy is refreshed from it. The commissioner sees it in Setup. */
+async function changePin(name, body) {
+  const oldPin = String(body.oldPin || '').trim();
+  const newPin = String(body.newPin || '').trim();
+  if (!/^\d{4,8}$/.test(newPin)) return { ok: false, error: 'Your new PIN must be 4 to 8 digits.' };
+  const res = await db.runTransaction(async (tx) => {
+    const rsRef = db.doc('drafts/rs'), secRef = db.doc('secrets/rs');
+    const [pubSnap, secSnap] = await Promise.all([tx.get(rsRef), tx.get(secRef)]);
+    const pub = pubSnap.data() || {};
+    const sec = secSnap.data() || {};
+    const m = (pub.members || []).find((x) => lc(x.name) === lc(name));
+    if (!m) return { ok: false, error: 'PINs are set on the regular season member list. Ask the commissioner to change yours.' };
+    const pins = Object.assign({}, sec.pins || {});
+    const cur = String(pins[m.name] || '');
+    const commish = String(sec.commissionerPin || '');
+    if (cur ? oldPin !== cur && !(commish && oldPin === commish) : oldPin && oldPin !== commish) return { ok: false, error: 'Your current PIN doesn\'t match.' };
+    if (newPin === cur) return { ok: false, error: 'That\'s already your PIN.' };
+    pins[m.name] = newPin;
+    tx.set(secRef, Object.assign({}, sec, { pins }));
+    if (!m.needsPin) tx.update(rsRef, { members: (pub.members || []).map((x) => (x === m ? Object.assign({}, x, { needsPin: true }) : x)) });
+    return { ok: true, name: m.name };
+  });
+  if (!res.ok) return res;
+  await syncPostFromRs({});
+  return { ok: true, message: 'PIN changed. Use your new PIN from now on.' };
+}
+
 /* One commissioner PIN for both drafts. Either draft's PIN is accepted (they're kept the same once Setup is saved). */
 async function commishPinOk(pin) {
   pin = String(pin || '').trim();
@@ -742,6 +770,7 @@ function cleanPrefs(old, incoming, name) {
 async function notifyAction(key, body) {
   const name = String(body.name || '').trim();
   if (!name) return { ok: false, error: 'Choose your name.' };
+  if (body.action === 'notifyPin') return changePin(name, body);
   if (!(await checkMemberPin(key, name, body.pin))) return { ok: false, error: 'That PIN doesn\'t match.' };
   const ref = PREFS();
   if (body.action === 'notifyGet') {

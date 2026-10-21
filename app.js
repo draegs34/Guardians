@@ -1757,7 +1757,7 @@
     const link = (txt) => own ? ' <button type="button" class="link-btn sw-notify-link">' + txt + '</button>' : ' <small class="hint">(not set up)</small>';
     return '<label class="check"><input type="checkbox" id="sw-n-push"' + (n.push && a.push ? ' checked' : '') + (a.push ? '' : ' disabled') + '> <span>Push notification</span></label>' + (a.push ? '' : link('Set up push')) +
       '<label class="check"><input type="checkbox" id="sw-n-email"' + (n.email && a.email ? ' checked' : '') + (a.email ? '' : ' disabled') + '> <span>Email</span></label>' + (a.email ? '' : link('Add your email')) +
-      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification settings</button></p>' : '');
+      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification &amp; PIN settings</button></p>' : '');
   }
   function wireOfferAlerts(a) {
     const box = $('sw-notify');
@@ -2026,6 +2026,7 @@
   }
   function fillNotify() {
     const p = notifyPrefs || {};
+    showPinFields(false);
     $('notify-for').textContent = notifyName;
     // On-screen alerts: on if this device already follows this member, or if nobody is set yet.
     // (ticked to start, until this browser has saved a choice)
@@ -2087,7 +2088,7 @@
     const on = !!me || !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
     ['notify-btn', 'swap-notify-btn'].forEach((id) => {
       $(id).classList.toggle('is-on', on);
-      $(id).setAttribute('aria-label', 'Notification settings' + (on ? ' (on)' : ''));
+      $(id).setAttribute('aria-label', 'Notification & PIN settings' + (on ? ' (on)' : ''));
     });
   }
   function notifyDone(res) {
@@ -2116,6 +2117,38 @@
   $('notify-cancel').addEventListener('click', () => $('notify-dialog').close());
   $('notify-name').addEventListener('change', syncNotifyPinField);
   $('notify-change').addEventListener('click', () => { notifyPrefs = null; showNotifyStep(false); });
+
+  /* Change your own PIN (saved to the member list the commissioner sees in Setup). */
+  function showPinFields(on) {
+    $('pin-fields').hidden = !on;
+    $('pin-open').hidden = on;
+    ['pin-old', 'pin-new', 'pin-new2'].forEach((id) => { $(id).value = ''; });
+    $('pin-error').textContent = '';
+    if (on) $('pin-old').focus();
+  }
+  $('pin-open').addEventListener('click', () => showPinFields(true));
+  $('pin-cancel').addEventListener('click', () => showPinFields(false));
+  $('pin-save').addEventListener('click', () => {
+    const oldPin = $('pin-old').value.trim(), n1 = $('pin-new').value.trim(), n2 = $('pin-new2').value.trim();
+    const err = (t) => { $('pin-error').textContent = t; };
+    if (!/^\d{4,8}$/.test(n1)) return err('Your new PIN must be 4 to 8 digits.');
+    if (n1 !== n2) return err('The new PINs don\'t match. Type it the same way twice.');
+    if (notifyBusy) return;
+    notifyBusy = true;
+    $('pin-save').disabled = true;
+    err('');
+    apiPost({ draft: 'rs', action: 'notifyPin', name: notifyName, oldPin, newPin: n1 })
+      .then((r) => {
+        if (!r || !r.ok) return err((r && r.error) || 'Something went wrong.');
+        // Keep using the new PIN for this visit.
+        notifyPin = n1;
+        if (swapAuth && swapAuth.name === notifyName) swapAuth.pin = n1;
+        showPinFields(false);
+        toast(r.message || 'PIN changed.');
+      })
+      .catch(() => err("Couldn't reach the draft. Try again."))
+      .finally(() => { notifyBusy = false; $('pin-save').disabled = false; });
+  });
   $('notify-form').addEventListener('submit', (e) => {
     e.preventDefault();
     if (!$('notify-who').hidden) $('notify-load').click();

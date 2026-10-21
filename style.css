@@ -394,6 +394,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .notify-for { margin: 0; font-size: 14px; }
 .nsec { display: grid; gap: 10px; }
 .nsec + .nsec { border-top: 1px solid var(--line); padding-top: 12px; }
+#pin-sec { border-top: 1px solid var(--line); padding-top: 12px; }
+#pin-open { justify-self: start; }
 .nsec h4 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .push-on { color: var(--open); font-weight: 600; }
 
