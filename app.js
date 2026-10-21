@@ -1176,7 +1176,7 @@
         '<div class="notice-card">The ' + (rs ? 'regular season' : 'postseason') + ' draft isn\'t set up yet. Import your data from the Google Sheet, or start it empty and fill it in here.</div>' +
         importCard +
         '<section class="card sc"><h3>Start this draft empty</h3><p class="hint">Creates the ' + (rs ? 'regular season' : 'postseason') + ' draft' + (rs ? ' with one placeholder member' : ' with the regular season members') + '. You can then fill in the rest here.</p>' +
-        field('Commissioner PIN', '<input id="fresh-pin" autocomplete="off" value="' + esc(commishPin) + '">') +
+        field('Commissioner PIN', '<input id="fresh-pin" inputmode="numeric" autocomplete="off" value="' + esc(commishPin) + '">') +
         field('Setup key', '<input id="fresh-key" type="password" autocomplete="off">', 'The private phrase you chose when deploying.') +
         '<div class="row-btns"><button type="button" class="btn" data-act="fresh">Create empty draft</button></div></section>';
       return;
@@ -1195,7 +1195,7 @@
       field('Draft title', inp('settings.title', s.title)) +
       (rs ? field('Season <span class="opt">(for the MLB schedule)</span>', inp('settings.season', s.season, 'inputmode="numeric"'))
         : field('Max picks per member', inp('settings.maxPicks', s.maxPicks || '', 'inputmode="numeric" placeholder="No limit"'))) +
-      (rs ? field('New commissioner PIN <span class="opt">(both drafts)</span>', '<input data-bind="newCommissionerPin" autocomplete="off" placeholder="Leave blank to keep it">') : '') +
+      (rs ? field('New commissioner PIN <span class="opt">(both drafts)</span>', '<input data-bind="newCommissionerPin" autocomplete="off" inputmode="numeric" placeholder="Leave blank to keep it">') : '') +
       '</div><div class="checks">' +
       chk('settings.open', s.open, '<strong>Draft open</strong> (members can pick)') +
       chk('settings.snake', s.snake !== false, 'Snake order (reverses every round)') +
@@ -1213,7 +1213,7 @@
         a.members.map((m, i) => {
           const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
           const lock = where.length ? m.name + ' has picks in the ' + where.join(' and ') + ' draft. Undo those first.' : '';
-          return '<tr><td>' + inp('members.' + i + '.name', m.name, 'placeholder="Name"') + '</td><td>' + inp('members.' + i + '.pin', m.pin, 'autocomplete="off" class="pin-in"') + '</td>' +
+          return '<tr><td>' + inp('members.' + i + '.name', m.name, 'placeholder="Name"') + '</td><td>' + inp('members.' + i + '.pin', m.pin, 'autocomplete="off" inputmode="numeric" class="pin-in"') + '</td>' +
             '<td>' + inp('members.' + i + '.cap', m.cap || '', 'inputmode="numeric" class="num-in"') + '</td>' +
             '<td>' + inp('members.' + i + '.email', m.email || '', 'type="email" placeholder="Optional" class="email-in"') + '</td>' +
             '<td class="acts">' + iconBtn('del-member', i, 'Remove ' + (m.name || 'member'), '✕', lock) + '</td></tr>';
@@ -1719,7 +1719,7 @@
     const pre = names.includes(swapMe()) ? swapMe() : '';
     swapDlg(title, '<p class="hint">' + intro + '</p>' +
       '<label>Your name<select id="sw-name"><option value="">Choose your name…</option>' + names.map((n) => '<option' + (n === pre ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' +
-      '<label id="sw-pin-wrap">Your PIN<input id="sw-pin" type="password" autocomplete="off" placeholder="Your PIN"></label>',
+      '<label id="sw-pin-wrap">Your PIN<input id="sw-pin" inputmode="numeric" type="password" autocomplete="off" placeholder="Your PIN"></label>',
       [close, { id: 'go', label: 'Continue', cls: 'primary', submit: true, run: (b) => {
         const name = $('sw-name').value;
         if (!name) return swapErr('Choose your name.');

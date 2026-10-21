@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610211610">
+  <link rel="stylesheet" href="style.css?v=202610211620">
 </head>
 <body>
   <header class="top">
@@ -80,7 +80,7 @@
         <h2>Commissioner setup</h2>
         <p class="hint">Enter the commissioner PIN to manage members, settings, games and past drafts.</p>
         <form id="lock-form" class="lock-row">
-          <input id="lock-pin" type="password" autocomplete="off" placeholder="Commissioner PIN" aria-label="Commissioner PIN">
+          <input id="lock-pin" inputmode="numeric" type="password" autocomplete="off" placeholder="Commissioner PIN" aria-label="Commissioner PIN">
           <button type="submit" class="btn primary" id="lock-go">Open setup</button>
         </form>
         <p class="form-error" id="lock-error" role="alert"></p>
@@ -163,7 +163,7 @@
       <div class="pick-item" id="pick-item"></div>
       <p class="hint">Picking for <strong id="pick-for"></strong>, who is on the clock.</p>
       <label id="pick-pin-wrap">PIN
-        <input id="pick-pin" type="password" autocomplete="off" placeholder="Your PIN (or commissioner PIN)">
+        <input id="pick-pin" inputmode="numeric" type="password" autocomplete="off" placeholder="Your PIN (or commissioner PIN)">
       </label>
       <p class="form-error" id="pick-error" role="alert"></p>
       <div class="actions">
@@ -178,7 +178,7 @@
     <form method="dialog" id="commish-form">
       <h3>Commissioner tools <span class="dlg-sub" id="commish-draft"></span></h3>
       <label>Commissioner PIN
-        <input id="commish-pin" type="password" autocomplete="off">
+        <input id="commish-pin" inputmode="numeric" type="password" autocomplete="off">
       </label>
 
       <div class="tool" id="prices-tool" hidden>
@@ -234,7 +234,7 @@
         <select id="drop-name"></select>
       </label>
       <label>Your PIN
-        <input id="drop-pin" type="password" autocomplete="off" placeholder="Your PIN (or commissioner PIN)">
+        <input id="drop-pin" inputmode="numeric" type="password" autocomplete="off" placeholder="Your PIN (or commissioner PIN)">
       </label>
       <label class="check"><input type="checkbox" id="drop-confirm"> Yes, I don't want any more picks</label>
       <p class="form-error" id="drop-error" role="alert"></p>
@@ -255,7 +255,7 @@
           <select id="notify-name"></select>
         </label>
         <label id="notify-pin-wrap">Your PIN
-          <input id="notify-pin" type="password" autocomplete="off" placeholder="Your PIN">
+          <input id="notify-pin" inputmode="numeric" type="password" autocomplete="off" placeholder="Your PIN">
         </label>
         <div class="actions left">
           <button type="submit" class="btn primary" id="notify-load">Continue</button>
@@ -329,9 +329,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610211610"></script>
-  <script src="engine.js?v=202610211610"></script>
-  <script type="module" src="live.js?v=202610211610"></script>
-  <script src="app.js?v=202610211610"></script>
+  <script src="config.js?v=202610211620"></script>
+  <script src="engine.js?v=202610211620"></script>
+  <script type="module" src="live.js?v=202610211620"></script>
+  <script src="app.js?v=202610211620"></script>
 </body>
 </html>
