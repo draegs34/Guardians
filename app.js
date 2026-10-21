@@ -760,7 +760,7 @@
     document.querySelectorAll('#draft-switch button[data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
     const setup = view === 'setup';
     $('setup-view').hidden = !setup;
-    ['clock', 'me-bar', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = setup; });
+    ['clock', 'me-bar', 'mtabs', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = setup; });
     if (setup) { $('turn-alert').hidden = true; $('price-banner').hidden = true; }
   }
   function switchView(v) {
@@ -1756,6 +1756,7 @@
   let titleTimer = null;
   let baseTitle = 'Ticket Draft';
 
+  let wasMine = false;
   function renderMe(s, done) {
     const names = s.members.map((m) => m.name);
     if (me && !names.includes(me)) me = '';
@@ -1766,6 +1767,8 @@
     const nextUp = !mine && !!me && !done && (s.upcoming || []).find((u) => !u.out);
     const isNext = !!nextUp && nextUp.name === me;
 
+    if (mine && !wasMine && mtab !== 'games') { mtab = 'games'; applyMtab(); } // your turn: show the games to pick from
+    wasMine = mine;
     $('clock').classList.toggle('mine', mine);
     const bar = $('turn-alert');
     bar.classList.toggle('next', isNext);
@@ -1878,6 +1881,23 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
   }
+
+  /* Phones and small tablets: the draft page is split into tabs (Games, Draft Order, Pick Log, Members).
+     On bigger screens everything shows side by side and these tabs are hidden (see style.css). */
+  let mtab = 'games';
+  function applyMtab() {
+    document.querySelectorAll('[data-mpanel]').forEach((el) => el.classList.toggle('m-hide', el.dataset.mpanel !== mtab));
+    document.querySelectorAll('#mtabs button').forEach((b) => b.setAttribute('aria-current', b.dataset.mt === mtab ? 'page' : 'false'));
+  }
+  $('mtabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-mt]');
+    if (!b || b.dataset.mt === mtab) return;
+    mtab = b.dataset.mt;
+    applyMtab();
+    const top = $('mtabs').getBoundingClientRect().top + window.scrollY - 8;
+    if (window.scrollY > top) window.scrollTo(0, top);
+  });
+  applyMtab();
 
   /* Footer: when the site was last published (GitHub Pages stamps each file when you push). */
   (function siteUpdated() {

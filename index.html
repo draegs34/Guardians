@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610211725">
+  <link rel="stylesheet" href="style.css?v=202610211731">
 </head>
 <body>
   <header class="top">
@@ -92,8 +92,15 @@
       <span class="me-status" id="me-status"></span>
     </div>
 
+    <nav class="mtabs" id="mtabs" aria-label="Draft sections">
+      <button type="button" data-mt="games">Games</button>
+      <button type="button" data-mt="order">Draft Order</button>
+      <button type="button" data-mt="log">Pick Log</button>
+      <button type="button" data-mt="members">Members</button>
+    </nav>
+
     <div class="layout">
-      <section class="board-col">
+      <section class="board-col" data-mpanel="games">
         <div class="section-head">
           <h2 id="board-heading">Games</h2>
           <div class="legend">
@@ -106,16 +113,16 @@
       </section>
 
       <aside class="side-col">
-        <button class="btn drop" id="drop-btn" type="button">Drop out of the draft</button>
-        <section class="card">
+        <button class="btn drop" id="drop-btn" type="button" data-mpanel="order">Drop out of the draft</button>
+        <section class="card" data-mpanel="order">
           <h2>Up next</h2>
           <ol id="upcoming" class="upcoming"><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li><li><div class="sk sk-line w60"></div></li></ol>
         </section>
-        <section class="card">
+        <section class="card" data-mpanel="log">
           <h2>Pick log</h2>
           <ol id="log" class="log" reversed></ol>
         </section>
-        <section class="card">
+        <section class="card" data-mpanel="members">
           <h2>Members</h2>
           <table class="totals">
             <thead id="totals-head"><tr><th>Name</th><th class="num">Picks</th><th class="num">Owed</th></tr></thead>
@@ -272,9 +279,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610211725"></script>
-  <script src="engine.js?v=202610211725"></script>
-  <script type="module" src="live.js?v=202610211725"></script>
-  <script src="app.js?v=202610211725"></script>
+  <script src="config.js?v=202610211731"></script>
+  <script src="engine.js?v=202610211731"></script>
+  <script type="module" src="live.js?v=202610211731"></script>
+  <script src="app.js?v=202610211731"></script>
 </body>
 </html>

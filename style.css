@@ -456,3 +456,14 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .month-body[hidden] { display: none; }
 .rs-month .month-body > .rsg:first-child { border-top: 0; }
 .month-all { font-size: 13px; white-space: nowrap; }
+
+/* Phones and small tablets: tabs for Games / Draft Order / Pick Log / Members */
+.mtabs { display: none; }
+@media (max-width: 860px) {
+  .mtabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 4px; background: var(--taken-bg); border-radius: 12px; position: sticky; top: 0; z-index: 5; }
+  .mtabs[hidden] { display: none; }
+  .mtabs button { flex: 1; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: 0; border-radius: 9px; padding: 9px 4px; cursor: pointer; white-space: nowrap; }
+  .mtabs button[aria-current="page"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  .m-hide { display: none !important; }
+  .layout { gap: 0; }
+}

@@ -164,6 +164,7 @@ Choose **Guardians Draft → Refresh regular season schedule from MLB** any time
 - **Weekday day game**: a Monday–Friday game starting before 5 PM ET, highlighted with a gold edge. These only show once MLB posts a start time.
 - **Promotions** from the Promotions column, and any **Notes** (separate several with `;`).
 - **Filters**: All or Available; Any, Weekends or Weekdays (Monday–Friday); Month; Opponent.
+- **Phones and small tablets**: the draft page has tabs for **Games**, **Draft Order** (Up next and the drop-out button), **Pick Log** and **Members**. It jumps to Games when it becomes your turn (if on-screen alerts are on). Computers show everything side by side.
 - **Months fold up**: tap a month's bar to open or close it. On phones every month starts closed (less scrolling); on computers they start open. **Expand all / Collapse all** is next to the game count, and choosing a month in the Month filter opens it.
 
 ### Pick time limit (off for now)
