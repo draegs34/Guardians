@@ -723,10 +723,16 @@ function cleanPrefs(old, incoming, name) {
   if (incoming) {
     if ('email' in incoming) p.email = String(incoming.email || '').trim().slice(0, 200);
     if ('email2' in incoming) p.email2 = String(incoming.email2 || '').trim().slice(0, 200);
+    if ('phone' in incoming) p.phone = String(incoming.phone || '').trim().slice(0, 30);
     ['emailOn', 'pushOn', 'nextUp', 'swapEmails'].forEach((k) => { if (k in incoming) p[k] = !!incoming[k]; });
   }
   if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) return { error: 'That email address doesn\'t look right.' };
   if (p.email2 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email2)) return { error: 'The second email address doesn\'t look right.' };
+  if (p.phone) {
+    const d = p.phone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+    if (d.length !== 10) return { error: 'Enter a 10-digit phone number, or leave it blank.' };
+    p.phone = d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+  }
   if (!p.email && p.email2) { p.email = p.email2; p.email2 = ''; }
   if (p.email2 && lc(p.email2) === lc(p.email)) p.email2 = '';
   p.name = name;
@@ -747,7 +753,7 @@ async function notifyAction(key, body) {
       const real = (((await rawDb.doc('notify/members').get()).data() || {}).prefs || {})[lc(name)] || {};
       suggest = real.email || '';
     }
-    return { ok: true, suggestEmail: suggest, prefs: { email: p.email || '', email2: p.email2 || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, swapEmails: p.swapEmails !== false, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
+    return { ok: true, suggestEmail: suggest, prefs: { email: p.email || '', email2: p.email2 || '', phone: p.phone || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, swapEmails: p.swapEmails !== false, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
   }
   if (body.action === 'notifySave') {
     const result = await db.runTransaction(async (tx) => {
@@ -762,7 +768,7 @@ async function notifyAction(key, body) {
       p.tokens = Array.from(tokens).slice(-10);
       prefs[lc(name)] = p;
       tx.set(ref, { prefs }, { merge: true });
-      return { ok: true, message: 'Notification settings saved.', prefs: { email: p.email, email2: p.email2 || '', emailOn: p.emailOn, pushOn: p.pushOn, nextUp: p.nextUp, devices: p.tokens.length } };
+      return { ok: true, message: 'Notification settings saved.', prefs: { email: p.email, email2: p.email2 || '', phone: p.phone || '', emailOn: p.emailOn, pushOn: p.pushOn, nextUp: p.nextUp, devices: p.tokens.length } };
     });
     return result;
   }
@@ -1155,7 +1161,7 @@ async function swapAction(body) {
     const qs = await db.collection('swapOffers').get();
     const offers = qs.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((o) => o.listingId === ref.id)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-      .map((o) => Object.assign({}, o, { email: prefsOf(o.from).email || '', email2: prefsOf(o.from).email2 || '' }));
+      .map((o) => Object.assign({}, o, { email: prefsOf(o.from).email || '', email2: prefsOf(o.from).email2 || '', phone: prefsOf(o.from).phone || '' }));
     if (lc(x.member) === lc(name) && Number(x.newOffers)) {
       await ref.set(Object.assign({}, x, { newOffers: 0 }));
       await Promise.all(qs.docs.filter((d) => d.data().listingId === ref.id && !d.data().seen).map((d) => d.ref.set(Object.assign({}, d.data(), { seen: true }))));
@@ -1210,7 +1216,7 @@ async function swapAction(body) {
     const via = { emailOn: !!n.email, pushOn: !!n.push, email: p.email || '', email2: p.email2 || '', tokens: p.tokens || [], name: o.from };
     if (via.emailOn || via.pushOn) {
       const lp = prefsOf(x.member);
-      const contact = [lp.email, lp.email2].filter(Boolean)[0];
+      const contact = [[lp.email, lp.email2].filter(Boolean)[0], lp.phone].filter(Boolean).join(' or ');
       const text = accept
         ? x.member + ' accepted your offer for ' + L(o.wants) + ' (' + o.qty + ' tickets).' + (contact ? ' Reach out at ' + contact + ' to swap tickets.' : ' Reach out to swap tickets.')
         : x.member + ' passed on your offer for ' + L(o.wants) + '.';

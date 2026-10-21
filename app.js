@@ -1900,7 +1900,10 @@
       $('swap-dlg-body').innerHTML = '<p class="hint">Trading away: ' + esc(L.liveGames.map(gLabel).join(', ')) + '. Accept or reject each offer; they\'ll hear back the way they asked. Accepting one rejects the other offers for the same game(s). Accepted games come off your listing, and once they\'re all traded it\'s marked fulfilled.</p>' +
         (offers.length ? offers.map((o) => {
           const when = o.createdAt ? new Date(o.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-          const mail = o.email ? '<a class="btn ghost small" href="mailto:' + esc([o.email, o.email2].filter(Boolean).join(',')) + '?subject=' + encodeURIComponent('Ticket Swap: ' + L.liveGames.map(gLabel).join(', ')) + '">Email ' + esc(o.from.split(' ')[0]) + '</a>' : '<span class="hint">No email on file</span>';
+          const first = esc(o.from.split(' ')[0]);
+          const mail = (o.email ? '<a class="btn ghost small" href="mailto:' + esc([o.email, o.email2].filter(Boolean).join(',')) + '?subject=' + encodeURIComponent('Ticket Swap: ' + L.liveGames.map(gLabel).join(', ')) + '">Email ' + first + '</a>' : '') +
+            (o.phone ? '<a class="btn ghost small" href="sms:' + esc(o.phone.replace(/\D/g, '')) + '" title="' + esc(o.phone) + '">Text ' + first + '</a>' : '') ||
+            '<span class="hint">No email or phone on file</span>';
           const st = o.status || 'pending';
           const tag = st === 'accepted' ? ' <span class="tag ok">Accepted</span>' : st === 'rejected' ? ' <span class="tag">Rejected' + (o.autoRejected ? ' (traded to someone else)' : '') + '</span>' : o.seen ? '' : ' <span class="tag new">New</span>';
           const decide = st === 'pending' ? '<button type="button" class="btn small ghost" data-resp="reject" data-oid="' + esc(o.id) + '">Reject</button><button type="button" class="btn small primary" data-resp="accept" data-oid="' + esc(o.id) + '">Accept</button>' : '';
@@ -2021,6 +2024,7 @@
     $('notify-screen').checked = me ? me === notifyName : !store.get('guardians-screen-chosen');
     $('notify-email').value = p.email || (!p.email2 && notifySuggest) || '';
     $('notify-email2').value = p.email2 || '';
+    $('notify-phone').value = p.phone || '';
     $('notify-email-on').checked = !!p.emailOn;
     $('notify-swap').checked = p.swapEmails !== false;
     $('notify-next').checked = !!p.nextUp;
@@ -2096,7 +2100,7 @@
       .catch((e) => { console.warn(e); $('notify-error').textContent = "Couldn't reach the draft. Try again."; })
       .finally(() => { notifyBusy = false; btn.disabled = false; });
   }
-  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, pushOn: $('notify-push-on').checked, swapEmails: $('notify-swap').checked, nextUp: $('notify-next').checked });
+  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), phone: $('notify-phone').value.trim(), emailOn: $('notify-email-on').checked, pushOn: $('notify-push-on').checked, swapEmails: $('notify-swap').checked, nextUp: $('notify-next').checked });
 
   $('notify-btn').addEventListener('click', () => openNotify());
   $('swap-notify-btn').addEventListener('click', () => openNotify(swapAuth ? { name: swapAuth.name, pin: swapAuth.pin } : undefined));
