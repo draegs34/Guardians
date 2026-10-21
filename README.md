@@ -1,6 +1,6 @@
 # Guardians Ticket Drafts
 
-Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The page has these tabs:
+Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The page has these tabs (the Regular Season tab takes its year from **Setup → Regular Season → Season**, e.g. "2027 Regular Season"):
 
 - **Regular season**: members draft home games one at a time. Each pick is one game with all four seats.
 - **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10).

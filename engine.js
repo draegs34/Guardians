@@ -230,6 +230,7 @@ var DraftEngine = (function () {
       ok: true,
       kind: s.kind || 'post',
       title: s.title,
+      season: s.season || '',
       snake: s.snake,
       maxPicks: s.maxPicks,
       open: s.open,

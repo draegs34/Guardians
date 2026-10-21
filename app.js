@@ -374,6 +374,15 @@
     ].map(([ms, text]) => setTimeout(() => { if (!states[view] && $('load-msg')) $('load-msg').textContent = text; }, ms));
   }
 
+  // "2027 Regular Season": the year comes from Setup → Regular Season → Season. Last known value until the draft loads.
+  const RS_SEASON_KEY = 'guardians-rs-season';
+  function setRsSeason(season) {
+    season = String(season || '').trim();
+    store.set(RS_SEASON_KEY, season);
+    const label = (season ? season + ' ' : '') + 'Regular Season';
+    $('rs-tab').textContent = label;
+    $('rs-subtab').textContent = label;
+  }
   function setShowPost(on) {
     on = on !== false;
     if (on !== showPost) store.set(SHOW_POST_KEY, on ? '1' : '0');
@@ -385,6 +394,7 @@
   function apply(s) {
     loadTimers.forEach(clearTimeout);
     if (view === 'post' && s && !s.notSetUp) setShowPost(s.showTab);
+    if (view === 'rs' && s && !s.notSetUp && 'season' in s) setRsSeason(s.season);
     $('clock').classList.remove('loading');
     $('board').removeAttribute('aria-busy');
     if (!staleViews.has(view)) saveCache(view, s);
@@ -1402,7 +1412,7 @@
     if (key === 'rs' && a.newCommissionerPin) { body.admin.newCommissionerPin = a.newCommissionerPin; body.newPin = a.newCommissionerPin; }
     setupCall(btn, body, true).then((res) => {
       if (res && res.ok && body.newPin) { rememberPin(body.newPin); toast('Saved. The new commissioner PIN works for both drafts.'); }
-      if (res && res.ok) { states.rs = undefined; states.post = undefined; if (key === 'post') setShowPost(a.settings.showTab !== false); }
+      if (res && res.ok) { states.rs = undefined; states.post = undefined; if (key === 'post') setShowPost(a.settings.showTab !== false); if (key === 'rs') setRsSeason(a.settings.season); }
     });
   }
   function doImport(btn) {
@@ -1925,6 +1935,7 @@
     onLive(draft, s) {
       liveOn[draft] = true;
       if (draft === 'post' && s && !s.notSetUp) setShowPost(s.showTab);
+      if (draft === 'rs' && s && !s.notSetUp && 'season' in s) setRsSeason(s.season);
       if (draft !== view) { if (s && !s.notSetUp) states[draft] = s; return; }
       if (s && s.notSetUp) { states[draft] = s; state = s; markSynced(); renderNotSetUp(); return; }
       staleViews.delete(draft);
@@ -1944,6 +1955,8 @@
   setInterval(() => { if (state && !busy && isDraftView(view) && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
   $('post-tab').hidden = !showPost;
+  setRsSeason(store.get(RS_SEASON_KEY) || '');
+  if (view !== 'rs' && !DEMO) apiGet('rs').then((r) => { if (r && r.ok !== false && !r.notSetUp && 'season' in r) { states.rs = states.rs || r; setRsSeason(r.season); } }).catch(() => {});
   if (view !== 'post' && !DEMO) apiGet('post').then((p) => { if (p && p.ok !== false && !p.notSetUp) { states.post = states.post || p; setShowPost(p.showTab); } }).catch(() => {});
   if (history.replaceState && !sentPrices && !sentEmails) history.replaceState(null, '', '#' + VIEWS[view]);
   syncSwitch();
