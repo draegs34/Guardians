@@ -1619,7 +1619,8 @@
     const p = notifyPrefs || {};
     $('notify-for').textContent = notifyName;
     // On-screen alerts: on if this device already follows this member, or if nobody is set yet.
-    $('notify-screen').checked = me ? me === notifyName : true;
+    // (ticked to start, until this browser has saved a choice)
+    $('notify-screen').checked = me ? me === notifyName : !store.get('guardians-screen-chosen');
     $('notify-email').value = p.email || '';
     $('notify-email2').value = p.email2 || '';
     $('notify-email-on').checked = !!p.emailOn;
@@ -1657,9 +1658,23 @@
       btn.dataset.mode = 'on';
     }
   }
+  // ✓ on the Notification settings button when this person has any alert turned on:
+  // on-screen alerts in this browser, push on this device, or (from their saved settings) email or push anywhere.
+  const NOTIFY_ON_KEY = 'guardians-notify-on';
+  function rememberNotifyOn(p) {
+    const on = !!p && ((!!p.emailOn && !!(p.email || p.email2)) || Number(p.devices) > 0);
+    store.set(NOTIFY_ON_KEY, on ? '1' : '');
+    renderNotifyCheck();
+  }
+  function renderNotifyCheck() {
+    const on = !!me || !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
+    $('notify-btn').classList.toggle('is-on', on);
+    $('notify-btn').setAttribute('aria-label', 'Notification settings' + (on ? ' (on)' : ''));
+  }
   function notifyDone(res) {
     if (res && res.ok) {
       if (res.prefs) notifyPrefs = Object.assign({}, notifyPrefs, res.prefs, { hasThisDevice: 'hasThisDevice' in res.prefs ? res.prefs.hasThisDevice : notifyPrefs && notifyPrefs.hasThisDevice });
+      rememberNotifyOn(notifyPrefs);
       return true;
     }
     $('notify-error').textContent = (res && res.error) || 'Something went wrong.';
@@ -1694,10 +1709,12 @@
       const res = await notifyPost({ action: 'notifyGet', token: store.get(PUSH_TOKEN_KEY) || '' });
       if (!res || !res.ok) { $('notify-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
       notifyPrefs = res.prefs || {};
+      rememberNotifyOn(notifyPrefs);
       showNotifyStep(true);
     });
   });
   function applyScreen() {
+    store.set('guardians-screen-chosen', '1');
     if ($('notify-screen').checked) setMe(notifyName);
     else if (me === notifyName) setMe('');
   }
@@ -1732,13 +1749,14 @@
         }
         const old = store.get(PUSH_TOKEN_KEY);
         const res = await notifyPost({ action: 'notifySave', prefs: Object.assign(notifyForm(), { pushOn: true }), addToken: token, removeToken: old && old !== token ? old : undefined });
-        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; toast('Push notifications are on for this device.'); }
+        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; renderNotifyCheck(); toast('Push notifications are on for this device.'); }
       } else {
         const token = store.get(PUSH_TOKEN_KEY);
         const res = await notifyPost({ action: 'notifySave', prefs: notifyForm(), removeToken: token });
         if (notifyDone(res)) {
           store.set(PUSH_TOKEN_KEY, '');
           notifyPrefs.hasThisDevice = false;
+          renderNotifyCheck();
           if (window.DraftPush) await window.DraftPush.disable();
           toast('Push notifications are off for this device.');
         }
@@ -1843,6 +1861,7 @@
   function setMe(name) {
     me = name || '';
     ['rs', 'post'].forEach((k) => store.set(meKey(k), me));
+    renderNotifyCheck();
     if (state && isDraftView(view)) render(null);
   }
 
@@ -1955,6 +1974,7 @@
   setInterval(() => { if (state && !busy && isDraftView(view) && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
   $('post-tab').hidden = !showPost;
+  renderNotifyCheck();
   setRsSeason(store.get(RS_SEASON_KEY) || '');
   if (view !== 'rs' && !DEMO) apiGet('rs').then((r) => { if (r && r.ok !== false && !r.notSetUp && 'season' in r) { states.rs = states.rs || r; setRsSeason(r.season); } }).catch(() => {});
   if (view !== 'post' && !DEMO) apiGet('post').then((p) => { if (p && p.ok !== false && !p.notSetUp) { states.post = states.post || p; setShowPost(p.showTab); } }).catch(() => {});

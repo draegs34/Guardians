@@ -467,3 +467,7 @@ body.stale .seat:not(.taken) { opacity: .7; }
   .m-hide { display: none !important; }
   .layout { gap: 0; }
 }
+
+/* ✓ when notifications are on */
+#notify-btn .nb-check { display: none; flex: none; color: var(--open); margin-left: 2px; }
+#notify-btn.is-on .nb-check { display: inline-block; }
