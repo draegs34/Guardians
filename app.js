@@ -1176,18 +1176,13 @@
     } else {
       const rsMembers = (admin.rs && admin.rs.members) || [];
       const emailOf = (n) => { const m = rsMembers.find((x) => x.name === n); return m ? m.email : ''; };
-      html += '<section class="card sc"><h3>Members</h3><p class="hint">Members come from the <strong>Regular season</strong> tab, listed by last name; change names, PINs and emails there. ' +
-        '✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
-        '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
-        a.members.map((m, i) => ({ m, i })).sort((p, q) => byLast(p.m.name, q.m.name)).map(({ m, i }) =>
-          '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
-          '<td class="acts">' + (m.inactive ? iconBtn('toggle-member', i, 'Make ' + m.name + ' active again', '↺') : iconBtn('toggle-member', i, 'Mark ' + m.name + ' inactive', '✕')) + '</td></tr>').join('') +
-        '</tbody></table></div></section>';
-      const act = a.members.filter((m) => !m.inactive).length;
-      html += '<section class="card sc"><h3>Draft order</h3><p class="hint">The order members pick in. <strong>' + act + ' active member' + (act === 1 ? '' : 's') + '.</strong> Inactive members are skipped. New members start at the end. Snake order reverses each round.</p>' +
-        '<ol class="slots">' + a.members.map((m, i) => '<li' + (m.inactive ? ' class="inactive"' : '') + '><span class="slot-no">' + (i + 1) + '</span><span class="slot-main"><span class="slot-name">' + esc(m.name) + '</span>' + (m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</span>' +
-          iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '') + '</li>').join('') + '</ol>' +
-        '<div class="row-btns"><button type="button" class="btn ghost" data-act="shuffle-post">🎲 Randomize order</button></div>' +
+      html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular season</strong> tab; change names, PINs and emails there. ' +
+        'Here the list order is the postseason draft order (new members start at the end). ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
+        '<div class="tbl"><table class="stable"><thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
+        a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
+          '<td class="acts">' + iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '') +
+          (m.inactive ? iconBtn('toggle-member', i, 'Make ' + m.name + ' active again', '↺') : iconBtn('toggle-member', i, 'Mark ' + m.name + ' inactive', '✕')) + '</td></tr>').join('') +
+        '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="shuffle-post">🎲 Randomize order</button></div>' +
         '<p class="hint">Randomize shuffles the active members (inactive ones move to the end). ' + esc(FIRST3) + ' always gets one of the first 3 picks. Click again for a new order; nothing changes until you save.</p></section>';
     }
 

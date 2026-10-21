@@ -86,7 +86,7 @@ Click **Setup** at the top and enter the commissioner PIN. It's remembered until
   - ✕ removes a member, but only if they have no picks in either draft (undo those first).
   - The list is alphabetical by last name. Anyone you add appears at the bottom while you type and moves into place when you save.
   - **New commissioner PIN** changes the one PIN used for both drafts.
-- **Postseason**: settings (now including a **pick time limit**), games & seat pairs, **Members** (alphabetical by last name; names, PINs and emails are read-only here; **✕** marks someone **inactive** for the postseason, keeping any picks but giving no more turns, and ↺ brings them back) and **Draft order** (↑ ↓ to arrange, new members start at the end, and **🎲 Randomize order** shuffles the active members, moving inactive ones to the end).
+- **Postseason**: settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
 - **Past drafts**: archived drafts. Only the commissioner can see these.
 
 James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
