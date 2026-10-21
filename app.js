@@ -1516,8 +1516,8 @@
     // Save first so the test uses what's on screen.
     if (!notifyDone(await notifyPost({ action: 'notifySave', prefs: notifyForm() }))) return;
     // Phones only show a banner when the draft isn't on screen, so give them time to leave the app.
-    toast('Test coming in 10 seconds. Close the app or lock your phone now to see the banner.');
-    const res = await notifyPost({ action: 'notifyTest', delay: 10 });
+    toast('Test coming in 5 seconds. Close the app or lock your phone now to see the banner.');
+    const res = await notifyPost({ action: 'notifyTest', delay: 5 });
     if (res && res.ok) toast(res.message || 'Test sent.');
     else $('notify-error').textContent = (res && res.error) || 'Something went wrong.';
   }));
