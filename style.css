@@ -465,10 +465,15 @@ body.stale .seat:not(.taken) { opacity: .7; }
 /* Phones and small tablets: tabs for Games / Draft Order / Pick Log / Members */
 .mtabs { display: none; }
 @media (max-width: 860px) {
-  .mtabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 4px; background: var(--taken-bg); border-radius: 12px; position: sticky; top: 0; z-index: 5; }
+  /* Navy bar like the header, so it reads as the page's main navigation. */
+  .mtabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 5px; background: var(--navy); border-radius: 14px; position: sticky; top: 6px; z-index: 5; box-shadow: 0 6px 18px rgba(12, 35, 64, .28); }
   .mtabs[hidden] { display: none; }
-  .mtabs button { flex: 1; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; border: 0; border-radius: 9px; padding: 9px 4px; cursor: pointer; white-space: nowrap; }
-  .mtabs button[aria-current="page"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  .mtabs button { position: relative; flex: 1; font: inherit; font-size: 14px; font-weight: 700; color: rgba(255, 255, 255, .78); background: transparent; border: 0; border-radius: 10px; padding: 11px 4px; cursor: pointer; white-space: nowrap; }
+  .mtabs button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+  .mtabs button[aria-current="page"] { background: #fff; color: var(--navy); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+  .mtabs button[aria-current="page"]::after { content: ""; position: absolute; left: 28%; right: 28%; bottom: 4px; height: 3px; border-radius: 2px; background: var(--red); }
+  .mtabs button:focus-visible { outline: 3px solid #fff; outline-offset: 1px; }
+  :root[data-theme="dark"] .mtabs { background: #16294a; border: 1px solid #2b4268; box-shadow: 0 6px 18px rgba(0, 0, 0, .5); }
   .m-hide { display: none !important; }
   .layout { gap: 0; }
 }
