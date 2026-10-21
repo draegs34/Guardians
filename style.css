@@ -471,3 +471,40 @@ body.stale .seat:not(.taken) { opacity: .7; }
 /* ✓ when notifications are on */
 #notify-btn .nb-check { display: none; flex: none; color: var(--open); margin-left: 2px; }
 #notify-btn.is-on .nb-check { display: inline-block; }
+
+/* Ticket Swap */
+.tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-weight: 800; line-height: 1; vertical-align: 1px; }
+.tab-badge[hidden] { display: none; }
+.swap-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 16px; }
+.swap-head h2 { font-size: 22px; text-transform: none; letter-spacing: 0; color: var(--text); margin-bottom: 4px; }
+.swap-head .hint { max-width: 640px; }
+#swap-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+#swap-list > .notice-card, #swap-list > .empty { grid-column: 1 / -1; }
+.swap-card { display: grid; gap: 8px; }
+.swap-card.mine { border: 1.5px solid var(--open); }
+.sw-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sw-who { font-weight: 800; font-size: 16px; }
+.sw-icons { display: inline-flex; gap: 6px; color: var(--muted); }
+.sw-ico { display: inline-flex; }
+.sw-when { margin-left: auto; font-size: 12px; color: var(--muted); }
+.sw-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 14px; }
+.sw-k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.gchips { display: flex; flex-wrap: wrap; gap: 5px; }
+.gchip { display: inline-block; font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--open-bg); color: var(--text); border: 1px solid var(--line); }
+.sw-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.sw-actions .hint { margin-right: auto; font-size: 13px; }
+.sw-note { white-space: pre-wrap; }
+.btn.primary.small { padding: 7px 12px; font-size: 14px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#swap-dialog form { display: grid; gap: 12px; }
+#swap-dlg-body { display: grid; gap: 12px; }
+#swap-dlg-actions { flex-wrap: wrap; }
+.sw-checks { display: grid; gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px; }
+.sw-inline { display: flex; gap: 8px 18px; flex-wrap: wrap; }
+.tag.want { background: var(--open-bg); color: var(--open); }
+.tag.new { background: var(--red); color: #fff; }
+.offer { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.offer.new { border-color: var(--red); }
+@media (max-width: 520px) { #swap-list { grid-template-columns: minmax(0, 1fr); } .sw-row { grid-template-columns: 84px minmax(0, 1fr); } }
+.swap-view { padding-top: 6px; }
+.swap-view .swap-head { margin-top: 4px; }

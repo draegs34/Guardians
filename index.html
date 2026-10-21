@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610211753">
+  <link rel="stylesheet" href="style.css?v=202610211827">
 </head>
 <body>
   <header class="top">
@@ -33,6 +33,7 @@
     <nav class="wrap draft-switch" id="draft-switch" aria-label="Choose a draft">
       <button type="button" data-view="rs" id="rs-tab">Regular Season</button>
       <button type="button" data-view="post" id="post-tab">Postseason</button>
+      <button type="button" data-view="swap" id="swap-tab">Ticket Swap<span class="tab-badge" id="swap-badge" hidden></span></button>
       <button type="button" data-view="setup">Setup</button>
       <button type="button" class="cog-btn" id="cog-btn" aria-label="Commissioner tools" title="Commissioner tools"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </nav>
@@ -57,6 +58,17 @@
   </div>
 
   <main class="wrap">
+    <section class="swap-view" id="swap-view" hidden>
+      <div class="swap-head">
+        <div>
+          <h2>Ticket Swap</h2>
+          <p class="hint">Trade regular season games with other members. Post the games you'd like to trade away, or send an offer on someone else's listing. When you agree on a trade, the person who posted marks it fulfilled.</p>
+        </div>
+        <button type="button" class="btn primary" id="swap-new">Post a listing</button>
+      </div>
+      <div id="swap-list"><p class="empty">Loading…</p></div>
+    </section>
+
     <section class="setup-view" id="setup-view" hidden>
       <div class="setup-lock card" id="setup-lock" hidden>
         <h2>Commissioner setup</h2>
@@ -253,6 +265,7 @@
         <fieldset class="nset">
           <legend>Email</legend>
           <label class="check"><input type="checkbox" id="notify-email-on"> Email me when it's my turn</label>
+          <label class="check"><input type="checkbox" id="notify-swap"> Email me when someone posts a Ticket Swap listing</label>
           <label>Email address
             <input id="notify-email" type="email" autocomplete="email" placeholder="you@example.com">
           </label>
@@ -277,11 +290,21 @@
     </form>
   </dialog>
 
+  <!-- Ticket Swap dialog (listing form, offer form, offers) -->
+  <dialog id="swap-dialog">
+    <form method="dialog" id="swap-form">
+      <h3 id="swap-dlg-title">Ticket Swap</h3>
+      <div id="swap-dlg-body"></div>
+      <p class="form-error" id="swap-error" role="alert"></p>
+      <div class="actions" id="swap-dlg-actions"></div>
+    </form>
+  </dialog>
+
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610211753"></script>
-  <script src="engine.js?v=202610211753"></script>
-  <script type="module" src="live.js?v=202610211753"></script>
-  <script src="app.js?v=202610211753"></script>
+  <script src="config.js?v=202610211827"></script>
+  <script src="engine.js?v=202610211827"></script>
+  <script type="module" src="live.js?v=202610211827"></script>
+  <script src="app.js?v=202610211827"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The
 
 - **Regular season**: members draft home games one at a time. Each pick is one game with all four seats.
 - **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10).
+- **Ticket Swap**: members trade regular season games with each other. See *Ticket Swap* below.
 - **Setup** (commissioner only, asks for the commissioner PIN): a section for each draft plus past drafts. See *Commissioner setup* below.
 - **⚙** (next to Setup): commissioner tools for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
 
@@ -92,6 +93,24 @@ Click **Setup** at the top and enter the commissioner PIN. It's remembered until
 James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
 
 The **⚙** button opens the commissioner tools for the draft you're looking at (from Setup, the section you're in): assign, skip, undo, Season Ticket Manager prices and **Archive this draft**. Your PIN is filled in once you've unlocked Setup.
+
+---
+
+## Ticket Swap
+
+A board for trading regular season games between members. It doesn't change the draft or the Season Ticket Manager; if a trade changes who holds a game, the commissioner updates those.
+
+- **Post a listing**: choose your name and enter your PIN, then pick:
+  - **Games to trade away**: only your own upcoming games (ones you drafted or were assigned). You can choose more than one.
+  - **Tickets**: 4 or 2. With 4, tick **Open to trading just 2 of the 4** if you'd split them.
+  - **Looking for**: any game, or specific games.
+  - **Tell me about offers by**: push notification and/or email. These need push turned on, or an email address saved, in Notification settings first. The icons on the listing show which you chose.
+- **Every member with an email address gets an email** when a new listing is posted, with the details and a link. Members can turn these off in Notification settings (**Email me when someone posts a Ticket Swap listing**).
+- **Make an offer** on someone else's listing: choose which of their games you want, how many tickets (4, or 2 if they'll split), which of your games you'd trade (games they're looking for are marked **Wanted**), and a note. The lister is alerted the way they chose.
+- **Offers are private**: only the lister (and the commissioner) can see them; everyone else sees just a count. The lister sees each offer with an **Email** button to reply.
+- **A red number on the Ticket Swap tab** shows new offers on your listings (in the browser you posted from). It clears when you open **Offers**.
+- **Edit** (your own listings) changes any detail, and has **Mark fulfilled** and **Remove listing**. With Setup unlocked, the commissioner can edit or remove anyone's listing.
+- Games that have been played drop off listings automatically, and a listing disappears once all its games have passed.
 
 ---
 

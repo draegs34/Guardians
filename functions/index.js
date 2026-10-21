@@ -113,6 +113,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     const key = body.draft === 'rs' ? 'rs' : 'post';
     if (body.action === 'archives') return res.json(await commishPinOk(body.pin) ? await readArchives() : { ok: false, error: "That commissioner PIN doesn't match." });
     if (body.action === 'syncMembers') return res.json(await syncMembers(key, body));
+    if (/^swap/.test(body.action || '')) return res.json(await swapAction(body));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
     const before = await turnSnapshot(key);
     const out = await handle(key, body);
@@ -675,7 +676,7 @@ function cleanPrefs(old, incoming, name) {
   if (incoming) {
     if ('email' in incoming) p.email = String(incoming.email || '').trim().slice(0, 200);
     if ('email2' in incoming) p.email2 = String(incoming.email2 || '').trim().slice(0, 200);
-    ['emailOn', 'pushOn', 'nextUp'].forEach((k) => { if (k in incoming) p[k] = !!incoming[k]; });
+    ['emailOn', 'pushOn', 'nextUp', 'swapEmails'].forEach((k) => { if (k in incoming) p[k] = !!incoming[k]; });
   }
   if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) return { error: 'That email address doesn\'t look right.' };
   if (p.email2 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email2)) return { error: 'The second email address doesn\'t look right.' };
@@ -692,7 +693,7 @@ async function notifyAction(key, body) {
   const ref = PREFS();
   if (body.action === 'notifyGet') {
     const p = (((await ref.get()).data() || {}).prefs || {})[lc(name)] || {};
-    return { ok: true, prefs: { email: p.email || '', email2: p.email2 || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
+    return { ok: true, prefs: { email: p.email || '', email2: p.email2 || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, swapEmails: p.swapEmails !== false, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
   }
   if (body.action === 'notifySave') {
     const result = await db.runTransaction(async (tx) => {
@@ -923,7 +924,7 @@ async function deliver(p, msg) {
       tokens,
       notification: { title: msg.title, body: msg.body },
       data: { badge: msg.badge ? String(msg.badge) : '0' },
-      webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + 'icon-192.png', badge: SITE_URL.value() + 'icon-192.png', tag: 'draft-turn', renotify: true } },
+      webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + 'icon-192.png', badge: SITE_URL.value() + 'icon-192.png', tag: msg.tag || 'draft-turn', renotify: true } },
     }).then(async (r) => {
       if (r.successCount) sent.push('push');
       const dead = [];
@@ -952,4 +953,191 @@ async function removeTokens(name, dead) {
 
 function escHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Ticket Swap: members list regular season games to trade away, and   */
+/* other members send offers. A board only: agreed trades are marked    */
+/* Fulfilled by the lister; draft records aren't changed.               */
+/*                                                                      */
+/*   swaps/{id}       listing (members can read it through the API)     */
+/*   swapOffers/{id}  offer (only the lister and the offerer see it)    */
+/* ------------------------------------------------------------------ */
+const todayET = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+
+/** The regular season board: games by id, and who holds each one now. */
+async function rsBoard() {
+  const pub = (await db.doc('drafts/rs').get()).data() || {};
+  const games = {};
+  (pub.inventory || []).forEach((g) => { games[g.id] = g; });
+  const holder = {};
+  (pub.events || []).forEach((e) => { if ((e.type === 'pick' || e.type === 'assign') && e.itemId) holder[e.itemId] = e.member; });
+  return { games, holder, members: (pub.members || []).map((m) => m.name) };
+}
+const gameLabel = (g) => (g ? (g.label || ((g.day ? g.day + ' ' : '') + String(g.date || '').slice(5).replace('-', '/') + ' vs ' + g.opponent)) : 'a game');
+const upcoming = (g, today) => !!g && String(g.date || '') >= today;
+
+function publicListing(id, x, today, games) {
+  const live = (x.games || []).filter((gid) => upcoming(games[gid], today));
+  return {
+    id, member: x.member, games: x.games || [], liveGames: live, qty: x.qty, split: !!x.split,
+    seekAny: !!x.seekAny, seek: x.seek || [], notify: { email: !!(x.notify && x.notify.email), push: !!(x.notify && x.notify.push) },
+    status: x.status || 'open', createdAt: x.createdAt || '', updatedAt: x.updatedAt || '',
+    offerCount: Number(x.offerCount) || 0, newOffers: Number(x.newOffers) || 0,
+  };
+}
+
+async function swapPinOk(name, pin) {
+  if (await commishPinOk(pin)) return true;
+  return checkMemberPin('rs', name, pin);
+}
+
+async function swapAction(body) {
+  const today = todayET();
+  const name = String(body.name || '').trim();
+  const pin = String(body.pin || '').trim();
+  const str = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 200);
+  const ids = (a) => (Array.isArray(a) ? a.map((v) => str(v, 60)).filter(Boolean) : []);
+
+  if (body.action === 'swapList') {
+    const { games } = await rsBoard();
+    const qs = await db.collection('swaps').get();
+    const listings = qs.docs.map((d) => publicListing(d.id, d.data(), today, games))
+      .filter((l) => l.status === 'open' && l.liveGames.length)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    return { ok: true, listings, today };
+  }
+
+  if (!name) return { ok: false, error: 'Choose your name.' };
+  if (!(await swapPinOk(name, pin))) return { ok: false, error: 'That PIN doesn\'t match.' };
+  const isCommish = await commishPinOk(pin);
+  const board = await rsBoard();
+  const prefsAll = ((await PREFS().get()).data() || {}).prefs || {};
+  const prefsOf = (n) => prefsAll[lc(n)] || {};
+  const link = SITE_URL.value() + '#ticket-swap';
+  const mine = (n) => Object.keys(board.holder).filter((gid) => lc(board.holder[gid]) === lc(n) && upcoming(board.games[gid], today));
+  const realName = board.members.find((m) => lc(m) === lc(name)) || name;
+
+  if (body.action === 'swapSave') {
+    const L = body.listing || {};
+    const ref = L.id ? db.collection('swaps').doc(str(L.id, 80)) : db.collection('swaps').doc();
+    const old = L.id ? (await ref.get()).data() : null;
+    if (L.id && !old) return { ok: false, error: 'That listing wasn\'t found.' };
+    const owner = old ? old.member : realName;
+    if (old && lc(old.member) !== lc(name) && !isCommish) return { ok: false, error: 'Only ' + old.member + ' (or the commissioner) can change this listing.' };
+    const own = mine(owner);
+    const away = ids(L.games);
+    if (!away.length) return { ok: false, error: 'Choose at least one game to trade away.' };
+    const bad = away.filter((gid) => !own.includes(gid) && !(old && (old.games || []).includes(gid)));
+    if (bad.length) return { ok: false, error: gameLabel(board.games[bad[0]]) + ' isn\'t one of ' + owner + '\'s upcoming games.' };
+    const qty = Number(L.qty) === 2 ? 2 : 4;
+    const seekAny = !!L.seekAny;
+    const seek = seekAny ? [] : ids(L.seek).filter((gid) => board.games[gid] && !away.includes(gid));
+    const p = prefsOf(owner);
+    const notify = { email: !!(L.notify && L.notify.email), push: !!(L.notify && L.notify.push) };
+    if (notify.email && !(p.email || p.email2)) return { ok: false, error: 'Add your email address in Notification settings first, or untick email.' };
+    if (notify.push && !(p.tokens || []).length) return { ok: false, error: 'Turn on push notifications for a device in Notification settings first, or untick push.' };
+    const now = new Date().toISOString();
+    const doc = Object.assign({}, old || { createdAt: now, offerCount: 0, newOffers: 0, status: 'open' }, {
+      member: owner, games: away, qty, split: qty === 4 && !!L.split, seekAny, seek, notify, updatedAt: now,
+    });
+    await ref.set(doc);
+    if (!old) await announceListing(ref.id, doc, board, prefsAll, link);
+    return { ok: true, message: old ? 'Listing updated.' : 'Listing posted. Members have been emailed.', listing: publicListing(ref.id, doc, today, board.games) };
+  }
+
+  if (body.action === 'swapStatus') {
+    const ref = db.collection('swaps').doc(str(body.id, 80));
+    const x = (await ref.get()).data();
+    if (!x) return { ok: false, error: 'That listing wasn\'t found.' };
+    if (lc(x.member) !== lc(name) && !isCommish) return { ok: false, error: 'Only ' + x.member + ' (or the commissioner) can change this listing.' };
+    const status = body.status === 'fulfilled' ? 'fulfilled' : body.status === 'removed' ? 'removed' : 'open';
+    await ref.set(Object.assign({}, x, { status, updatedAt: new Date().toISOString() }));
+    return { ok: true, message: status === 'fulfilled' ? 'Marked as fulfilled. Nice trade!' : status === 'removed' ? 'Listing removed.' : 'Listing reopened.' };
+  }
+
+  if (body.action === 'swapOffer') {
+    const ref = db.collection('swaps').doc(str(body.id, 80));
+    const x = (await ref.get()).data();
+    if (!x || x.status !== 'open') return { ok: false, error: 'That listing isn\'t open anymore.' };
+    if (lc(x.member) === lc(name)) return { ok: false, error: 'That\'s your own listing.' };
+    const wants = ids(body.wants).filter((gid) => (x.games || []).includes(gid) && upcoming(board.games[gid], today));
+    if (!wants.length) return { ok: false, error: 'Choose the game(s) you\'re interested in.' };
+    const own = mine(realName);
+    const gives = ids(body.gives).filter((gid) => own.includes(gid));
+    const qty = Number(body.qty) === 2 && (x.qty === 2 || x.split) ? 2 : x.qty === 2 ? 2 : 4;
+    const note = str(body.note, 1000);
+    const now = new Date().toISOString();
+    const offer = { listingId: ref.id, from: realName, wants, gives, qty, note, createdAt: now, seen: false };
+    await db.collection('swapOffers').doc().set(offer);
+    await ref.set(Object.assign({}, x, { offerCount: (Number(x.offerCount) || 0) + 1, newOffers: (Number(x.newOffers) || 0) + 1 }));
+    // Tell the lister the way they chose for this listing.
+    const p = prefsOf(x.member);
+    const via = { emailOn: !!(x.notify && x.notify.email), pushOn: !!(x.notify && x.notify.push), email: p.email || '', email2: p.email2 || '', tokens: p.tokens || [], name: x.member };
+    const L = (list) => list.map((gid) => gameLabel(board.games[gid])).join(', ');
+    const body2 = realName + ' is interested in ' + L(wants) + ' (' + qty + ' tickets)' +
+      (gives.length ? ' and offers ' + L(gives) + ' in return.' : '.') + (note ? ' Note: "' + note + '"' : '');
+    if (via.emailOn || via.pushOn) {
+      await deliver(via, { subject: 'Ticket Swap offer from ' + realName, title: 'New Ticket Swap offer', body: body2, link, badge: 0, tag: 'ticket-swap' }).catch((e) => console.error('swap notify', e));
+    }
+    return { ok: true, message: 'Offer sent to ' + x.member + '.' };
+  }
+
+  if (body.action === 'swapOffers') {
+    const ref = db.collection('swaps').doc(str(body.id, 80));
+    const x = (await ref.get()).data();
+    if (!x) return { ok: false, error: 'That listing wasn\'t found.' };
+    if (lc(x.member) !== lc(name) && !isCommish) return { ok: false, error: 'Only ' + x.member + ' can see the offers on this listing.' };
+    const qs = await db.collection('swapOffers').get();
+    const offers = qs.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((o) => o.listingId === ref.id)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+      .map((o) => Object.assign({}, o, { email: prefsOf(o.from).email || '', email2: prefsOf(o.from).email2 || '' }));
+    if (lc(x.member) === lc(name) && Number(x.newOffers)) {
+      await ref.set(Object.assign({}, x, { newOffers: 0 }));
+      await Promise.all(qs.docs.filter((d) => d.data().listingId === ref.id && !d.data().seen).map((d) => d.ref.set(Object.assign({}, d.data(), { seen: true }))));
+    }
+    return { ok: true, offers };
+  }
+
+  if (body.action === 'swapMine') {
+    // The games this member holds (upcoming), for the listing and offer forms.
+    return { ok: true, games: mine(realName), email: !!(prefsOf(realName).email || prefsOf(realName).email2), push: (prefsOf(realName).tokens || []).length > 0 };
+  }
+  return { ok: false, error: 'Unknown action.' };
+}
+
+/** Email every member with an address (unless they turned Ticket Swap emails off) about a new listing. */
+async function announceListing(id, x, board, prefsAll, link) {
+  if (!mailer()) return;
+  const L = (list) => list.map((gid) => gameLabel(board.games[gid])).join(', ');
+  const to = new Set();
+  const names = new Set(board.members.map(lc));
+  const post = (await db.doc('drafts/post').get()).data() || {};
+  (post.members || []).forEach((m) => names.add(lc(m.name)));
+  names.forEach((n) => {
+    if (n === lc(x.member)) return;
+    const p = prefsAll[n];
+    if (!p || p.swapEmails === false) return;
+    [p.email, p.email2].filter(Boolean).forEach((e) => to.add(e));
+  });
+  if (!to.size) return;
+  const lines = [
+    x.member + ' is looking to trade away: ' + L(x.games) + '.',
+    'Tickets: ' + x.qty + (x.split ? ' (will split into 2)' : '') + '.',
+    'Looking for: ' + (x.seekAny || !(x.seek || []).length ? 'any game' : L(x.seek)) + '.',
+  ];
+  const settings = SITE_URL.value() + '#notifications';
+  await mailer().sendMail({
+    from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
+    to: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
+    bcc: Array.from(to).join(', '),
+    subject: 'Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
+    text: lines.join('\n') + '\n\nSee it or make an offer: ' + link + '\n\nStop these emails: ' + settings,
+    html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
+      '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">New Ticket Swap listing</p>' +
+      lines.map((l) => '<p style="margin:0 0 6px">' + escHtml(l) + '</p>').join('') +
+      '<p style="margin:16px 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open Ticket Swap</a></p>' +
+      '<p style="font-size:12px;color:#5d6b82;margin:0">Private page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Turn off Ticket Swap emails</a>.</p></div>',
+  }).catch((e) => console.error('swap announce', e.message));
 }

@@ -29,7 +29,7 @@
   /* ------------------------------------------------------------------ */
   /* What's showing: 'rs' (regular season), 'post', or 'setup' (commissioner) */
   /* ------------------------------------------------------------------ */
-  const VIEWS = { rs: 'regular-season', post: 'postseason', setup: 'setup' };
+  const VIEWS = { rs: 'regular-season', post: 'postseason', swap: 'ticket-swap', setup: 'setup' };
   const VIEW_KEY = 'guardians-draft-view';
   const isDraftView = (v) => v === 'rs' || v === 'post';
   let setupKey = 'rs'; // which Setup section: 'rs', 'post', 'archive-rs' or 'archive-post'
@@ -768,9 +768,11 @@
   function syncSwitch() {
     document.querySelectorAll('#draft-switch button[data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
     const setup = view === 'setup';
+    const swap = view === 'swap';
     $('setup-view').hidden = !setup;
-    ['clock', 'me-bar', 'mtabs', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = setup; });
-    if (setup) { $('turn-alert').hidden = true; $('price-banner').hidden = true; }
+    $('swap-view').hidden = !swap;
+    ['clock', 'me-bar', 'mtabs', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = setup || swap; });
+    if (setup || swap) { $('turn-alert').hidden = true; $('price-banner').hidden = true; }
   }
   function switchView(v) {
     if (!VIEWS[v] || v === view) return;
@@ -787,6 +789,13 @@
       $('title').textContent = 'Commissioner setup';
       openSetupView();
       renderEmailBanner();
+      return;
+    }
+    if (v === 'swap') {
+      if (window.DraftLive) window.DraftLive.watch(null);
+      document.title = 'Ticket Swap';
+      $('title').textContent = 'Ticket Swap';
+      openSwap();
       return;
     }
     me = store.get(meKey(v)) || '';
@@ -1582,6 +1591,298 @@
   });
 
   /* ------------------------------------------------------------------ */
+  /* Ticket Swap: members post regular season games to trade away and    */
+  /* send each other offers. A board only — draft records don't change.  */
+  /* ------------------------------------------------------------------ */
+  const SWAP_ME_KEY = 'guardians-swap-me';
+  let swapListings = null;
+  let swapAuth = null;            // { name, pin } once someone has entered their PIN here
+  let swapBusy = false;
+  const swapMe = () => store.get(SWAP_ME_KEY) || me || '';
+  const ICON_MAIL = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg>';
+  const ICON_PUSH = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="currentColor"><circle cx="12" cy="3.3" r="1.5"/><path d="M12 4.4c-3.5 0-5.9 2.7-5.9 6.2v3.6c0 1-.5 1.9-1.3 2.5l-.6.5c-.6.5-.3 1.4.5 1.4h14.6c.8 0 1.1-.9.5-1.4l-.6-.5c-.8-.6-1.3-1.5-1.3-2.5v-3.6c0-3.5-2.4-6.2-5.9-6.2z"/><path d="M9.4 19.7h5.2a2.6 2.6 0 0 1-5.2 0z"/></svg>';
+
+  // Regular season games (dates, opponents) come from the regular season board.
+  const rsGames = () => ((states.rs && states.rs.inventory) || []);
+  const rsGame = (id) => rsGames().find((g) => g.id === id);
+  const todayIso = () => { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); } catch (e) { return new Date().toISOString().slice(0, 10); } };
+  const gLabel = (id) => { const g = rsGame(id); if (!g) return 'A game'; const d = ymd(g.date); return (dowOf(g.date) + ' ' + (d ? d[1] + '/' + d[2] : '') + ' vs ' + g.opponent).trim(); };
+  const gChips = (list) => list.map((id) => '<span class="gchip">' + esc(gLabel(id)) + '</span>').join('');
+  function ensureRs() {
+    if (states.rs && states.rs.inventory) return Promise.resolve(states.rs);
+    return apiGet('rs').then((r) => { if (r && r.inventory) states.rs = r; return states.rs; }).catch(() => null);
+  }
+  const swapPost = (body) => apiPost(Object.assign({ draft: 'rs' }, body));
+
+  function loadSwap() {
+    if (DEMO) { swapListings = swapListings || []; renderSwap(); return Promise.resolve(); }
+    return swapPost({ action: 'swapList' }).then((r) => {
+      if (r && r.ok) { swapListings = r.listings || []; renderSwapBadge(); if (view === 'swap') { markSynced(); renderSwap(); } }
+    }).catch(() => { if (view === 'swap' && !swapListings) $('swap-list').innerHTML = '<p class="empty">Couldn\'t load Ticket Swap. Trying again…</p>'; });
+  }
+  function openSwap() {
+    syncSwitch();
+    if (!swapListings) $('swap-list').innerHTML = '<p class="empty">Loading…</p>';
+    else renderSwap();
+    ensureRs().then(() => loadSwap());
+  }
+  // Badge on the tab: new offers on this person's own listings.
+  function renderSwapBadge() {
+    const who = swapMe();
+    const n = who && swapListings ? swapListings.filter((l) => l.member === who).reduce((t, l) => t + (l.newOffers || 0), 0) : 0;
+    $('swap-badge').hidden = !n;
+    $('swap-badge').textContent = n ? String(n) : '';
+    $('swap-tab').setAttribute('aria-label', 'Ticket Swap' + (n ? ' (' + n + ' new offer' + (n === 1 ? '' : 's') + ')' : ''));
+  }
+  function renderSwap() {
+    const who = swapMe();
+    const list = swapListings || [];
+    if (!list.length) { $('swap-list').innerHTML = '<div class="notice-card">No listings right now. Have a game you can\'t make? <strong>Post a listing</strong> and members will get an email.</div>'; return; }
+    const mineFirst = list.slice().sort((a, b) => (b.member === who) - (a.member === who));
+    $('swap-list').innerHTML = mineFirst.map((l) => {
+      const own = l.member === who;
+      const posted = l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const icons = (l.notify.email ? '<span class="sw-ico" title="Gets offers by email">' + ICON_MAIL + '<span class="sr">email</span></span>' : '') +
+        (l.notify.push ? '<span class="sw-ico" title="Gets offers by push notification">' + ICON_PUSH + '<span class="sr">push</span></span>' : '');
+      const offers = l.offerCount ? l.offerCount + ' offer' + (l.offerCount === 1 ? '' : 's') : 'No offers yet';
+      return '<article class="card swap-card' + (own ? ' mine' : '') + '">' +
+        '<div class="sw-top"><span class="sw-who">' + esc(l.member) + (own ? ' <span class="tag">You</span>' : '') + '</span>' + (icons ? '<span class="sw-icons">' + icons + '</span>' : '') + '<span class="sw-when">' + esc(posted) + '</span></div>' +
+        '<div class="sw-row"><span class="sw-k">Trading away</span><div class="gchips">' + gChips(l.liveGames) + '</div></div>' +
+        '<div class="sw-row"><span class="sw-k">Tickets</span><span>' + l.qty + (l.split ? ' · will split into 2' : '') + '</span></div>' +
+        '<div class="sw-row"><span class="sw-k">Looking for</span>' + (l.seekAny || !l.seek.length ? '<span>Any game</span>' : '<div class="gchips">' + gChips(l.seek) + '</div>') + '</div>' +
+        '<div class="sw-actions"><span class="hint">' + offers + '</span>' +
+          (own
+            ? '<button type="button" class="btn ghost small" data-sw="offers" data-id="' + esc(l.id) + '">Offers' + (l.newOffers ? ' <span class="tab-badge">' + l.newOffers + '</span>' : '') + '</button>' +
+              '<button type="button" class="btn ghost small" data-sw="edit" data-id="' + esc(l.id) + '">Edit</button>'
+            : '<button type="button" class="btn primary small" data-sw="offer" data-id="' + esc(l.id) + '">Make an offer</button>' +
+              (commishPin ? '<button type="button" class="btn ghost small" data-sw="edit" data-id="' + esc(l.id) + '">Edit</button>' : '')) +
+        '</div></article>';
+    }).join('');
+  }
+
+  /* One dialog, filled in for each step. */
+  function swapDlg(title, html, actions) {
+    $('swap-dlg-title').textContent = title;
+    $('swap-dlg-body').innerHTML = html;
+    $('swap-error').textContent = '';
+    $('swap-dlg-actions').innerHTML = actions.map((a) => '<button type="' + (a.submit ? 'submit' : 'button') + '" class="btn ' + (a.cls || 'ghost') + '" data-sa="' + a.id + '">' + a.label + '</button>').join('');
+    swapActions = {};
+    actions.forEach((a) => { swapActions[a.id] = a.run; });
+    if (!$('swap-dialog').open) $('swap-dialog').showModal();
+  }
+  let swapActions = {};
+  const swapErr = (msg) => { $('swap-error').textContent = msg || ''; };
+  $('swap-dlg-actions').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-sa]');
+    if (!b) return;
+    e.preventDefault();
+    const fn = swapActions[b.dataset.sa];
+    if (fn) fn(b);
+  });
+  $('swap-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const b = $('swap-dlg-actions').querySelector('button[type="submit"]');
+    if (b && swapActions[b.dataset.sa]) swapActions[b.dataset.sa](b);
+  });
+  const close = { id: 'close', label: 'Close', run: () => $('swap-dialog').close() };
+  function busyRun(btn, fn) {
+    if (swapBusy) return;
+    swapBusy = true;
+    btn.disabled = true;
+    swapErr('');
+    Promise.resolve().then(fn).catch((e) => { console.warn(e); swapErr("Couldn't reach the draft. Try again."); })
+      .finally(() => { swapBusy = false; btn.disabled = false; });
+  }
+
+  /* Who are you? Name + PIN, once per visit. */
+  function swapWho(title, intro, next) {
+    if (swapAuth) return next(swapAuth);
+    const members = (states.rs && states.rs.members) || [];
+    const names = sortedNames(members);
+    const pre = names.includes(swapMe()) ? swapMe() : '';
+    swapDlg(title, '<p class="hint">' + intro + '</p>' +
+      '<label>Your name<select id="sw-name"><option value="">Choose your name…</option>' + names.map((n) => '<option' + (n === pre ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' +
+      '<label id="sw-pin-wrap">Your PIN<input id="sw-pin" type="password" autocomplete="off" placeholder="Your PIN"></label>',
+      [close, { id: 'go', label: 'Continue', cls: 'primary', submit: true, run: (b) => {
+        const name = $('sw-name').value;
+        if (!name) return swapErr('Choose your name.');
+        const pin = $('sw-pin').value.trim();
+        busyRun(b, async () => {
+          const r = await swapPost({ action: 'swapMine', name, pin });
+          if (!r || !r.ok) return swapErr((r && r.error) || 'Something went wrong.');
+          swapAuth = { name, pin, mine: r.games || [], email: !!r.email, push: !!r.push };
+          store.set(SWAP_ME_KEY, name);
+          renderSwapBadge();
+          renderSwap();
+          next(swapAuth);
+        });
+      } }]);
+    const sync = () => { const m = members.find((x) => x.name === $('sw-name').value); $('sw-pin-wrap').hidden = !!m && !m.needsPin; };
+    $('sw-name').addEventListener('change', sync);
+    sync();
+  }
+  // Refresh "my games" and alert options (they can change while the page is open).
+  async function refreshAuth() {
+    const r = await swapPost({ action: 'swapMine', name: swapAuth.name, pin: swapAuth.pin });
+    if (r && r.ok) Object.assign(swapAuth, { mine: r.games || [], email: !!r.email, push: !!r.push });
+  }
+
+  const checkList = (name, ids, picked, extra) => '<div class="sw-checks">' + (ids.length ? ids.map((id) =>
+    '<label class="check"><input type="checkbox" data-' + name + '="' + esc(id) + '"' + (picked.includes(id) ? ' checked' : '') + '> <span>' + esc(gLabel(id)) + (extra ? extra(id) : '') + '</span></label>').join('') : '<p class="hint">None.</p>') + '</div>';
+  const checked = (name) => Array.from($('swap-dlg-body').querySelectorAll('input[data-' + name + ']:checked')).map((x) => x.getAttribute('data-' + name));
+
+  /* Post or edit a listing */
+  function listingForm(L, who) {
+    const a = who || swapAuth;
+    const today = todayIso();
+    const ownerGames = L ? Array.from(new Set(a.mine.concat(L.liveGames))) : a.mine;
+    const away = ownerGames.slice().sort((x, y) => String((rsGame(x) || {}).date).localeCompare(String((rsGame(y) || {}).date)));
+    const others = rsGames().filter((g) => String(g.date) >= today && !away.includes(g.id)).map((g) => g.id);
+    const qty = L ? L.qty : 4;
+    const seekAny = L ? (L.seekAny || !L.seek.length) : true;
+    const n = L ? L.notify : { email: a.email, push: a.push };
+    const html =
+      (L && a.pin === commishPin && L.member !== swapMe() ? '<p class="hint">Editing <strong>' + esc(L.member) + '</strong>\'s listing as commissioner.</p>' : '') +
+      '<fieldset class="nset"><legend>Games to trade away</legend>' +
+        (away.length ? checkList('away', away, L ? L.liveGames : (away.length === 1 ? away : [])) : '<p class="hint">You don\'t have any upcoming regular season games to trade.</p>') + '</fieldset>' +
+      '<fieldset class="nset"><legend>Tickets</legend><div class="sw-inline">' +
+        '<label class="check"><input type="radio" name="sw-qty" value="4"' + (qty === 4 ? ' checked' : '') + '> <span>4 tickets</span></label>' +
+        '<label class="check"><input type="radio" name="sw-qty" value="2"' + (qty === 2 ? ' checked' : '') + '> <span>2 tickets</span></label></div>' +
+        '<label class="check" id="sw-split-wrap"><input type="checkbox" id="sw-split"' + (L && L.split ? ' checked' : '') + '> <span>Open to trading just 2 of the 4</span></label></fieldset>' +
+      '<fieldset class="nset"><legend>Looking for</legend><div class="sw-inline">' +
+        '<label class="check"><input type="radio" name="sw-seek" value="any"' + (seekAny ? ' checked' : '') + '> <span>Any game</span></label>' +
+        '<label class="check"><input type="radio" name="sw-seek" value="pick"' + (seekAny ? '' : ' checked') + '> <span>Specific games</span></label></div>' +
+        '<div id="sw-seek-list"' + (seekAny ? ' hidden' : '') + '>' + checkList('seek', others, L ? L.seek : []) + '</div></fieldset>' +
+      '<fieldset class="nset"><legend>Tell me about offers by</legend>' +
+        '<label class="check"><input type="checkbox" id="sw-n-push"' + (n.push && a.push ? ' checked' : '') + (a.push ? '' : ' disabled') + '> <span>Push notification' + (a.push ? '' : ' <small class="hint">(turn on push in Notification settings first)</small>') + '</span></label>' +
+        '<label class="check"><input type="checkbox" id="sw-n-email"' + (n.email && a.email ? ' checked' : '') + (a.email ? '' : ' disabled') + '> <span>Email' + (a.email ? '' : ' <small class="hint">(add your email in Notification settings first)</small>') + '</span></label>' +
+        '<p class="hint">You\'ll also see a number on the Ticket Swap tab when an offer comes in.</p></fieldset>';
+    const actions = [close];
+    if (L) {
+      actions.unshift({ id: 'remove', label: 'Remove listing', cls: 'danger', run: (b) => setStatus(b, L, 'removed', a) });
+      actions.unshift({ id: 'done', label: 'Mark fulfilled', cls: 'ghost', run: (b) => setStatus(b, L, 'fulfilled', a) });
+    }
+    actions.push({ id: 'save', label: L ? 'Save changes' : 'Post listing', cls: 'primary', submit: true, run: (b) => {
+      const games = checked('away');
+      if (!games.length) return swapErr('Choose at least one game to trade away.');
+      const q = Number((($('swap-dlg-body').querySelector('input[name="sw-qty"]:checked')) || {}).value) || 4;
+      const any = ((($('swap-dlg-body').querySelector('input[name="sw-seek"]:checked')) || {}).value || 'any') === 'any';
+      const seek = any ? [] : checked('seek');
+      if (!any && !seek.length) return swapErr('Choose the games you\'re looking for, or pick Any game.');
+      const notify = { push: $('sw-n-push').checked, email: $('sw-n-email').checked };
+      busyRun(b, async () => {
+        const r = await swapPost({ action: 'swapSave', name: a.name, pin: a.pin, listing: { id: L ? L.id : undefined, games, qty: q, split: q === 4 && $('sw-split').checked, seekAny: any, seek, notify } });
+        if (!r || !r.ok) return swapErr((r && r.error) || 'Something went wrong.');
+        $('swap-dialog').close();
+        toast(r.message || 'Saved.');
+        loadSwap();
+      });
+    } });
+    swapDlg(L ? 'Edit listing' : 'Post a listing', html, actions);
+    const body = $('swap-dlg-body');
+    const syncQty = () => { const q = (body.querySelector('input[name="sw-qty"]:checked') || {}).value; $('sw-split-wrap').hidden = q !== '4'; };
+    const syncSeek = () => { $('sw-seek-list').hidden = (body.querySelector('input[name="sw-seek"]:checked') || {}).value !== 'pick'; };
+    body.querySelectorAll('input[name="sw-qty"]').forEach((x) => x.addEventListener('change', syncQty));
+    body.querySelectorAll('input[name="sw-seek"]').forEach((x) => x.addEventListener('change', syncSeek));
+    syncQty();
+    if (!away.length) $('swap-dlg-actions').querySelector('[data-sa="save"]').disabled = true;
+  }
+  function setStatus(btn, L, status, a) {
+    if (status === 'removed' && !btn.classList.contains('armed')) { btn.classList.add('armed'); btn.textContent = 'Yes, remove it'; return; }
+    busyRun(btn, async () => {
+      const r = await swapPost({ action: 'swapStatus', id: L.id, status, name: a.name, pin: a.pin });
+      if (!r || !r.ok) return swapErr((r && r.error) || 'Something went wrong.');
+      $('swap-dialog').close();
+      toast(r.message || 'Saved.');
+      loadSwap();
+    });
+  }
+
+  /* Make an offer on someone else's listing */
+  function offerForm(L) {
+    const a = swapAuth;
+    if (a.name === L.member) { swapDlg('Make an offer', '<p class="hint">That\'s your own listing. Use <strong>Edit</strong> to change it.</p>', [close]); return; }
+    const canTwo = L.qty === 2 || L.split;
+    const mine = a.mine.slice().sort((x, y) => String((rsGame(x) || {}).date).localeCompare(String((rsGame(y) || {}).date)));
+    const wanted = (id) => (!L.seekAny && L.seek.includes(id) ? ' <span class="tag want">Wanted</span>' : '');
+    const html =
+      '<p class="hint"><strong>' + esc(L.member) + '</strong> is trading away ' + L.liveGames.length + ' game' + (L.liveGames.length === 1 ? '' : 's') + '. They\'ll get your offer' +
+        (L.notify.push && L.notify.email ? ' by push and email' : L.notify.push ? ' by push notification' : L.notify.email ? ' by email' : ' on the Ticket Swap page') + '.</p>' +
+      '<fieldset class="nset"><legend>Game(s) you\'re interested in</legend>' + checkList('want', L.liveGames, L.liveGames.length === 1 ? L.liveGames : []) + '</fieldset>' +
+      '<fieldset class="nset"><legend>Tickets</legend>' +
+        (canTwo && L.qty === 4
+          ? '<div class="sw-inline"><label class="check"><input type="radio" name="sw-oqty" value="4" checked> <span>4 tickets</span></label><label class="check"><input type="radio" name="sw-oqty" value="2"> <span>2 tickets</span></label></div>'
+          : '<p>' + L.qty + ' tickets</p>') + '</fieldset>' +
+      '<fieldset class="nset"><legend>What you\'d trade</legend>' +
+        '<p class="hint">' + (L.seekAny || !L.seek.length ? esc(L.member) + ' is open to any game.' : esc(L.member) + ' is looking for: ' + esc(L.seek.map(gLabel).join(', ')) + '.') + ' Pick from your games, or leave blank and explain in the note.</p>' +
+        (mine.length ? checkList('give', mine, mine.filter((id) => !L.seekAny && L.seek.includes(id)), wanted) : '<p class="hint">You don\'t have upcoming regular season games to offer.</p>') + '</fieldset>' +
+      '<label><span>Note <span class="opt">(optional)</span></span><textarea id="sw-note" rows="3" maxlength="1000" placeholder="e.g. Happy to do just 2, or I can meet you at the gate"></textarea></label>';
+    swapDlg('Offer to ' + L.member, html, [close, { id: 'send', label: 'Send offer', cls: 'primary', submit: true, run: (b) => {
+      const wants = checked('want');
+      if (!wants.length) return swapErr('Choose the game(s) you\'re interested in.');
+      const q = Number((($('swap-dlg-body').querySelector('input[name="sw-oqty"]:checked')) || {}).value) || L.qty;
+      busyRun(b, async () => {
+        const r = await swapPost({ action: 'swapOffer', id: L.id, name: a.name, pin: a.pin, wants, gives: checked('give'), qty: q, note: $('sw-note').value });
+        if (!r || !r.ok) return swapErr((r && r.error) || 'Something went wrong.');
+        $('swap-dialog').close();
+        toast(r.message || 'Offer sent.');
+        loadSwap();
+      });
+    } }]);
+  }
+
+  /* Offers on your listing */
+  function offersView(L) {
+    swapDlg('Offers on your listing', '<p class="empty">Loading…</p>', [close]);
+    swapPost({ action: 'swapOffers', id: L.id, name: swapAuth.name, pin: swapAuth.pin }).then((r) => {
+      if (!r || !r.ok) { $('swap-dlg-body').innerHTML = ''; return swapErr((r && r.error) || 'Something went wrong.'); }
+      const offers = r.offers || [];
+      $('swap-dlg-body').innerHTML = '<p class="hint">Trading away: ' + esc(L.liveGames.map(gLabel).join(', ')) + '. Reach out to work it out, then use <strong>Edit → Mark fulfilled</strong>.</p>' +
+        (offers.length ? offers.map((o) => {
+          const when = o.createdAt ? new Date(o.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+          const mail = o.email ? '<a class="btn ghost small" href="mailto:' + esc([o.email, o.email2].filter(Boolean).join(',')) + '?subject=' + encodeURIComponent('Ticket Swap: ' + L.liveGames.map(gLabel).join(', ')) + '">Email ' + esc(o.from.split(' ')[0]) + '</a>' : '<span class="hint">No email on file</span>';
+          return '<div class="offer' + (o.seen ? '' : ' new') + '"><div class="sw-top"><span class="sw-who">' + esc(o.from) + (o.seen ? '' : ' <span class="tag new">New</span>') + '</span><span class="sw-when">' + esc(when) + '</span></div>' +
+            '<div class="sw-row"><span class="sw-k">Wants</span><div class="gchips">' + gChips(o.wants) + '</div></div>' +
+            '<div class="sw-row"><span class="sw-k">Tickets</span><span>' + o.qty + '</span></div>' +
+            '<div class="sw-row"><span class="sw-k">Offers</span>' + (o.gives.length ? '<div class="gchips">' + gChips(o.gives) + '</div>' : '<span class="hint">Nothing listed</span>') + '</div>' +
+            (o.note ? '<div class="sw-row"><span class="sw-k">Note</span><span class="sw-note">' + esc(o.note) + '</span></div>' : '') +
+            '<div class="sw-actions">' + mail + '</div></div>';
+        }).join('') : '<p class="empty">No offers yet.</p>');
+      loadSwap();
+    }).catch(() => swapErr("Couldn't reach the draft."));
+  }
+
+  $('swap-new').addEventListener('click', () => {
+    ensureRs().then(() => swapWho('Post a listing', 'Choose your name and enter your PIN to post games you\'d like to trade away.', async () => { await refreshAuth(); listingForm(null); }));
+  });
+  $('swap-list').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-sw]');
+    if (!b) return;
+    const L = (swapListings || []).find((x) => x.id === b.dataset.id);
+    if (!L) return;
+    const act = b.dataset.sw;
+    ensureRs().then(() => {
+      if (act === 'offer') swapWho('Make an offer', 'Choose your name and enter your PIN to send ' + esc(L.member) + ' an offer.', async () => { await refreshAuth(); offerForm(L); });
+      if (act === 'edit' && commishPin && L.member !== swapMe()) {
+        // Commissioner (Setup unlocked) editing someone else's listing.
+        swapPost({ action: 'swapMine', name: L.member, pin: commishPin }).then((r) => {
+          if (!r || !r.ok) { toast((r && r.error) || 'Something went wrong.'); return; }
+          listingForm(L, { name: L.member, pin: commishPin, mine: r.games || [], email: !!r.email, push: !!r.push });
+        });
+        return;
+      }
+      if (act === 'edit') swapWho('Edit listing', 'Enter your PIN to change this listing.', async () => {
+        if (swapAuth.name !== L.member) { swapDlg('Edit listing', '<p class="hint">Only ' + esc(L.member) + ' can change this listing.</p>', [close]); return; }
+        await refreshAuth();
+        listingForm(L);
+      });
+      if (act === 'offers') swapWho('Offers', 'Enter your PIN to see the offers on your listing.', () => offersView(L));
+    });
+  });
+  // Keep the tab badge current in the background, and the list current while it's open.
+  if (!DEMO) setInterval(() => { if (!document.hidden && !$('swap-dialog').open) loadSwap(); }, view === 'swap' ? 30000 : 60000);
+
+  /* ------------------------------------------------------------------ */
   /* Email & push alerts: each member chooses what they get               */
   /* ------------------------------------------------------------------ */
   const PUSH_TOKEN_KEY = 'guardians-draft-push-token';
@@ -1624,6 +1925,7 @@
     $('notify-email').value = p.email || '';
     $('notify-email2').value = p.email2 || '';
     $('notify-email-on').checked = !!p.emailOn;
+    $('notify-swap').checked = p.swapEmails !== false;
     $('notify-next').checked = !!p.nextUp;
     renderPushStatus();
   }
@@ -1689,7 +1991,7 @@
       .catch((e) => { console.warn(e); $('notify-error').textContent = "Couldn't reach the draft. Try again."; })
       .finally(() => { notifyBusy = false; btn.disabled = false; });
   }
-  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, nextUp: $('notify-next').checked });
+  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, swapEmails: $('notify-swap').checked, nextUp: $('notify-next').checked });
 
   $('notify-btn').addEventListener('click', openNotify);
   $('notify-cancel').addEventListener('click', () => $('notify-dialog').close());
@@ -1974,6 +2276,7 @@
   setInterval(() => { if (state && !busy && isDraftView(view) && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
   $('post-tab').hidden = !showPost;
+  if (!DEMO && view !== 'swap') setTimeout(loadSwap, 1500); // for the new-offer badge on the Ticket Swap tab
   renderNotifyCheck();
   setRsSeason(store.get(RS_SEASON_KEY) || '');
   if (view !== 'rs' && !DEMO) apiGet('rs').then((r) => { if (r && r.ok !== false && !r.notSetUp && 'season' in r) { states.rs = states.rs || r; setRsSeason(r.season); } }).catch(() => {});
@@ -1981,6 +2284,7 @@
   if (history.replaceState && !sentPrices && !sentEmails) history.replaceState(null, '', '#' + VIEWS[view]);
   syncSwitch();
   if (view === 'setup') { $('title').textContent = 'Commissioner setup'; document.title = 'Setup'; if (window.DraftLive) window.DraftLive.watch(null); openSetupView(); }
+  else if (view === 'swap') { $('title').textContent = 'Ticket Swap'; document.title = 'Ticket Swap'; if (window.DraftLive) window.DraftLive.watch(null); openSwap(); }
   else showDraft();
   refresh();
   // Keep checking in background tabs too (more slowly) so turn alerts still fire.
