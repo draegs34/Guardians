@@ -27,15 +27,18 @@
   const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   /* ------------------------------------------------------------------ */
-  /* Which draft is showing: 'rs' (regular season), 'post', or 'archive' */
+  /* What's showing: 'rs' (regular season), 'post', or 'setup' (commissioner) */
   /* ------------------------------------------------------------------ */
-  const VIEWS = { rs: 'regular-season', post: 'postseason', archive: 'past-drafts' };
+  const VIEWS = { rs: 'regular-season', post: 'postseason', setup: 'setup' };
   const VIEW_KEY = 'guardians-draft-view';
+  const isDraftView = (v) => v === 'rs' || v === 'post';
+  let setupKey = 'rs'; // which Setup section: 'rs', 'post' or 'archive'
   function initialView() {
     const h = location.hash.replace('#', '');
+    if (h === 'past-drafts') { setupKey = 'archive'; return 'setup'; }
     for (const k in VIEWS) if (VIEWS[k] === h || k === h) return k;
     const saved = store.get(VIEW_KEY);
-    return VIEWS[saved] ? saved : 'post';
+    return isDraftView(saved) ? saved : 'post';
   }
   /* Prices sent from the Season Ticket Manager arrive as #prices=ALDS:432,ALCS:646,WS:1090 */
   function readPriceHash() {
@@ -65,7 +68,7 @@
   }
   let sentEmails = readEmailHash();
   let sentPrices = readPriceHash();
-  let view = sentPrices ? 'post' : initialView();
+  let view = sentPrices ? 'post' : sentEmails ? 'setup' : initialView();
 
   const liveOn = {};            // drafts receiving live Firebase updates (live.js)
   let lastPoll = 0;
@@ -207,10 +210,10 @@
   }
   function apiArchives() {
     if (DEMO) return demo.archives();
-    return getJson({ view: 'archives' });
+    return apiPost({ action: 'archives', pin: commishPin, draft: 'rs' });
   }
   function apiPost(body) {
-    body.draft = view;
+    if (!body.draft) body.draft = isDraftView(view) ? view : (setupKey === 'post' ? 'post' : 'rs');
     if (DEMO) return demo.post(body);
     // text/plain avoids a CORS preflight, which Apps Script doesn't answer.
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
@@ -272,7 +275,7 @@
   }
 
   function refresh() {
-    if (view === 'archive') return loadArchives();
+    if (!isDraftView(view)) return Promise.resolve();
     const draft = view;
     lastPoll = Date.now();
     return apiGet(draft).then((s) => {
@@ -384,8 +387,9 @@
       else if (item) toast(p.member + (p.assigned ? ' was assigned ' : ' took ') + shortLabel(item));
     }
     lastPickCount = s.picks.length;
+    if (pendingCog && pendingCog === view && !staleViews.has(view)) { const k = pendingCog; setTimeout(() => openCog(k), 0); }
     // Opened from the "Change your notification settings" link in an email
-    if (wantNotify && s.members && !setupOpen && !document.querySelector('dialog[open]')) { wantNotify = false; openNotify(); }
+    if (wantNotify && s.members && isDraftView(view) && !document.querySelector('dialog[open]')) { wantNotify = false; openNotify(); }
   }
 
   const isRS = (s) => s && s.kind === 'rs';
@@ -413,7 +417,7 @@
     $('clock-meta').textContent = 'The ' + label + ' draft hasn\'t been set up yet.';
     $('board').removeAttribute('aria-busy');
     $('board').innerHTML = window.FIREBASE_CONFIG
-      ? '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: open <em>Commissioner tools</em> to import your data or start it empty.</div>'
+      ? '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: open <em>Setup</em> at the top of the page to import your data or start it empty.</div>'
       : '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: in the Google Sheet, choose <em>Guardians Draft → Set up ' + label + (view === 'rs' ? ' draft' : ' tabs') + '</em>.</div>';
     $('rs-filters').hidden = true;
     $('upcoming').innerHTML = '<li class="empty">Nothing yet.</li>';
@@ -676,21 +680,22 @@
   /* ------------------------------------------------------------------ */
   /* Past drafts                                                          */
   /* ------------------------------------------------------------------ */
+  const onArchives = () => view === 'setup' && setupKey === 'archive' && !!$('archive-list');
   function loadArchives() {
     return apiArchives().then((r) => {
-      if (view !== 'archive') return;
+      if (r && r.ok === false) throw new Error(r.error || 'Not allowed');
       archives = (r && r.archives) || [];
-      markSynced();
-      renderArchives();
+      if (onArchives()) renderArchives();
     }).catch((err) => {
       console.warn(err);
-      if (view === 'archive' && !archives) $('archive-list').innerHTML = '<p class="empty">Couldn\'t load past drafts. Trying again…</p>';
+      if (onArchives() && !archives) $('archive-list').innerHTML = '<p class="empty">Couldn\'t load past drafts. ' + esc(err && err.message ? err.message : '') + '</p>';
     });
   }
   function renderArchives() {
+    if (!$('archive-list')) return;
     if (!archives) { $('archive-list').innerHTML = '<p class="empty">Loading…</p>'; return; }
     if (!archives.length) {
-      $('archive-list').innerHTML = '<div class="notice-card">No archived drafts yet. The commissioner can archive a finished draft from <em>Commissioner tools → Archive this draft</em>.</div>';
+      $('archive-list').innerHTML = '<div class="notice-card">No archived drafts yet. Archive a finished draft with the ⚙ commissioner tools → <em>Archive this draft</em>.</div>';
       return;
     }
     $('archive-list').innerHTML = archives.map((a, i) => {
@@ -714,27 +719,27 @@
   /* Switching drafts                                                     */
   /* ------------------------------------------------------------------ */
   function syncSwitch() {
-    document.querySelectorAll('#draft-switch button').forEach((b) => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
-    const arch = view === 'archive';
-    $('archive-view').hidden = !arch;
-    ['clock', 'me-bar', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = arch; });
+    document.querySelectorAll('#draft-switch button[data-view]').forEach((b) => b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false'));
+    const setup = view === 'setup';
+    $('setup-view').hidden = !setup;
+    ['clock', 'me-bar', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = setup; });
+    if (setup) { $('turn-alert').hidden = true; $('price-banner').hidden = true; }
   }
   function switchView(v) {
     if (!VIEWS[v] || v === view) return;
     view = v;
-    store.set(VIEW_KEY, v);
+    if (isDraftView(v)) store.set(VIEW_KEY, v);
     if (history.replaceState) history.replaceState(null, '', '#' + VIEWS[v]);
     lastPickCount = null;
     setTitleFlash(false);
     $('turn-alert').hidden = true;
-    if (setupOpen) setupVisible(false);
     syncSwitch();
-    if (v === 'archive') {
+    if (v === 'setup') {
       if (window.DraftLive) window.DraftLive.watch(null);
-      document.title = 'Past drafts';
-      $('title').textContent = 'Past drafts';
-      renderArchives();
-      loadArchives();
+      document.title = 'Setup';
+      $('title').textContent = 'Commissioner setup';
+      openSetupView();
+      renderEmailBanner();
       return;
     }
     me = store.get(meKey(v)) || '';
@@ -761,6 +766,7 @@
   });
   window.addEventListener('hashchange', () => {
     const h = location.hash.replace('#', '');
+    if (h === 'past-drafts') { setupKey = 'archive'; if (view === 'setup') renderSetup(); else switchView('setup'); return; }
     for (const k in VIEWS) if (VIEWS[k] === h) switchView(k);
   });
   // (A #prices=… link from the Season Ticket Manager is handled with the price tool below.)
@@ -878,7 +884,7 @@
     const p = readPriceHash();
     if (p) { sentPrices = p; if (view !== 'post') switchView('post'); else renderPriceTool(); }
   });
-  $('price-review').addEventListener('click', () => $('commish-btn').click());
+  $('price-review').addEventListener('click', () => openCog('post'));
   $('prices-btn').addEventListener('click', () => {
     if (!sentPrices) return;
     const prices = sentPrices;
@@ -887,22 +893,24 @@
     commishAction({ action: 'setPrices', prices }, $('prices-btn'), pricesLanded, (res) => { if (res && res.ok) clearPriceHash(); });
   });
 
-  $('commish-btn').addEventListener('click', () => {
-    if (!state || state.notSetUp) {
-      if (window.FIREBASE_CONFIG) openSetup('');
-      else toast('This draft isn\'t set up yet.');
-      return;
-    }
-    $('commish-pin').value = '';
+  /* The ⚙ button: commissioner tools for the draft on screen (from Setup, the section you're in). */
+  let pendingCog = null; // opening the tools from Setup waits for that draft's board to load
+  function openCog(want) {
+    const key = want || (isDraftView(view) ? view : (setupKey === 'post' ? 'post' : 'rs'));
+    if (view !== key) switchView(key);
+    if (state && state.notSetUp) { pendingCog = null; toast('This draft isn\'t set up yet. Use Setup to import it or start it empty.'); return; }
+    if (!state || staleViews.has(view)) { pendingCog = key; return; }
+    pendingCog = null;
+    $('commish-draft').textContent = '· ' + (key === 'rs' ? 'Regular season' : 'Postseason');
+    $('commish-pin').value = commishPin || '';
     $('commish-error').textContent = '';
     disarmArchive();
     fillAssignLists();
     renderPriceTool();
-    renderEmailTool();
-    $('setup-tool').hidden = !window.FIREBASE_CONFIG;
     $('commish-dialog').showModal();
-    setTimeout(() => $('commish-pin').focus(), 50);
-  });
+    setTimeout(() => (commishPin ? $('commish-cancel') : $('commish-pin')).focus(), 50);
+  }
+  $('cog-btn').addEventListener('click', () => openCog());
   $('commish-cancel').addEventListener('click', () => $('commish-dialog').close());
   $('commish-form').addEventListener('submit', (e) => e.preventDefault());
 
@@ -917,7 +925,7 @@
       .then((res) => {
         if (res && res.inventory) apply(res);
         if (after) after(res);
-        if (res && res.ok) { $('commish-dialog').close(); toast(res.message || 'Saved.'); archives = null; }
+        if (res && res.ok) { rememberPin(body.pin); $('commish-dialog').close(); toast(res.message || 'Saved.'); archives = null; }
         else { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; fillAssignLists(); }
       })
       .catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; })
@@ -988,94 +996,167 @@
   });
 
   /* ------------------------------------------------------------------ */
-  /* Commissioner setup (Firebase backend): members, PINs, draft order,  */
-  /* games, settings, MLB schedule, CSV download, and importing data.    */
+  /* Setup tab (commissioner): one PIN, a section per draft, past drafts. */
+  /* The regular season member list is the source of truth; the          */
+  /* postseason list follows it (order and active/inactive set there).   */
   /* ------------------------------------------------------------------ */
-  let setupOpen = false;
-  let adminPin = '';
-  let adminData = null;   // what the setup screen is editing
+  const PIN_KEY = 'guardians-commish-pin';
+  const session = {
+    get() { try { return sessionStorage.getItem(PIN_KEY) || ''; } catch (e) { return ''; } },
+    set(v) { try { if (v) sessionStorage.setItem(PIN_KEY, v); else sessionStorage.removeItem(PIN_KEY); } catch (e) { /* ignore */ } },
+  };
+  // Remembered until this browser tab or app is closed, so moving between pages doesn't ask again.
+  let commishPin = session.get();
+  function rememberPin(pin) { pin = String(pin || '').trim(); if (pin) { commishPin = pin; session.set(pin); } }
+  let admin = null;        // { rs, post }: what Setup is editing (null for a draft that isn't set up)
+  let setupBoards = {};    // public state of each draft, for "who has picks"
   let setupBusy = false;
+  let setupLoading = false;
+  const A = () => (admin && (setupKey === 'rs' || setupKey === 'post') ? admin[setupKey] : null);
 
-  function setupVisible(on) {
-    setupOpen = on;
-    $('setup-view').hidden = !on;
-    ['clock', 'me-bar', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = on || view === 'archive'; });
-    if (on) window.scrollTo(0, 0);
+  function openSetupView() {
+    syncSwitch();
+    if (DEMO) {
+      $('setup-lock').hidden = true;
+      $('setup-main').hidden = false;
+      $('setup-body').innerHTML = '<div class="notice-card">Setup works once the site is connected to Firebase (see the README).</div>';
+      return;
+    }
+    if (!commishPin) { showLock(''); return; }
+    $('setup-lock').hidden = true;
+    $('setup-main').hidden = false;
+    if (!admin) loadAdmin(commishPin); else renderSetup();
   }
-  function openSetup(pin) {
-    adminPin = pin || '';
-    adminData = null;
-    setupVisible(true);
-    $('setup-title').textContent = (view === 'rs' ? 'Regular season' : 'Postseason') + ' draft';
-    if (!state || state.notSetUp || !adminPin) { renderSetup(); return; }
-    $('setup-body').innerHTML = '<p class="empty">Loading setup…</p>';
-    apiPost({ action: 'adminGet', pin: adminPin }).then((res) => {
-      if (!res || !res.ok) { $('setup-body').innerHTML = '<div class="notice-card">' + esc((res && res.error) || 'Couldn\'t load setup.') + (res && /isn't available|Unknown action/i.test(res.error || '') ? '' : '') + '</div>'; return; }
-      adminData = res.admin;
-      renderSetup();
-    }).catch(() => { $('setup-body').innerHTML = '<div class="notice-card">Couldn\'t reach the draft. Try again in a moment.</div>'; });
+  function showLock(err) {
+    $('setup-main').hidden = true;
+    $('setup-lock').hidden = false;
+    $('lock-error').textContent = err || '';
+    $('lock-pin').value = '';
+    setTimeout(() => $('lock-pin').focus(), 50);
   }
-  $('setup-back').addEventListener('click', () => { setupVisible(false); syncSwitch(); if (state) { if (state.notSetUp) renderNotSetUp(); else render(null); } });
-  $('setup-btn').addEventListener('click', () => {
-    const pin = $('commish-pin').value.trim();
-    if (!pin) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
-    $('commish-dialog').close();
-    openSetup(pin);
+  $('lock-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const pin = $('lock-pin').value.trim();
+    if (!pin) { $('lock-error').textContent = 'Enter the commissioner PIN.'; return; }
+    loadAdmin(pin);
   });
+  $('setup-lockbtn').addEventListener('click', () => {
+    commishPin = ''; session.set(''); admin = null; archives = null; sync = null;
+    showLock('');
+    toast('Setup is locked on this device.');
+  });
+  $('setup-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-sk]');
+    if (!b || b.dataset.sk === setupKey) return;
+    setupKey = b.dataset.sk;
+    renderSetup();
+    window.scrollTo(0, 0);
+  });
+
+  function loadAdmin(pin) {
+    if (setupLoading) return Promise.resolve();
+    setupLoading = true;
+    $('lock-go').disabled = true;
+    if (!$('setup-main').hidden) $('setup-body').innerHTML = '<p class="empty">Loading setup…</p>';
+    return Promise.all(['rs', 'post'].map((k) => apiPost({ action: 'adminGet', pin, draft: k }).catch(() => null))).then(([r, p]) => {
+      const res = { rs: r, post: p };
+      const okAny = (r && r.ok) || (p && p.ok);
+      const bothEmpty = r && r.notSetUp && p && p.notSetUp;
+      if (!okAny && !bothEmpty) {
+        commishPin = ''; session.set(''); admin = null;
+        showLock((r && r.error) || (p && p.error) || "Couldn't reach the draft. Try again in a moment.");
+        return;
+      }
+      rememberPin(pin);
+      admin = {};
+      setupBoards = {};
+      ['rs', 'post'].forEach((k) => {
+        const x = res[k];
+        if (x && x.ok && x.admin) {
+          x.admin.members.forEach((m) => { m.orig = m.name; });
+          admin[k] = x.admin;
+          setupBoards[k] = x;
+        } else admin[k] = null;
+      });
+      $('setup-lock').hidden = true;
+      $('setup-main').hidden = false;
+      renderSetup();
+    }).finally(() => { setupLoading = false; $('lock-go').disabled = false; });
+  }
 
   const field = (label, html, hint) => '<label class="sf"><span>' + label + '</span>' + html + (hint ? '<small>' + hint + '</small>' : '') + '</label>';
   const inp = (bind, val, attrs) => '<input data-bind="' + bind + '" value="' + esc(val == null ? '' : val) + '" ' + (attrs || '') + '>';
+  const ro = (val, cls) => '<input value="' + esc(val == null ? '' : val) + '" disabled class="ro ' + (cls || '') + '">';
   const chk = (bind, on, text) => '<label class="check"><input type="checkbox" data-bind="' + bind + '"' + (on ? ' checked' : '') + '> ' + text + '</label>';
-  const iconBtn = (act, i, label, sym, dis) => '<button type="button" class="icon-btn" data-act="' + act + '" data-i="' + i + '" aria-label="' + label + '"' + (dis ? ' disabled title="' + esc(dis) + '"' : '') + '>' + sym + '</button>';
+  const iconBtn = (act, i, label, sym, dis) => '<button type="button" class="icon-btn" data-act="' + act + '" data-i="' + i + '" aria-label="' + esc(label) + '" title="' + esc(dis || label) + '"' + (dis ? ' disabled' : '') + '>' + sym + '</button>';
+  const hasPicks = (k, name) => !!name && ((setupBoards[k] && setupBoards[k].picks) || []).some((p) => p.member === name);
 
   function renderSetup() {
-    const rs = view === 'rs';
-    const a = adminData;
+    document.querySelectorAll('#setup-tabs button').forEach((b) => b.setAttribute('aria-current', b.dataset.sk === setupKey ? 'page' : 'false'));
+    if (setupKey === 'archive') {
+      $('setup-body').innerHTML = '<p class="hint setup-intro">Finished drafts you\'ve archived. Only the commissioner can see these.</p><div id="archive-list"></div>';
+      renderArchives();
+      if (!archives) loadArchives();
+      return;
+    }
+    const key = setupKey;
+    const rs = key === 'rs';
+    const a = A();
     const importCard =
       '<section class="card sc"><h3>Import data</h3>' +
       '<p class="hint">Moving from the Google Sheet: in the sheet choose <em>Guardians Draft → Export everything for Firebase</em>, copy the text and paste it here. ' +
-      'It replaces the drafts and past drafts it contains. Use the <strong>setup key</strong> you chose when deploying (or your current commissioner PIN).</p>' +
+      'It replaces the drafts and past drafts it contains. Use the <strong>setup key</strong> you chose when deploying (or your commissioner PIN).</p>' +
       '<textarea id="import-text" rows="5" placeholder="Paste the export here"></textarea>' +
       field('Setup key or commissioner PIN', '<input id="import-key" type="password" autocomplete="off">') +
       '<div class="row-btns"><button type="button" class="btn primary" data-act="import">Import</button></div></section>';
     if (!a) {
-      $('setup-body').innerHTML = (state && !state.notSetUp && !adminPin ? '' :
-        '<div class="notice-card">This draft isn\'t set up in Firebase yet. Import your data from the Google Sheet, or start it empty and fill it in here.</div>') +
+      $('setup-body').innerHTML =
+        '<div class="notice-card">The ' + (rs ? 'regular season' : 'postseason') + ' draft isn\'t set up yet. Import your data from the Google Sheet, or start it empty and fill it in here.</div>' +
         importCard +
-        '<section class="card sc"><h3>Start this draft empty</h3><p class="hint">Creates the ' + (rs ? 'regular season' : 'postseason') + ' draft with one placeholder member. You can then add members, games and settings here.</p>' +
-        field('Commissioner PIN for this draft', '<input id="fresh-pin" autocomplete="off">') +
+        '<section class="card sc"><h3>Start this draft empty</h3><p class="hint">Creates the ' + (rs ? 'regular season' : 'postseason') + ' draft' + (rs ? ' with one placeholder member' : ' with the regular season members') + '. You can then fill in the rest here.</p>' +
+        field('Commissioner PIN', '<input id="fresh-pin" autocomplete="off" value="' + esc(commishPin) + '">') +
         field('Setup key', '<input id="fresh-key" type="password" autocomplete="off">', 'The private phrase you chose when deploying.') +
         '<div class="row-btns"><button type="button" class="btn" data-act="fresh">Create empty draft</button></div></section>';
       return;
     }
     const s = a.settings || {};
-    const picked = new Set(((states[view] && states[view].picks) || []).filter((p) => p.itemId).map((p) => p.itemId));
+    const picked = new Set(((setupBoards[key] && setupBoards[key].picks) || []).filter((p) => p.itemId).map((p) => p.itemId));
     const names = sortedNames(a.members);
+    const tl = !!s.timeLimitOn;
+    const rem = !!s.reminderOn;
 
-    let html = '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
+    let html = '';
+    if (rs && sentEmails) html += '<section class="card sc sync-card"><h3>Members from Season Ticket Manager</h3><div id="sync-body"></div></section>';
+
+    html += '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
       field('Draft title', inp('settings.title', s.title)) +
-      (rs ? field('Season', inp('settings.season', s.season, 'inputmode="numeric"'), 'Used when loading the schedule from MLB') : field('Max picks per member', inp('settings.maxPicks', s.maxPicks || '', 'inputmode="numeric" placeholder="No limit"'))) +
-      field('New commissioner PIN', '<input data-bind="newCommissionerPin" autocomplete="off" placeholder="Leave blank to keep it">') +
+      (rs ? field('Season <span class="opt">(for the MLB schedule)</span>', inp('settings.season', s.season, 'inputmode="numeric"'))
+        : field('Max picks per member', inp('settings.maxPicks', s.maxPicks || '', 'inputmode="numeric" placeholder="No limit"'))) +
+      (rs ? field('New commissioner PIN <span class="opt">(both drafts)</span>', '<input data-bind="newCommissionerPin" autocomplete="off" placeholder="Leave blank to keep it">') : '') +
       '</div><div class="checks">' +
       chk('settings.open', s.open, '<strong>Draft open</strong> (members can pick)') +
       chk('settings.snake', s.snake !== false, 'Snake order (reverses every round)') +
-      (rs ? chk('settings.timeLimitOn', s.timeLimitOn, 'Pick time limit') + '<label class="sf inline"><span>Hours per pick</span>' + inp('settings.timeLimitHours', s.timeLimitHours || 24, 'inputmode="numeric" style="width:90px"') + '</label>' : '') +
+      chk('settings.timeLimitOn', tl, 'Pick time limit') +
+      '<label class="sf inline' + (tl ? '' : ' off') + '"><span>Hours per pick</span>' + inp('settings.timeLimitHours', s.timeLimitHours || 24, 'inputmode="numeric" style="width:90px"' + (tl ? '' : ' disabled')) + '</label>' +
       '</div><div class="checks reminders">' +
-      chk('settings.reminderOn', s.reminderOn, '<strong>Follow-up reminders</strong> to whoever is on the clock') +
-      '<label class="sf inline"><span>Every</span>' + inp('settings.reminderHours', s.reminderHours || 12, 'inputmode="decimal" style="width:80px"') + '<span>hours</span></label>' +
-      '<label class="sf inline"><span>Up to</span>' + inp('settings.reminderCount', s.reminderCount || 2, 'inputmode="numeric" style="width:70px"') + '<span>times per turn</span></label>' +
+      chk('settings.reminderOn', rem, '<strong>Follow-up reminders</strong> to whoever is on the clock') +
+      '<label class="sf inline' + (rem ? '' : ' off') + '"><span>Every</span>' + inp('settings.reminderHours', s.reminderHours || 12, 'inputmode="decimal" style="width:80px"' + (rem ? '' : ' disabled')) + '<span>hours</span></label>' +
+      '<label class="sf inline' + (rem ? '' : ' off') + '"><span>Up to</span>' + inp('settings.reminderCount', s.reminderCount || 2, 'inputmode="numeric" style="width:70px"' + (rem ? '' : ' disabled')) + '<span>times per turn</span></label>' +
       '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p></section>';
 
-    html += '<section class="card sc"><h3>Members</h3><p class="hint">' + (rs ? 'Games purchased is each member\'s limit for this draft.' : 'The list order is the draft order.') + ' Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it themselves under <em>Email &amp; push alerts</em>. Emails are shared by both drafts.</p>' +
-      '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th>' + (rs ? '<th>Games</th>' : '') + '<th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
-      a.members.map((m, i) => '<tr><td>' + inp('members.' + i + '.name', m.name, 'placeholder="Name"') + '</td><td>' + inp('members.' + i + '.pin', m.pin, 'autocomplete="off" class="pin-in"') + '</td>' +
-        (rs ? '<td>' + inp('members.' + i + '.cap', m.cap || '', 'inputmode="numeric" class="num-in"') + '</td>' : '') +
-        '<td>' + inp('members.' + i + '.email', m.email || '', 'type="email" placeholder="Optional" class="email-in"') + '</td>' +
-        '<td class="acts">' + (rs ? '' : iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '')) +
-        iconBtn('del-member', i, 'Remove ' + m.name, '✕') + '</td></tr>').join('') +
-      '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="add-member">+ Add member</button></div></section>';
-
     if (rs) {
+      html += '<section class="card sc"><h3>Members</h3><p class="hint">This list is used by both drafts: names, PINs and emails here update the Postseason tab too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Email &amp; push alerts</em>.</p>' +
+        '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
+        a.members.map((m, i) => {
+          const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
+          const lock = where.length ? m.name + ' has picks in the ' + where.join(' and ') + ' draft. Undo those first.' : '';
+          return '<tr><td>' + inp('members.' + i + '.name', m.name, 'placeholder="Name"') + '</td><td>' + inp('members.' + i + '.pin', m.pin, 'autocomplete="off" class="pin-in"') + '</td>' +
+            '<td>' + inp('members.' + i + '.cap', m.cap || '', 'inputmode="numeric" class="num-in"') + '</td>' +
+            '<td>' + inp('members.' + i + '.email', m.email || '', 'type="email" placeholder="Optional" class="email-in"') + '</td>' +
+            '<td class="acts">' + iconBtn('del-member', i, 'Remove ' + (m.name || 'member'), '✕', lock) + '</td></tr>';
+        }).join('') +
+        '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="add-member">+ Add member</button></div></section>';
+
       const slotCount = {};
       a.order.forEach((n) => { slotCount[n] = (slotCount[n] || 0) + 1; });
       const warn = a.members.filter((m) => m.name && Number(m.cap) > 0 && (slotCount[m.name] || 0) !== Math.floor(Number(m.cap) / 5))
@@ -1091,6 +1172,17 @@
         '<button type="button" class="btn ghost" data-act="fill-order">Rebuild from games purchased</button>' +
         '<button type="button" class="btn ghost" data-act="shuffle-order">🎲 Randomize order</button></div>' +
         '<p class="hint">Randomize shuffles the slots above (or builds them from games purchased if there are none). ' + esc(FIRST3) + ' always gets one of the first 3 picks. Click again for a new order; nothing changes until you save.</p></section>';
+    } else {
+      const rsMembers = (admin.rs && admin.rs.members) || [];
+      const emailOf = (n) => { const m = rsMembers.find((x) => x.name === n); return m ? m.email : ''; };
+      html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular season</strong> tab; change names, PINs and emails there. ' +
+        'Here the list order is the postseason draft order. ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); click again to bring them back.</p>' +
+        '<div class="tbl"><table class="stable"><thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
+        a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
+          '<td class="acts">' + iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '') +
+          (m.inactive ? iconBtn('toggle-member', i, 'Make ' + m.name + ' active again', '↺') : iconBtn('toggle-member', i, 'Mark ' + m.name + ' inactive', '✕')) + '</td></tr>').join('') +
+        '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="shuffle-post">🎲 Randomize order</button></div>' +
+        '<p class="hint">Randomize shuffles the active members (inactive ones move to the end). ' + esc(FIRST3) + ' always gets one of the first 3 picks. Click again for a new order; nothing changes until you save.</p></section>';
     }
 
     html += '<section class="card sc"><h3>' + (rs ? 'Home games' : 'Games & seat pairs') + '</h3>' +
@@ -1111,9 +1203,10 @@
 
     html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
-    html += importCard;
-    html += '<div class="save-bar"><span class="hint" id="setup-msg"></span><button type="button" class="btn primary" data-act="save">Save setup</button></div>';
+    if (rs) html += importCard;
+    html += '<div class="save-bar"><span class="hint" id="setup-msg"></span><button type="button" class="btn primary" data-act="save">Save ' + (rs ? 'regular season' : 'postseason') + '</button></div>';
     $('setup-body').innerHTML = html;
+    if (rs && sentEmails) renderEmailTool();
   }
 
   function setPath(obj, path, val) {
@@ -1122,20 +1215,51 @@
     for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]];
     o[parts[parts.length - 1]] = val;
   }
+  // Re-render Setup without losing your place: keeps the scroll position and the field you're typing in.
+  const redrawKeep = () => {
+    const y = window.scrollY;
+    const ae = document.activeElement;
+    const bind = ae && ae.dataset && ae.dataset.bind;
+    let sel = null;
+    try { sel = bind && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null; } catch (e) { sel = null; }
+    renderSetup();
+    window.scrollTo(0, y);
+    if (bind) {
+      const el = $('setup-body').querySelector('[data-bind="' + bind + '"]');
+      if (el) { el.focus({ preventScroll: true }); try { if (sel) el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* not a text field */ } }
+    }
+  };
   $('setup-body').addEventListener('input', (e) => {
     const el = e.target.closest('[data-bind]');
-    if (!el || !adminData) return;
+    const a = A();
+    if (!el || !a) return;
     const path = el.dataset.bind;
-    if (path === 'newCommissionerPin') { adminData.newCommissionerPin = el.value.trim(); return; }
-    setPath(adminData, path, el.type === 'checkbox' ? el.checked : el.value);
-    if (/^order\.|\.cap$/.test(path)) { const y = window.scrollY; renderSetup(); window.scrollTo(0, y); }
+    if (path === 'newCommissionerPin') { a.newCommissionerPin = el.value.trim(); return; }
+    if (el.type === 'checkbox') return; // handled on change
+    const rename = path.match(/^members\.(\d+)\.name$/);
+    if (rename && setupKey === 'rs') {
+      // Keep draft-order slots pointing at the same person while their name is edited.
+      const old = a.members[Number(rename[1])].name;
+      const now = el.value;
+      if (old) a.order = a.order.map((n) => (n === old ? now : n));
+    }
+    setPath(a, path, el.value);
+    if (/^order\.|\.cap$/.test(path)) redrawKeep();
   });
   $('setup-body').addEventListener('change', (e) => {
     const el = e.target.closest('[data-bind]');
-    if (el && el.type === 'checkbox' && adminData) setPath(adminData, el.dataset.bind, el.checked);
+    const a = A();
+    if (!el || !a) return;
+    const path = el.dataset.bind;
+    if (el.type === 'checkbox') {
+      setPath(a, path, el.checked);
+      if (/timeLimitOn|reminderOn/.test(path)) redrawKeep(); // enable/disable the hours fields
+      return;
+    }
+    if (/^members\.\d+\.name$/.test(path)) setTimeout(redrawKeep, 0); // refresh the draft-order dropdowns once focus has moved on
   });
 
-  // Randomize the regular season order: fully random, except FIRST3 always lands in the first 3 picks.
+  // Randomize: fully random, except FIRST3 always lands in the first 3 picks.
   const FIRST3 = 'James Draeger';
   function randInt(n) {
     try { const u = new Uint32Array(1); crypto.getRandomValues(u); return u[0] % n; } catch (e) { return Math.floor(Math.random() * n); }
@@ -1158,25 +1282,40 @@
     const b = e.target.closest('[data-act]');
     if (!b || setupBusy) return;
     const i = Number(b.dataset.i);
-    const a = adminData;
-    const y = window.scrollY;
-    const redraw = () => { renderSetup(); window.scrollTo(0, y); };
-    switch (b.dataset.act) {
-      case 'add-member': a.members.push({ name: '', pin: '', cap: 0, email: '' }); return redraw();
-      case 'del-member': a.members.splice(i, 1); return redraw();
-      case 'up-member': move(a.members, i, -1); return redraw();
-      case 'down-member': move(a.members, i, 1); return redraw();
-      case 'add-slot': a.order.push(a.members[0] ? a.members[0].name : ''); return redraw();
-      case 'del-slot': a.order.splice(i, 1); return redraw();
-      case 'up-slot': move(a.order, i, -1); return redraw();
-      case 'down-slot': move(a.order, i, 1); return redraw();
+    const a = A();
+    const act = b.dataset.act;
+    if (!a && !['import', 'fresh'].includes(act)) return;
+    switch (act) {
+      case 'add-member': a.members.push({ name: '', pin: '', cap: 0, email: '' }); return redrawKeep();
+      case 'del-member': {
+        const m = a.members[i];
+        if (hasPicks('rs', m.orig) || hasPicks('post', m.orig)) { toast(m.name + ' has picks. Undo those first.'); return; }
+        a.members.splice(i, 1);
+        if (m.name) a.order = a.order.filter((n) => n !== m.name);
+        return redrawKeep();
+      }
+      case 'up-member': move(a.members, i, -1); return redrawKeep();
+      case 'down-member': move(a.members, i, 1); return redrawKeep();
+      case 'toggle-member': a.members[i].inactive = !a.members[i].inactive; return redrawKeep();
+      case 'shuffle-post': {
+        const active = a.members.filter((m) => !m.inactive);
+        if (active.length < 2) { toast('Not enough active members to shuffle.'); return; }
+        const byName = new Map(a.members.map((m) => [m.name, m]));
+        a.members = shuffleOrder(active.map((m) => m.name)).map((n) => byName.get(n)).concat(a.members.filter((m) => m.inactive));
+        toast('New random order. Click Save postseason to keep it.');
+        return redrawKeep();
+      }
+      case 'add-slot': a.order.push(a.members[0] ? a.members[0].name : ''); return redrawKeep();
+      case 'del-slot': a.order.splice(i, 1); return redrawKeep();
+      case 'up-slot': move(a.order, i, -1); return redrawKeep();
+      case 'down-slot': move(a.order, i, 1); return redrawKeep();
       case 'shuffle-order': {
         let slots = a.order.filter(Boolean);
         if (!slots.length) a.members.forEach((m) => { for (let k = 0; k < Math.floor(Number(m.cap) / 5); k++) slots.push(m.name); });
         if (!slots.length) { toast('Enter Games purchased for members first.'); return; }
         a.order = shuffleOrder(slots);
-        toast('New random order. Click Save setup to keep it.');
-        return redraw();
+        toast('New random order. Click Save regular season to keep it.');
+        return redrawKeep();
       }
       case 'fill-order': {
         const out = [];
@@ -1184,15 +1323,15 @@
         if (!out.length) { toast('Enter Games purchased for members first.'); return; }
         a.order = out;
         toast('Order rebuilt: ' + out.length + ' slots. Rearrange them into your draft order, then save.');
-        return redraw();
+        return redrawKeep();
       }
       case 'add-game':
-        a.inventory.push(view === 'rs' ? { id: 'custom-' + Date.now(), date: '', opponent: '', time: 'TBD', promos: '', notes: '' } : { id: '', series: '', game: '', date: '', seats: '', price: 0, notes: '' });
-        return redraw();
-      case 'del-game': a.inventory.splice(i, 1); return redraw();
+        a.inventory.push(setupKey === 'rs' ? { id: 'custom-' + Date.now(), date: '', opponent: '', time: 'TBD', promos: '', notes: '' } : { id: '', series: '', game: '', date: '', seats: '', price: 0, notes: '' });
+        return redrawKeep();
+      case 'del-game': a.inventory.splice(i, 1); return redrawKeep();
       case 'csv': return downloadCsv();
       case 'save': return saveSetup(b);
-      case 'load-mlb': return setupCall(b, { action: 'loadSchedule', pin: adminPin }, true);
+      case 'load-mlb': return setupCall(b, { action: 'loadSchedule', pin: commishPin, draft: 'rs' }, true);
       case 'import': return doImport(b);
       case 'fresh': return doFresh(b);
     }
@@ -1204,10 +1343,10 @@
     const label = btn.textContent;
     btn.textContent = 'Working…';
     return apiPost(body).then((res) => {
-      if (res && res.inventory && body.action !== 'import') apply(res);
+      if (res && res.inventory && body.draft && body.action !== 'import') { states[body.draft] = res; }
       if (res && res.ok) {
         toast(res.message || 'Saved.');
-        if (reload) return apiPost({ action: 'adminGet', pin: body.newPin || adminPin }).then((r2) => { if (r2 && r2.ok) { adminData = r2.admin; renderSetup(); } });
+        if (reload) return loadAdmin(body.newPin || commishPin).then(() => res);
       } else {
         toast((res && res.error) || 'Something went wrong.');
         const m = $('setup-msg'); if (m) m.textContent = (res && res.error) || '';
@@ -1216,31 +1355,39 @@
     }).catch(() => toast("Couldn't reach the draft. Try again.")).finally(() => { setupBusy = false; btn.disabled = false; btn.textContent = label; });
   }
   function saveSetup(btn) {
-    const a = adminData;
-    const body = { action: 'adminSave', pin: adminPin, admin: { settings: a.settings, members: a.members, order: a.order, inventory: a.inventory } };
-    if (a.newCommissionerPin) { body.admin.newCommissionerPin = a.newCommissionerPin; body.newPin = a.newCommissionerPin; }
-    setupCall(btn, body, true).then((res) => { if (res && res.ok && body.newPin) { adminPin = body.newPin; toast('Saved. Your new commissioner PIN is active.'); } });
+    const a = A();
+    const key = setupKey;
+    const body = { action: 'adminSave', pin: commishPin, draft: key, admin: { settings: a.settings, members: a.members, inventory: a.inventory } };
+    if (key === 'rs') body.admin.order = a.order;
+    if (key === 'rs' && a.newCommissionerPin) { body.admin.newCommissionerPin = a.newCommissionerPin; body.newPin = a.newCommissionerPin; }
+    setupCall(btn, body, true).then((res) => {
+      if (res && res.ok && body.newPin) { rememberPin(body.newPin); toast('Saved. The new commissioner PIN works for both drafts.'); }
+      if (res && res.ok) { states.rs = undefined; states.post = undefined; }
+    });
   }
   function doImport(btn) {
     let payload;
     try { payload = JSON.parse($('import-text').value); } catch (e) { toast('That doesn\'t look like the export text. Copy all of it and try again.'); return; }
     const key = $('import-key').value.trim();
     if (!key) { toast('Enter your setup key or commissioner PIN.'); return; }
-    setupCall(btn, { action: 'import', setupKey: key, payload }).then((res) => {
-      if (res && res.ok) { states.post = undefined; states.rs = undefined; setupVisible(false); syncSwitch(); refresh(); }
+    setupCall(btn, { action: 'import', setupKey: key, payload, draft: 'rs' }).then((res) => {
+      if (res && res.ok) { states.post = undefined; states.rs = undefined; admin = null; archives = null; commishPin = ''; session.set(''); showLock('Imported. Enter the commissioner PIN to continue.'); }
     });
   }
   function doFresh(btn) {
     const pin = $('fresh-pin').value.trim();
     const key = $('fresh-key').value.trim();
     if (!pin || !key) { toast('Enter a commissioner PIN and your setup key.'); return; }
+    const k = setupKey;
+    const rsMembers = k === 'post' && admin && admin.rs ? admin.rs.members.map((m) => ({ name: m.name, pin: m.pin })) : null;
     const payload = {};
-    payload[view] = { settings: { title: view === 'rs' ? 'Regular Season Draft' : 'Postseason Draft', open: false, snake: true, season: String(new Date().getFullYear() + 1) }, commissionerPin: pin, members: [{ name: 'Member 1' }], order: ['Member 1'], inventory: [], events: [] };
-    setupCall(btn, { action: 'import', setupKey: key, payload }).then((res) => { if (res && res.ok) openSetup(pin); });
+    payload[k] = { settings: { title: k === 'rs' ? 'Regular Season Draft' : 'Postseason Draft', open: false, snake: true, season: String(new Date().getFullYear() + 1) }, commissionerPin: pin, members: rsMembers && rsMembers.length ? rsMembers : [{ name: 'Member 1' }], order: ['Member 1'], inventory: [], events: [] };
+    if (k === 'post') delete payload[k].order;
+    setupCall(btn, { action: 'import', setupKey: key, payload, draft: k }).then((res) => { if (res && res.ok) { admin = null; loadAdmin(pin); } });
   }
 
   function downloadCsv() {
-    const s = states[view];
+    const s = setupBoards[setupKey] || states[setupKey];
     if (!s || !s.picks) { toast('No picks to download yet.'); return; }
     const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
     const rows = [['Pick #', 'Round', 'Member', 'Type', 'Game', 'Date', 'Seats', 'Price', 'Time (ET)']];
@@ -1261,15 +1408,13 @@
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
 
-
-
   /* ------------------------------------------------------------------ */
-  /* Members sent from the Season Ticket Manager: new members, email      */
-  /* addresses and games purchased, reviewed by the commissioner.         */
+  /* Members sent from the Season Ticket Manager (shown at the top of     */
+  /* Setup → Regular season): new members, emails and games purchased.   */
   /* ------------------------------------------------------------------ */
   const normName = (n) => String(n || '').toLowerCase().replace(/[^a-z]/g, '');
   const lcEq = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
-  let sync = null; // { data: {drafts, members:[{name, inRs, inPost, games, email}]}, addRs, addPost }
+  let sync = null; // { data: {drafts, members:[{name, inRs, inPost, games, email}]} } or { loading: true }
   function guessMember(from, names) {
     const exact = names.find((n) => normName(n) === normName(from));
     if (exact) return exact;
@@ -1279,7 +1424,8 @@
     return hits.length === 1 ? hits[0] : '';
   }
   function renderEmailBanner() {
-    const show = !!sentEmails && view !== 'archive' && !!state && !state.notSetUp;
+    const here = view === 'setup' && setupKey === 'rs';
+    const show = !!sentEmails && !here && (view === 'setup' || (!!state && !state.notSetUp));
     $('email-banner').hidden = !show;
     if (show) $('email-banner-text').textContent = sentEmails.length + ' member' + (sentEmails.length === 1 ? '' : 's') + ' arrived from the Season Ticket Manager.';
   }
@@ -1295,13 +1441,18 @@
     return r;
   }
   function renderEmailTool() {
-    const show = !!sentEmails && view !== 'archive';
-    $('emails-tool').hidden = !show;
-    if (!show) return;
     const body = $('sync-body');
+    if (!body || !sentEmails) return;
     if (!sync || !sync.data) {
-      body.innerHTML = '<p class="hint">' + sentEmails.length + ' active members came from the Manager. Enter your commissioner PIN above, then review what would change: new members, email addresses and games purchased.</p>' +
-        '<button type="button" class="btn primary" id="sync-review">Review changes</button>';
+      body.innerHTML = '<p class="hint">Checking what would change…</p>';
+      if (!sync) {
+        sync = { loading: true };
+        apiPost({ action: 'syncMembers', preview: true, pin: commishPin, draft: 'rs' }).then((res) => {
+          if (!res || !res.ok) { sync = null; if ($('sync-body')) $('sync-body').innerHTML = '<p class="form-error">' + esc((res && res.error) || 'Something went wrong.') + '</p>'; return; }
+          sync = { data: res };
+          renderEmailTool();
+        }).catch(() => { sync = null; if ($('sync-body')) $('sync-body').innerHTML = '<p class="form-error">Couldn\'t reach the draft.</p>'; });
+      }
       return;
     }
     const D = sync.data;
@@ -1329,11 +1480,9 @@
     body.innerHTML =
       (rows.length ? '<div class="email-map">' + rows.join('') + '</div>' : '<p class="hint"><strong>Everything already matches.</strong></p>') +
       (same.length ? '<p class="hint">Already up to date: ' + esc(same.join(', ')) + '.</p>' : '') +
-      (adds ? '<div class="sync-where"><span class="hint">Add new members to</span>' +
-        (D.drafts.rs ? '<label class="check"><input type="checkbox" id="sync-add-rs"' + (sync.addRs ? ' checked' : '') + '> <span>Regular season</span></label>' : '') +
-        (D.drafts.post ? '<label class="check"><input type="checkbox" id="sync-add-post"' + (sync.addPost ? ' checked' : '') + '> <span>Postseason</span></label>' : '') +
-        '</div><p class="hint">New members can pick without a PIN until you set one in Setup. In the regular season, give them draft-order slots in Setup → Draft order.</p>' : '') +
-      (rows.length ? '<button type="button" class="btn primary" id="sync-apply">Apply changes</button>' : '');
+      (adds ? '<p class="hint">New members join both drafts (active in the postseason, at the end of its order). They can pick without a PIN until you set one, and need draft-order slots below.</p>' : '') +
+      '<div class="row-btns">' + (rows.length ? '<button type="button" class="btn primary" id="sync-apply">Apply changes</button>' : '') +
+      '<button type="button" class="btn ghost" id="sync-dismiss">' + (rows.length ? 'Dismiss' : 'Done') + '</button></div>';
   }
   function syncPayload() {
     const emails = [], games = [], add = [];
@@ -1344,52 +1493,42 @@
       if (r.emailChange && e.emailOn) emails.push({ name: e.to, email: e.email });
       if (r.gamesChange && e.gamesOn) games.push({ name: e.to, games: e.games });
     });
-    return { emails, games, add, addTo: { rs: !!sync.addRs, post: !!sync.addPost } };
+    return { emails, games, add };
   }
-  $('sync-body').addEventListener('change', (ev) => {
+  function endSync() {
+    sentEmails = null;
+    sync = null;
+    try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
+    renderEmailBanner();
+  }
+  $('setup-body').addEventListener('change', (ev) => {
     const t = ev.target;
+    if (!t.closest('#sync-body') || !sentEmails) return;
     if (t.dataset.sm != null) { sentEmails[Number(t.dataset.sm)].to = t.value; renderEmailTool(); return; }
     if (t.dataset.smEmail != null) { sentEmails[Number(t.dataset.smEmail)].emailOn = t.checked; return; }
-    if (t.dataset.smGames != null) { sentEmails[Number(t.dataset.smGames)].gamesOn = t.checked; return; }
-    if (t.id === 'sync-add-rs') sync.addRs = t.checked;
-    if (t.id === 'sync-add-post') sync.addPost = t.checked;
+    if (t.dataset.smGames != null) { sentEmails[Number(t.dataset.smGames)].gamesOn = t.checked; }
   });
-  $('sync-body').addEventListener('click', (ev) => {
-    const b = ev.target.closest('button');
+  $('setup-body').addEventListener('click', (ev) => {
+    const b = ev.target.closest('#sync-body button');
     if (!b || busy) return;
-    if (!$('commish-pin').value.trim()) { $('commish-error').textContent = 'Enter your commissioner PIN.'; $('commish-pin').focus(); return; }
-    const pin = $('commish-pin').value;
-    const finish = () => { busy = false; b.disabled = false; };
+    if (b.id === 'sync-dismiss') { endSync(); renderSetup(); return; }
+    if (b.id !== 'sync-apply') return;
     busy = true;
     b.disabled = true;
-    $('commish-error').textContent = '';
-    if (b.id === 'sync-review') {
-      apiPost({ action: 'syncMembers', preview: true, pin }).then((res) => {
-        if (!res || !res.ok) { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
-        sync = { data: res, addRs: !!res.drafts.rs, addPost: false };
-        renderEmailTool();
-      }).catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; }).finally(finish);
-    } else if (b.id === 'sync-apply') {
-      const body = Object.assign({ action: 'syncMembers', pin }, syncPayload());
-      if (body.add.length && !body.addTo.rs && !body.addTo.post) { $('commish-error').textContent = 'Choose which draft to add new members to, or set them to Skip.'; finish(); return; }
-      apiPost(body).then((res) => {
-        if (res && res.ok) {
-          sentEmails = null;
-          sync = null;
-          try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
-          renderEmailBanner();
-          renderEmailTool();
-          $('commish-dialog').close();
-          toast(res.message || 'Members updated.');
-          if (!liveOn[view]) refresh();
-        } else $('commish-error').textContent = (res && res.error) || 'Something went wrong.';
-      }).catch(() => { $('commish-error').textContent = "Couldn't reach the draft."; }).finally(finish);
-    } else finish();
+    apiPost(Object.assign({ action: 'syncMembers', pin: commishPin, draft: 'rs' }, syncPayload())).then((res) => {
+      if (res && res.ok) {
+        endSync();
+        toast(res.message || 'Members updated.');
+        states.rs = undefined; states.post = undefined;
+        return loadAdmin(commishPin);
+      }
+      toast((res && res.error) || 'Something went wrong.');
+    }).catch(() => toast("Couldn't reach the draft.")).finally(() => { busy = false; b.disabled = false; });
   });
-  $('email-review').addEventListener('click', () => $('commish-btn').click());
+  $('email-review').addEventListener('click', () => { setupKey = 'rs'; if (view === 'setup') { renderSetup(); renderEmailBanner(); } else switchView('setup'); });
   window.addEventListener('hashchange', () => {
     const e = readEmailHash();
-    if (e) { sentEmails = e; sync = null; renderEmailBanner(); }
+    if (e) { sentEmails = e; sync = null; setupKey = 'rs'; if (view === 'setup') { renderSetup(); renderEmailBanner(); } else switchView('setup'); }
   });
 
   /* ------------------------------------------------------------------ */
@@ -1702,9 +1841,8 @@
     onLive(draft, s) {
       liveOn[draft] = true;
       if (draft !== view) { if (s && !s.notSetUp) states[draft] = s; return; }
-      if (s && s.notSetUp) { states[draft] = s; state = s; markSynced(); if (!setupOpen) renderNotSetUp(); return; }
+      if (s && s.notSetUp) { states[draft] = s; state = s; markSynced(); renderNotSetUp(); return; }
       staleViews.delete(draft);
-      if (setupOpen) { states[draft] = s; state = s; lastPickCount = s.picks.length; markSynced(); return; }
       apply(s);
       markSynced();
       $('sync').textContent = 'Live';
@@ -1718,20 +1856,20 @@
   /* Start                                                                */
   /* ------------------------------------------------------------------ */
   // Keep the slow-pick clock and pick countdown current even when nothing else changes.
-  setInterval(() => { if (state && !busy && view !== 'archive' && !document.querySelector('dialog[open]')) render(null); }, 60000);
+  setInterval(() => { if (state && !busy && isDraftView(view) && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
   if (history.replaceState && !sentPrices && !sentEmails) history.replaceState(null, '', '#' + VIEWS[view]);
   syncSwitch();
-  if (view === 'archive') { $('title').textContent = 'Past drafts'; document.title = 'Past drafts'; renderArchives(); }
+  if (view === 'setup') { $('title').textContent = 'Commissioner setup'; document.title = 'Setup'; if (window.DraftLive) window.DraftLive.watch(null); openSetupView(); }
   else showDraft();
   refresh();
   // Keep checking in background tabs too (more slowly) so turn alerts still fire.
   let lastBg = 0;
   setInterval(() => {
-    if (busy || view === 'archive') return;
+    if (busy || !isDraftView(view)) return;
     if (liveOn[view] && Date.now() - lastPoll < 60000) return; // live updates are on; just a slow safety check
     if (!document.hidden) { refresh(); return; }
     if (me && Date.now() - lastBg >= 30000) { lastBg = Date.now(); refresh(); }
   }, REFRESH_MS);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && view !== 'archive') refresh(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && isDraftView(view)) refresh(); });
 })();

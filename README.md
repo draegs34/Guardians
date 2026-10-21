@@ -1,14 +1,15 @@
 # Guardians Ticket Drafts
 
-Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The page has three tabs:
+Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The page has these tabs:
 
 - **Regular season**: members draft home games one at a time. Each pick is one game with all four seats.
 - **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10).
-- **Past drafts**: read-only results of drafts the commissioner has archived.
+- **Setup** (commissioner only, asks for the commissioner PIN): a section for each draft plus **Past drafts**. See *Commissioner setup* below.
+- **⚙** (next to Setup): commissioner tools for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
 
 Both drafts run from one Google Sheet. A small Apps Script (`apps-script/Code.gs`) reads and writes it, and the page is hosted free on GitHub Pages at **https://draegs34.github.io/Guardians/**.
 
-- Link straight to a tab: `#regular-season`, `#postseason` or `#past-drafts`.
+- Link straight to a tab: `#regular-season`, `#postseason`, `#setup` or `#past-drafts` (Setup → Past drafts).
 - Until `config.js` has a script URL, the page runs in **demo mode** with sample members and the real 2027 schedule.
 
 ---
@@ -30,7 +31,7 @@ Firebase replaces the Google Sheet as the backend:
 
 - **Instant updates:** picks show up for everyone immediately, with no 10-second refresh and no Google "wake-up" delay.
 - **Server-side rules:** Cloud Functions enforce PINs, turns, game limits and the time limit.
-- **Setup screens on the site:** **Commissioner tools → Open setup** covers members, PINs, draft order, games, the MLB schedule, settings and a CSV download of picks.
+- **Setup screens on the site:** the **Setup** tab covers members, PINs, draft order, games, the MLB schedule, settings, a CSV download of picks and past drafts.
 
 The site keeps working on the Google Sheet until you switch `config.js`.
 
@@ -68,11 +69,28 @@ The deploy asks for **SETUP_KEY**. Type a private phrase you'll use once to impo
    - set `window.FIREBASE_CONFIG = { apiKey, authDomain, projectId, appId }`
    - set `window.DRAFT_API_URL` to the **api** URL from step B
    - then commit and push
-2. Open the site. Each draft says it isn't set up yet. Click **Commissioner tools**, paste the export into **Import data**, enter your **setup key** and click **Import**.
-3. Check both drafts, then reopen them under **Commissioner tools → Open setup → Draft open**.
+2. Open the site and click **Setup**. Paste the export into **Import data**, enter your **setup key** and click **Import**.
+3. Check both drafts, then reopen them under **Setup → Draft open**.
 4. **Season Ticket Manager:** on its Setup tab, change **Draft feed** to the new api URL. The feed returns the same data as before, and price updates keep working.
 
 The Google Sheet then becomes a backup; nothing reads from it anymore. To change the rules later, edit `engine.js` and run `firebase deploy --only functions` again. The deploy copies `engine.js` into `functions/` automatically.
+
+---
+
+## Commissioner setup
+
+Click **Setup** at the top and enter the commissioner PIN. It's remembered until you close the browser tab or app; **Lock** forgets it right away. Inside are three sections:
+
+- **Regular season**: settings, **members**, draft order (with **🎲 Randomize order**), home games, the MLB schedule, a CSV of picks and **Import data**.
+  - **This member list is the source of truth for both drafts.** Names, PINs and emails changed here carry over to the Postseason, and new members are added to the Postseason too (active, at the end of its order). Renaming someone keeps their picks.
+  - ✕ removes a member, but only if they have no picks in either draft (undo those first).
+  - **New commissioner PIN** changes the one PIN used for both drafts.
+- **Postseason**: settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order, **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
+- **Past drafts**: archived drafts. Only the commissioner can see these.
+
+James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
+
+The **⚙** button opens the commissioner tools for the draft you're looking at (from Setup, the section you're in): assign, skip, undo, Season Ticket Manager prices and **Archive this draft**. Your PIN is filled in once you've unlocked Setup.
 
 ---
 
@@ -89,7 +107,7 @@ Push alerts are normal system notifications (lock screen, Notification Center, b
 
 Settings are shared by both drafts and are matched by member name. The commissioner can also fill in emails on the Setup screen's **Members** table; a new address there turns email on for that member. Every email has a link back to these settings.
 
-**From the Season Ticket Manager:** on the Manager's **Setup** tab, **Send members to draft page** opens the draft with every active member's name, email and games. A green banner appears. Open **Commissioner tools**, enter your PIN and click **Review changes**:
+**From the Season Ticket Manager:** on the Manager's **Setup** tab, **Send members to draft page** opens the draft with every active member's name, email and games. A green banner appears and the page opens **Setup → Regular season** (enter your PIN if asked), with the changes listed at the top:
 - **New members** (no match in either draft) are listed as *Add as a new member*. Choose which drafts to add them to. They can pick without a PIN until you set one, and in the regular season they need draft-order slots (Setup → Draft order).
 - **Email changes** show the old and new address with a checkbox, so you can keep an address a member entered themselves. A member's first address turns their email alerts on.
 - **Games** show the old and new count for the regular season draft (Games purchased).
@@ -100,7 +118,7 @@ Click **Apply changes** to save.
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
 
 ### Follow-up reminders
-In **Commissioner tools → Open setup → Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), are never sent to anyone who has dropped out, pause while the draft is paused, and start over for each new turn. **Quiet hours:** no reminders from 11 PM to 8 AM Eastern; one that comes due overnight goes out at 8 AM (change `QUIET_START` / `QUIET_END` in `functions/index.js`). The server checks every 10 minutes.
+In **Setup → Regular season** (or **Postseason**) **→ Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), are never sent to anyone who has dropped out, pause while the draft is paused, and start over for each new turn. **Quiet hours:** no reminders from 11 PM to 8 AM Eastern; one that comes due overnight goes out at 8 AM (change `QUIET_START` / `QUIET_END` in `functions/index.js`). The server checks every 10 minutes.
 
 ### One-time setup
 1. **Gmail app password.** In the Gmail account the emails should come from, open **myaccount.google.com → Security → 2-Step Verification** and turn it on if it isn't already. Then go to **myaccount.google.com/apppasswords**, create one named "Ticket Draft", and copy the 16-letter password.
@@ -164,13 +182,13 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Updates**: the board refreshes every 10 seconds.
 - **Turn alerts**: each member chooses their name under **Turn alerts on this device for**. (For alerts when the page is closed, see *Email & push alerts* above.) This is remembered per device and per draft. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
 - **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
-- **Commissioner tools** (enter your PIN first):
+- **⚙ Commissioner tools** (the gear next to Setup; enter your PIN if it isn't filled in):
   - **Assign** a game to any member. This doesn't use a turn.
   - **Skip to next member**.
   - **Undo last entry**: removes the most recent pick, assignment, skip or drop-out.
-  - **Archive this draft**: click twice to confirm. This copies the picks to a new **Archive · …** tab in the sheet, clears the board so it's ready for next time, and adds the draft to **Past drafts**. Settings, members and games are left as they are.
+  - **Archive this draft**: click twice to confirm. This saves the picks, clears the board so it's ready for next time, and adds the draft to **Setup → Past drafts**. Settings, members and games are left as they are.
 - **Pausing**: set **Draft open** to `FALSE`.
-- **Prices from the Season Ticket Manager** (postseason): opening the draft link the Manager sends (`…#prices=ALDS:432,ALCS:646,WS:1090`) shows a green banner. **Commissioner tools → Update prices from Season Ticket Manager** applies the new prices to Draft Inventory. Picks already made keep the price they were drafted at.
+- **Prices from the Season Ticket Manager** (postseason): opening the draft link the Manager sends (`…#prices=ALDS:432,ALCS:646,WS:1090`) shows a green banner. **Review & apply** opens ⚙ with **Update prices from Season Ticket Manager**, which applies the new prices to Draft Inventory. Picks already made keep the price they were drafted at.
 
 > **Season Ticket Manager:** its draft-feed pull reads the **postseason** draft, the same as before. Once you archive the postseason draft, the feed shows no picks. Pull the final picks into the Manager **before** archiving.
 
@@ -178,7 +196,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 
 ## For developers
 - **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js`, `live.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
-- **Draft rules:** these live in `engine.js`. `apps-script/Code.gs` ends with an exact copy of that block, so if you change one, copy it into the other. The Firebase functions load `engine.js` directly; it's copied into `functions/` when you deploy.
+- **Draft rules:** these live in `engine.js`. The Firebase functions load it directly; it's copied into `functions/` when you deploy. (`apps-script/Code.gs` has an older copy from the Google Sheet days; it doesn't know about inactive postseason members.)
 - **Choosing a draft:** the script's web app takes `?draft=rs` or `?draft=post` (the default), plus `?view=archives`. POST bodies carry `"draft"`.
 
 *Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*

@@ -57,7 +57,7 @@ function toEngineData(key, pub, sec) {
       timeLimitHours: Number(s.timeLimitHours) || 0,
       commissionerPin: String(sec.commissionerPin || ''),
     },
-    members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: String(pins[m.name] || '') })),
+    members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: String(pins[m.name] || ''), inactive: !!m.inactive })),
     inventory: pub.inventory || [],
     events: (pub.events || []).map((e, i) => Object.assign({}, e, { row: i + 2 })),
   };
@@ -77,7 +77,20 @@ function rowToStored(r) {
 const stripRows = (events) => events.map((e) => { const x = Object.assign({}, e); delete x.row; return x; });
 
 function publicMembers(members, pins) {
-  return members.map((m, i) => ({ name: m.name, order: m.order || i + 1, cap: Number(m.cap) || 0, needsPin: !!pins[m.name] }));
+  return members.map((m, i) => {
+    const o = { name: m.name, order: m.order || i + 1, cap: Number(m.cap) || 0, needsPin: !!pins[m.name] };
+    if (m.inactive) o.inactive = true;
+    if (m.notInRs) o.notInRs = true;
+    return o;
+  });
+}
+
+/* One commissioner PIN for both drafts. Either draft's PIN is accepted (they're kept the same once Setup is saved). */
+async function commishPinOk(pin) {
+  pin = String(pin || '').trim();
+  if (!pin) return false;
+  const snaps = await Promise.all(KEYS.map((k) => db.doc('secrets/' + k).get()));
+  return snaps.some((sn) => sn.exists && sn.data().commissionerPin && String(sn.data().commissionerPin) === pin);
 }
 
 /* ------------------------------------------------------------------ */
@@ -88,7 +101,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
   res.set('Cache-Control', 'no-store');
   try {
     if (req.method === 'GET') {
-      if (req.query.view === 'archives') return res.json(await readArchives());
+      if (req.query.view === 'archives') return res.json({ ok: false, error: 'Past drafts are only available to the commissioner, under Setup.' });
       const key = req.query.draft === 'rs' ? 'rs' : 'post';
       return res.json(await readState(key));
     }
@@ -97,6 +110,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     if (typeof body === 'string') body = JSON.parse(body || '{}');
     if (!body || typeof body !== 'object') body = JSON.parse((req.rawBody || '{}').toString());
     const key = body.draft === 'rs' ? 'rs' : 'post';
+    if (body.action === 'archives') return res.json(await commishPinOk(body.pin) ? await readArchives() : { ok: false, error: "That commissioner PIN doesn't match." });
     if (body.action === 'syncMembers') return res.json(await syncMembers(key, body));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
     const before = await turnSnapshot(key);
@@ -217,8 +231,16 @@ async function handle(key, body) {
   if (body.action === 'loadSchedule') return loadSchedule(key, body);
   if (body.action === 'adminGet') body._prefs = ((await db.doc('notify/members').get()).data() || {}).prefs || {};
   if (body.action === 'adminSave') {
+    const oldRs = key === 'rs' ? ((await db.doc('drafts/rs').get()).data() || {}).members || [] : [];
     const r = await handleTx(key, body);
-    if (r.ok) await saveAdminEmails(body.admin && body.admin.members);
+    if (r.ok && key === 'rs') {
+      const renames = renamesOf(body.admin && body.admin.members);
+      const now = new Set(((body.admin && body.admin.members) || []).map((m) => lc(m.name)));
+      const removed = oldRs.map((m) => renames[m.name] || m.name).filter((n) => !now.has(lc(n)));
+      await renamePrefs(renames);
+      await syncPostFromRs(renames, removed);
+    }
+    if (r.ok && key === 'rs') await saveAdminEmails(body.admin && body.admin.members);
     return r;
   }
   return handleTx(key, body);
@@ -233,7 +255,10 @@ async function handleTx(key, body) {
     const pub = snap.data();
     const sec = secSnap.data() || {};
     const data = toEngineData(key, pub, sec);
-    const isCommish = !!data.settings.commissionerPin && String(body.pin || '').trim() === data.settings.commissionerPin;
+    const otherSec = (await tx.get(db.doc('secrets/' + (key === 'rs' ? 'post' : 'rs')))).data() || {};
+    const pinIn = String(body.pin || '').trim();
+    const isCommish = !!pinIn && [data.settings.commissionerPin, String(otherSec.commissionerPin || '')].filter(Boolean).includes(pinIn);
+    if (isCommish) data.settings.commissionerPin = pinIn; // the engine checks this for commissioner actions
 
     // Apply any expired turns first.
     const skips = Engine.autoSkips(data, Date.now());
@@ -249,7 +274,7 @@ async function handleTx(key, body) {
           ok: true,
           admin: {
             settings: pub.settings || {},
-            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '' })),
+            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '', inactive: !!m.inactive, notInRs: !!m.notInRs })),
             order: pub.order || [],
             inventory: pub.inventory || [],
           },
@@ -261,15 +286,42 @@ async function handleTx(key, body) {
         if (!isCommish) { result = { ok: false, error: "That commissioner PIN doesn't match." }; break; }
         const v = validateAdmin(key, body.admin || {});
         if (v.error) { result = { ok: false, error: v.error }; break; }
+        if (key === 'post') {
+          // Postseason members come from the regular season list: only their order and active/inactive change here.
+          const cur = pub.members || [];
+          const byLc = new Map(cur.map((m) => [lc(m.name), m]));
+          const seen = new Set();
+          const list = [];
+          v.members.forEach((m) => { const c = byLc.get(lc(m.name)); if (c && !seen.has(lc(c.name))) { seen.add(lc(c.name)); list.push({ name: c.name, cap: 0, inactive: !!m.inactive, notInRs: !!c.notInRs }); } });
+          cur.forEach((c) => { if (!seen.has(lc(c.name))) list.push({ name: c.name, cap: 0, inactive: !!c.inactive, notInRs: !!c.notInRs }); });
+          v.members = list.map((m, i) => Object.assign(m, { order: i + 1 }));
+          v.pins = Object.assign({}, sec.pins || {});
+        } else {
+          // Regular season: removing someone isn't allowed while they have picks in either draft.
+          const renames = renamesOf(body.admin.members);
+          const kept = new Set(v.members.map((m) => lc(m.name)));
+          const postEv = ((await tx.get(db.doc('drafts/post'))).data() || {}).events || [];
+          for (const m of pub.members || []) {
+            const now = lc(renames[m.name] || m.name);
+            if (kept.has(now)) continue;
+            const where = [data.events.some((e) => lc(e.member) === lc(m.name)) ? 'regular season' : '', postEv.some((e) => lc(e.member) === lc(m.name)) ? 'postseason' : ''].filter(Boolean);
+            if (where.length) { v.error = m.name + ' has picks in the ' + where.join(' and ') + ' draft' + (where.length > 1 ? 's' : '') + '. Undo those first, or keep them on the list.'; break; }
+          }
+          if (v.error) { result = { ok: false, error: v.error }; break; }
+          if (Object.keys(renames).length) {
+            data.events.forEach((e) => { if (renames[e.member]) e.member = renames[e.member]; });
+          }
+        }
         update.settings = v.settings;
         update.members = publicMembers(v.members, v.pins);
         update.inventory = v.inventory;
         if (key === 'rs') update.order = v.order;
         const newSec = { pins: v.pins, commissionerPin: data.settings.commissionerPin };
-        if (body.admin.newCommissionerPin) newSec.commissionerPin = String(body.admin.newCommissionerPin).trim();
+        if (key === 'rs' && body.admin.newCommissionerPin) newSec.commissionerPin = String(body.admin.newCommissionerPin).trim();
         tx.set(secRef, newSec);
         Object.assign(data.settings, v.settings, { commissionerPin: newSec.commissionerPin });
         data.members = v.members.map((m) => Object.assign({}, m, { pin: v.pins[m.name] || '' }));
+        dirty = true; // events may have been renamed
         data.inventory = v.inventory;
         if (key === 'rs') data.order = v.order;
         dirty = true;
@@ -329,6 +381,83 @@ async function handleTx(key, body) {
   });
 }
 
+/* Regular season Setup sends each member's original name as "orig"; a changed name is a rename. */
+function renamesOf(members) {
+  const r = {};
+  (members || []).forEach((m) => {
+    const from = String((m && m.orig) || '').trim();
+    const to = String((m && m.name) || '').trim();
+    if (from && to && from !== to) r[from] = to;
+  });
+  return r;
+}
+
+async function renamePrefs(renames) {
+  const from = Object.keys(renames || {});
+  if (!from.length) return;
+  await db.runTransaction(async (tx) => {
+    const ref = PREFS();
+    const prefs = ((await tx.get(ref)).data() || {}).prefs || {};
+    let changed = false;
+    from.forEach((f) => {
+      const p = prefs[lc(f)];
+      if (!p || prefs[lc(renames[f])]) return;
+      prefs[lc(renames[f])] = Object.assign({}, p, { name: renames[f] });
+      delete prefs[lc(f)];
+      changed = true;
+    });
+    if (changed) tx.set(ref, { prefs });
+  });
+}
+
+/**
+ * The regular season member list is the source of truth. Bring the postseason in line:
+ * renames carried over, new members added (active, at the end), PINs and the commissioner
+ * PIN copied. Someone no longer on the regular season list stays (inactive) only if they
+ * have postseason picks.
+ */
+async function syncPostFromRs(renames, removed) {
+  renames = renames || {};
+  const gone = new Set((removed || []).map(lc));
+  await db.runTransaction(async (tx) => {
+    const rsRef = db.doc('drafts/rs'), postRef = db.doc('drafts/post');
+    const [rsSnap, rsSec, postSnap, postSec] = await Promise.all([tx.get(rsRef), tx.get(db.doc('secrets/rs')), tx.get(postRef), tx.get(db.doc('secrets/post'))]);
+    if (!rsSnap.exists || !postSnap.exists) return;
+    const rsMembers = rsSnap.data().members || [];
+    const rsPins = (rsSec.data() || {}).pins || {};
+    const pub = postSnap.data();
+    const oldPins = (postSec.data() || {}).pins || {};
+    const events = (pub.events || []).map((e) => (renames[e.member] ? Object.assign({}, e, { member: renames[e.member] }) : e));
+    const inRs = new Map(rsMembers.map((m) => [lc(m.name), m.name]));
+    const out = [];
+    const pins = {};
+    const seen = new Set();
+    (pub.members || []).forEach((m) => {
+      const name = renames[m.name] || m.name;
+      if (seen.has(lc(name))) return;
+      if (inRs.has(lc(name))) {
+        const real = inRs.get(lc(name));
+        seen.add(lc(real));
+        out.push({ name: real, inactive: !!m.inactive });
+        if (rsPins[real]) pins[real] = rsPins[real];
+      } else if (!gone.has(lc(name)) || events.some((e) => lc(e.member) === lc(name))) {
+        // Not on the regular season list: kept (inactive) unless just removed there with no postseason picks.
+        seen.add(lc(name));
+        out.push({ name, inactive: true, notInRs: true });
+        if (oldPins[m.name]) pins[name] = oldPins[m.name];
+      }
+    });
+    rsMembers.forEach((m) => {
+      if (seen.has(lc(m.name))) return;
+      seen.add(lc(m.name));
+      out.push({ name: m.name, inactive: false });
+      if (rsPins[m.name]) pins[m.name] = rsPins[m.name];
+    });
+    tx.update(postRef, { members: publicMembers(out.map((m, i) => Object.assign(m, { order: i + 1, cap: 0 })), pins), events, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    tx.set(db.doc('secrets/post'), { pins, commissionerPin: String((rsSec.data() || {}).commissionerPin || (postSec.data() || {}).commissionerPin || '') });
+  });
+}
+
 /* Commissioner setup: clean up and check what the setup screen sent. */
 function validateAdmin(key, a) {
   const str = (v) => String(v == null ? '' : v).trim();
@@ -354,7 +483,7 @@ function validateAdmin(key, a) {
     if (!name) continue;
     if (seen[name.toLowerCase()]) return { error: 'Two members are both named "' + name + '". Names must be unique.' };
     seen[name.toLowerCase()] = true;
-    members.push({ name, order: members.length + 1, cap: Math.max(0, Number(m.cap) || 0) });
+    members.push({ name, order: members.length + 1, cap: Math.max(0, Number(m.cap) || 0), inactive: key === 'post' && !!m.inactive });
     if (str(m.pin)) pins[name] = str(m.pin);
   }
   if (!members.length) return { error: 'Add at least one member.' };
@@ -530,7 +659,7 @@ async function turnSnapshot(key) {
 async function checkMemberPin(key, name, pin) {
   const sec = (await db.doc('secrets/' + key).get()).data() || {};
   pin = String(pin || '').trim();
-  if (sec.commissionerPin && pin === sec.commissionerPin) return true;
+  if (await commishPinOk(pin)) return true;
   const pins = sec.pins || {};
   const real = Object.keys(pins).find((n) => lc(n) === lc(name));
   const pub = (await db.doc('drafts/' + key).get()).data() || {};
@@ -601,8 +730,7 @@ async function notifyAction(key, body) {
 /* Members sent from the Season Ticket Manager (commissioner only): preview what's
    there now, then add new members, update games purchased and email addresses. */
 async function syncMembers(key, body) {
-  const sec = (await db.doc('secrets/' + key).get()).data() || {};
-  if (!sec.commissionerPin || String(body.pin || '').trim() !== sec.commissionerPin) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  if (!(await commishPinOk(body.pin))) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
   const str = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 200);
   const okEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -625,7 +753,8 @@ async function syncMembers(key, body) {
   const games = (Array.isArray(body.games) ? body.games : []).slice(0, 200);
   const add = (Array.isArray(body.add) ? body.add : []).slice(0, 200).map((a) => ({ name: str(a && a.name, 80), games: Math.max(0, Math.round(Number(a && a.games) || 0)), email: str(a && a.email) })).filter((a) => a.name);
   const emails = (Array.isArray(body.emails) ? body.emails : []).slice(0, 200).map((e) => ({ name: str(e && e.name, 80), email: str(e && e.email) }));
-  const addTo = { rs: !!(body.addTo && body.addTo.rs), post: !!(body.addTo && body.addTo.post) };
+  // New members go on the regular season list (the source of truth); the postseason follows it.
+  const addTo = { rs: true, post: false };
   const out = { added: { rs: [], post: [] }, games: 0, emails: 0, bad: [] };
   const known = new Set();
 
@@ -659,6 +788,7 @@ async function syncMembers(key, body) {
     });
   }
 
+  if (out.added.rs.length) await syncPostFromRs({});
   add.forEach((a) => { if (a.email) emails.push({ name: a.name, email: a.email }); });
   if (emails.length) {
     await db.runTransaction(async (tx) => {
@@ -679,7 +809,7 @@ async function syncMembers(key, body) {
 
   const bits = [];
   const label = { rs: 'the regular season draft', post: 'the postseason draft' };
-  ['rs', 'post'].forEach((k) => { if (out.added[k].length) bits.push('added ' + out.added[k].join(', ') + ' to ' + label[k]); });
+  if (out.added.rs.length) bits.push('added ' + out.added.rs.join(', ') + ' (both drafts)');
   if (out.games) bits.push('updated games for ' + out.games + ' member' + (out.games === 1 ? '' : 's'));
   if (out.emails) bits.push('updated ' + out.emails + ' email address' + (out.emails === 1 ? '' : 'es'));
   if (out.bad.length) bits.push('skipped an invalid email for ' + out.bad.join(', '));

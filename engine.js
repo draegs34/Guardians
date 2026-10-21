@@ -55,6 +55,12 @@ var DraftEngine = (function () {
     if (data.order && data.order.length) return data.order.map(function (n) { return { name: n }; });
     return data.members;
   }
+  /** Members the commissioner marked inactive (postseason): they keep their picks but get no more turns. */
+  function inactiveOf(data) {
+    var o = {};
+    data.members.forEach(function (m) { if (m.inactive) o[m.name] = true; });
+    return o;
+  }
   function capsOf(data) {
     var c = {};
     data.members.forEach(function (m) { if (Number(m.cap) > 0) c[m.name] = Number(m.cap); });
@@ -70,7 +76,7 @@ var DraftEngine = (function () {
    * maxPicks: limit for everyone (0 = none). caps: { name: limit } per member;
    * per-member caps also count commissioner assignments.
    */
-  function computeTurn(slots, events, maxPicks, snake, upcomingCount, caps) {
+  function computeTurn(slots, events, maxPicks, snake, upcomingCount, caps, inactive) {
     var n = slots.length;
     var res = { current: null, upcoming: [] };
     if (!n) return res;
@@ -78,6 +84,7 @@ var DraftEngine = (function () {
     upcomingCount = upcomingCount || n;
     var globalLimit = maxPicks > 0 ? maxPicks : Infinity;
     var dropped = {};
+    Object.keys(inactive || {}).forEach(function (k) { dropped[k] = true; });
     var cnt = {};      // draft picks per member
     var assigned = {}; // commissioner assignments per member
     slots.forEach(function (m) { cnt[m.name] = 0; assigned[m.name] = 0; });
@@ -177,7 +184,7 @@ var DraftEngine = (function () {
     var events = data.events.slice();
     for (var guard = 0; guard < 200; guard++) {
       if (leftCount(data, events) <= 0) break;
-      var t = computeTurn(slotsOf(data), events, s.maxPicks, s.snake, 1, capsOf(data)).current;
+      var t = computeTurn(slotsOf(data), events, s.maxPicks, s.snake, 1, capsOf(data), inactiveOf(data)).current;
       if (!t) break;
       var start = turnStart(events);
       if (start == null || nowMs < start + ms) break;
@@ -200,7 +207,7 @@ var DraftEngine = (function () {
     var left = leftCount(data, data.events);
     var dropped = droppedSet(data.events);
     var turn = left > 0
-      ? computeTurn(slots, data.events, s.maxPicks, s.snake, slots.length, caps)
+      ? computeTurn(slots, data.events, s.maxPicks, s.snake, slots.length, caps, inactiveOf(data))
       : { current: null, upcoming: [] };
 
     // Don't promise more upcoming turns than there are items left.
@@ -230,7 +237,7 @@ var DraftEngine = (function () {
       deadline: deadline,
       members: data.members.map(function (m) {
         // PINs never leave the backend
-        return { order: m.order, name: m.name, needsPin: !!m.pin, out: !!dropped[m.name], cap: Number(m.cap) > 0 ? Number(m.cap) : null };
+        return { order: m.order, name: m.name, needsPin: !!m.pin, out: !!dropped[m.name] || !!m.inactive, inactive: !!m.inactive, cap: Number(m.cap) > 0 ? Number(m.cap) : null };
       }),
       order: slots.map(function (m) { return m.name; }),
       caps: caps,
@@ -268,7 +275,7 @@ var DraftEngine = (function () {
     var isCommish = !!s.commissionerPin && pin === s.commissionerPin;
     var taken = takenMap(data.events);
     var left = leftCount(data, data.events);
-    var turn = left > 0 ? computeTurn(slotsOf(data), data.events, s.maxPicks, s.snake, 1, capsOf(data)) : { current: null };
+    var turn = left > 0 ? computeTurn(slotsOf(data), data.events, s.maxPicks, s.snake, 1, capsOf(data), inactiveOf(data)) : { current: null };
     var cur = turn.current;
     var dropped = droppedSet(data.events);
 
@@ -323,6 +330,7 @@ var DraftEngine = (function () {
         var dm = findMember(data, body.name);
         if (!dm) return { ok: false, error: 'Choose your name.' };
         if (dropped[dm.name]) return { ok: false, error: dm.name + ' has already dropped out.' };
+        if (dm.inactive) return { ok: false, error: dm.name + ' isn\'t in this draft.' };
         if (dm.pin && pin !== dm.pin && !isCommish) return { ok: false, error: pin ? 'That PIN doesn\'t match.' : 'Enter your PIN.' };
         var onClock = cur && cur.name === dm.name;
         return {

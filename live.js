@@ -55,7 +55,7 @@ function toState(key, pub) {
       open: s.open !== false, timeLimitOn: !!s.timeLimitOn, timeLimitHours: Number(s.timeLimitHours) || 0, commissionerPin: '',
     },
     // The page never sees PINs, only whether a member has one.
-    members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: m.needsPin ? '•' : '' })),
+    members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: m.needsPin ? '•' : '', inactive: !!m.inactive })),
     inventory: pub.inventory || [],
     events: (pub.events || []).map((e, i) => Object.assign({}, e, { row: i + 2 })),
   };
