@@ -99,7 +99,7 @@ The **⚙** button opens the commissioner tools for the draft you're looking at 
 
 Members can get a message when it's their turn, even with the page closed. Each member taps **Notification settings** (bell button), enters their name and PIN, and chooses:
 
-- **On this device**: on-screen alerts while the page is open (a banner, a flashing browser tab and the icon badge). This replaces the old *Turn alerts on this device for* dropdown, covers both drafts, and is on by default.
+- **In this browser**: on-screen alerts while the page is open (a banner, a flashing browser tab and the icon badge). This replaces the old *Turn alerts on this device for* dropdown, covers both drafts, and is on by default.
 
 - **Email**: their address (filled in automatically when the commissioner or the Season Ticket Manager has one), an optional **second address** (e.g. a spouse's), and whether to get an email on their turn. Alerts go to both addresses.
 - **Push notifications**: **Turn on for this device**, once on each phone or computer they want alerts on. On iPhone/iPad, push only works after adding the page to the Home Screen (Share → Add to Home Screen) and opening it from that icon.
@@ -183,7 +183,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Picking**: whoever is **On the clock** taps an open game or seat pair, enters their PIN and taps **Lock it in**.
 - **Picks texted to you**: make the pick for that member by entering your **Commissioner PIN** instead of theirs.
 - **Updates**: the board refreshes every 10 seconds.
-- **Turn alerts**: under **Notification settings** (bell button), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound. The line next to the button shows whose alerts the device is set for.
+- **Turn alerts**: under **Notification settings** (bell button), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound. The line next to the button shows whose alerts this browser is set for.
 - **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
 - **⚙ Commissioner tools** (the gear next to Setup; enter your PIN if it isn't filled in):
   - **Assign** a game to any member. This doesn't use a turn.

@@ -1736,7 +1736,7 @@
   function renderMe(s, done) {
     const names = s.members.map((m) => m.name);
     if (me && !names.includes(me)) me = '';
-    $('me-status').textContent = me ? 'On-screen alerts on this device: ' + me : '';
+    $('me-status').textContent = me ? 'On-screen alerts in this browser: ' + me : '';
 
     const meMember = s.members.find((m) => m.name === me);
     const mine = !!me && !done && s.current && s.current.name === me && !(meMember && meMember.out);
