@@ -1742,6 +1742,32 @@
     '<label class="check"><input type="checkbox" data-' + name + '="' + esc(id) + '"' + (picked.includes(id) ? ' checked' : '') + '> <span>' + esc(gLabel(id)) + (extra ? extra(id) : '') + '</span></label>').join('') : '<p class="hint">None.</p>') + '</div>';
   const checked = (name) => Array.from($('swap-dlg-body').querySelectorAll('input[data-' + name + ']:checked')).map((x) => x.getAttribute('data-' + name));
 
+  /* "Tell me about offers by" choices. Missing ones link to Notification settings,
+     which opens on top of the listing so nothing typed is lost. */
+  function offerAlertOpts(a, n) {
+    const own = a === swapAuth;
+    const link = (txt) => own ? ' <button type="button" class="link-btn sw-notify-link">' + txt + '</button>' : ' <small class="hint">(not set up)</small>';
+    return '<label class="check"><input type="checkbox" id="sw-n-push"' + (n.push && a.push ? ' checked' : '') + (a.push ? '' : ' disabled') + '> <span>Push notification</span></label>' + (a.push ? '' : link('Set up push')) +
+      '<label class="check"><input type="checkbox" id="sw-n-email"' + (n.email && a.email ? ' checked' : '') + (a.email ? '' : ' disabled') + '> <span>Email</span></label>' + (a.email ? '' : link('Add your email')) +
+      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification settings</button></p>' : '');
+  }
+  function wireOfferAlerts(a) {
+    const box = $('sw-notify');
+    if (!box) return;
+    box.querySelectorAll('.sw-notify-link').forEach((b) => b.addEventListener('click', () => {
+      const before = { push: a.push, email: a.email };
+      const keep = { push: $('sw-n-push').checked, email: $('sw-n-email').checked };
+      openNotify({ name: a.name, pin: a.pin, onClose: async () => {
+        await refreshAuth();
+        if (!$('swap-dialog').open || !$('sw-notify')) return;
+        // Tick anything that was just turned on; keep the rest as they were.
+        const n = { push: keep.push || (!before.push && a.push), email: keep.email || (!before.email && a.email) };
+        $('sw-notify').innerHTML = offerAlertOpts(a, n);
+        wireOfferAlerts(a);
+      } });
+    }));
+  }
+
   /* Post or edit a listing */
   function listingForm(L, who) {
     const a = who || swapAuth;
@@ -1764,9 +1790,7 @@
         '<label class="check"><input type="radio" name="sw-seek" value="any"' + (seekAny ? ' checked' : '') + '> <span>Any game</span></label>' +
         '<label class="check"><input type="radio" name="sw-seek" value="pick"' + (seekAny ? '' : ' checked') + '> <span>Specific games</span></label></div>' +
         '<div id="sw-seek-list"' + (seekAny ? ' hidden' : '') + '>' + checkList('seek', others, L ? L.seek : []) + '</div></fieldset>' +
-      '<fieldset class="nset"><legend>Tell me about offers by</legend>' +
-        '<label class="check"><input type="checkbox" id="sw-n-push"' + (n.push && a.push ? ' checked' : '') + (a.push ? '' : ' disabled') + '> <span>Push notification' + (a.push ? '' : ' <small class="hint">(turn on push in Notification settings first)</small>') + '</span></label>' +
-        '<label class="check"><input type="checkbox" id="sw-n-email"' + (n.email && a.email ? ' checked' : '') + (a.email ? '' : ' disabled') + '> <span>Email' + (a.email ? '' : ' <small class="hint">(add your email in Notification settings first)</small>') + '</span></label>' +
+      '<fieldset class="nset"><legend>Tell me about offers by</legend><div id="sw-notify">' + offerAlertOpts(a, n) + '</div>' +
         '<p class="hint">You\'ll also see a number on the Ticket Swap tab when an offer comes in.</p></fieldset>';
     const actions = [close];
     if (L) {
@@ -1796,6 +1820,7 @@
     body.querySelectorAll('input[name="sw-qty"]').forEach((x) => x.addEventListener('change', syncQty));
     body.querySelectorAll('input[name="sw-seek"]').forEach((x) => x.addEventListener('change', syncSeek));
     syncQty();
+    wireOfferAlerts(a);
     if (!away.length) $('swap-dlg-actions').querySelector('[data-sa="save"]').disabled = true;
   }
   function setStatus(btn, L, status, a) {
@@ -1907,9 +1932,26 @@
     body.pin = notifyPin;
     return apiPost(body);
   }
-  function openNotify() {
-    if (!state || !state.members) { toast('One moment, the draft is still loading.'); wantNotify = true; return; }
-    const names = sortedNames(state.members);
+  // Members for Notification settings: the draft on screen, or the regular season draft (Ticket Swap, Setup).
+  const notifyMembers = () => (state && state.members) || (states.rs && states.rs.members) || null;
+  let notifyOnClose = null;
+  async function openNotify(opts) {
+    opts = opts && opts.name ? opts : {};
+    if (!notifyMembers()) {
+      if (view !== 'rs' && view !== 'post') await ensureRs();
+      if (!notifyMembers()) { toast('One moment, the draft is still loading.'); if (isDraftView(view)) wantNotify = true; return; }
+    }
+    // Coming from Ticket Swap: already signed in, so go straight to the settings.
+    if (opts.name && !(notifyPrefs && notifyName === opts.name)) {
+      notifyName = opts.name;
+      notifyPin = opts.pin || '';
+      try {
+        const res = await notifyPost({ action: 'notifyGet', token: store.get(PUSH_TOKEN_KEY) || '' });
+        if (res && res.ok) { notifyPrefs = res.prefs || {}; rememberNotifyOn(notifyPrefs); } else notifyPrefs = null;
+      } catch (e) { notifyPrefs = null; }
+    }
+    notifyOnClose = opts.onClose || null;
+    const names = sortedNames(notifyMembers());
     $('notify-name').innerHTML = '<option value="">Choose your name…</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
     $('notify-name').value = names.includes(notifyName) ? notifyName : (names.includes(me) ? me : '');
     $('notify-pin').value = '';
@@ -1919,7 +1961,7 @@
     $('notify-dialog').showModal();
   }
   function syncNotifyPinField() {
-    const m = state && state.members.find((x) => x.name === $('notify-name').value);
+    const m = (notifyMembers() || []).find((x) => x.name === $('notify-name').value);
     $('notify-pin-wrap').hidden = !!m && !m.needsPin;
   }
   function showNotifyStep(settings) {
@@ -1981,8 +2023,10 @@
   }
   function renderNotifyCheck() {
     const on = !!me || !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
-    $('notify-btn').classList.toggle('is-on', on);
-    $('notify-btn').setAttribute('aria-label', 'Notification settings' + (on ? ' (on)' : ''));
+    ['notify-btn', 'swap-notify-btn'].forEach((id) => {
+      $(id).classList.toggle('is-on', on);
+      $(id).setAttribute('aria-label', 'Notification settings' + (on ? ' (on)' : ''));
+    });
   }
   function notifyDone(res) {
     if (res && res.ok) {
@@ -2004,7 +2048,9 @@
   }
   const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, swapEmails: $('notify-swap').checked, nextUp: $('notify-next').checked });
 
-  $('notify-btn').addEventListener('click', openNotify);
+  $('notify-btn').addEventListener('click', () => openNotify());
+  $('swap-notify-btn').addEventListener('click', () => openNotify(swapAuth ? { name: swapAuth.name, pin: swapAuth.pin } : undefined));
+  $('notify-dialog').addEventListener('close', () => { const f = notifyOnClose; notifyOnClose = null; if (f) f(); });
   $('notify-cancel').addEventListener('click', () => $('notify-dialog').close());
   $('notify-name').addEventListener('change', syncNotifyPinField);
   $('notify-change').addEventListener('click', () => { notifyPrefs = null; showNotifyStep(false); });

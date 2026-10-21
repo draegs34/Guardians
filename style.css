@@ -443,8 +443,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .big-check strong { font-size: 15px; }
 .big-check small { color: var(--muted); font-size: 13px; font-weight: 400; }
 
-#notify-btn { display: inline-flex; align-items: center; gap: 7px; }
-#notify-btn .bell { flex: none; }
+#notify-btn, #swap-notify-btn { display: inline-flex; align-items: center; gap: 7px; }
+#notify-btn .bell, #swap-notify-btn .bell { flex: none; }
 
 /* Regular season months fold up (closed by default on phones) */
 .month-toggle { width: 100%; border: 0; font: inherit; text-align: left; cursor: pointer; align-items: center; }
@@ -469,8 +469,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 }
 
 /* ✓ when notifications are on */
-#notify-btn .nb-check { display: none; flex: none; color: var(--open); margin-left: 2px; }
-#notify-btn.is-on .nb-check { display: inline-block; }
+#notify-btn .nb-check, #swap-notify-btn .nb-check { display: none; flex: none; color: var(--open); margin-left: 2px; }
+#notify-btn.is-on .nb-check, #swap-notify-btn.is-on .nb-check { display: inline-block; }
 
 /* Ticket Swap */
 .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 999px; background: var(--red); color: #fff; font-size: 11px; font-weight: 800; line-height: 1; vertical-align: 1px; }
@@ -478,6 +478,9 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .swap-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 16px; }
 .swap-head h2 { font-size: 22px; text-transform: none; letter-spacing: 0; color: var(--text); margin-bottom: 4px; }
 .swap-head .hint { max-width: 640px; }
+.swap-btns { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+#sw-notify .link-btn { margin: -4px 0 8px 30px; display: inline-block; }
+#sw-notify p .link-btn { margin: 0; }
 #swap-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
 #swap-list > .notice-card, #swap-list > .empty { grid-column: 1 / -1; }
 .swap-card { display: grid; gap: 8px; }
