@@ -1172,7 +1172,7 @@ async function swapAction(body) {
       const G = (list) => list.map((gid) => gameLabel(board.games[gid]));
       const contact = [me.email, me.email2, me.phone].filter(Boolean);
       await deliver(via, {
-        subject: 'Ticket Swap offer from ' + realName, title: 'New Ticket Swap offer', body: body2, link, badge: 0, tag: 'ticket-swap', button: 'Accept or reject',
+        subject: 'Guardians Ticket Swap offer from ' + realName, title: 'New Ticket Swap offer', body: body2, link, badge: 0, tag: 'ticket-swap', button: 'Accept or reject',
         intro: realName + ' made an offer on your listing.',
         rows: [
           { label: 'Interested in', items: G(wants) },
@@ -1240,7 +1240,7 @@ async function swapAction(body) {
         if (yn.email || yn.push) {
           const yp = prefsOf(y.from);
           await deliver({ emailOn: !!yn.email, pushOn: !!yn.push, email: yp.email || '', email2: yp.email2 || '', tokens: yp.tokens || [], name: y.from },
-            { subject: 'Ticket Swap: ' + x.member + ' traded with someone else', title: 'Offer not accepted', body: x.member + ' accepted another offer, so your offer for ' + L(y.wants || []) + ' is closed.', link, badge: 0, tag: 'ticket-swap-reply', button: 'Open Ticket Swap',
+            { subject: 'Guardians Ticket Swap: ' + x.member + ' traded with someone else', title: 'Offer not accepted', body: x.member + ' accepted another offer, so your offer for ' + L(y.wants || []) + ' is closed.', link, badge: 0, tag: 'ticket-swap-reply', button: 'Open Ticket Swap',
               intro: x.member + ' accepted another offer, so yours is closed.',
               rows: [{ label: 'Your offer', items: (y.wants || []).map((gid) => gameLabel(board.games[gid])) }, { label: 'Tickets', items: [String(y.qty)] }] }).catch((e) => console.error('swap auto-reject', e));
         }
@@ -1257,7 +1257,7 @@ async function swapAction(body) {
         : x.member + ' passed on your offer for ' + L(o.wants) + '.';
       const G = (list) => list.map((gid) => gameLabel(board.games[gid]));
       await deliver(via, {
-        subject: 'Ticket Swap: ' + x.member + (accept ? ' accepted your offer' : ' passed on your offer'), title: accept ? 'Offer accepted' : 'Offer not accepted', body: text, link, badge: 0, tag: 'ticket-swap-reply', button: 'Open Ticket Swap',
+        subject: 'Guardians Ticket Swap: ' + x.member + (accept ? ' accepted your offer' : ' passed on your offer'), title: accept ? 'Offer accepted' : 'Offer not accepted', body: text, link, badge: 0, tag: 'ticket-swap-reply', button: 'Open Ticket Swap',
         intro: accept ? x.member + ' accepted your offer. Reach out to arrange the swap.' : x.member + ' passed on your offer.',
         rows: [
           { label: 'You get', items: accept ? G(o.wants || []) : [] },
@@ -1305,7 +1305,7 @@ async function announceListing(id, x, board, prefsAll, link) {
     from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     to: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     bcc: Array.from(to).join(', '),
-    subject: (isTest() ? '[TEST] ' : '') + 'Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
+    subject: (isTest() ? '[TEST] ' : '') + 'Guardians Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
     text: intro + '\n\n' + d.text + '\n\nSee it or make an offer: ' + link + '\n\n' + SWAP_HELP + '\n\nStop these emails: ' + settings,
     html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
       '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">New Ticket Swap listing</p>' +
