@@ -165,7 +165,7 @@ Choose **Guardians Draft → Refresh regular season schedule from MLB** any time
 - **Promotions** from the Promotions column, and any **Notes** (separate several with `;`).
 - **Filters**: All or Available; Any, Weekends or Weekdays (Monday–Friday); Month; Opponent.
 - **Phones and small tablets**: the draft page has tabs for **Games**, **Draft Order** (Up next and the drop-out button), **Pick Log** and **Members**. It jumps to Games when it becomes your turn (if on-screen alerts are on). Computers show everything side by side.
-- **Months fold up**: tap a month's bar to open or close it. On phones every month starts closed (less scrolling); on computers they start open. **Expand all / Collapse all** is next to the game count, and choosing a month in the Month filter opens it.
+- **Months fold up**: tap a month's bar to open or close it. Every month starts open. **Expand all / Collapse all** is next to the game count, and choosing a month in the Month filter opens it.
 
 ### Pick time limit (off for now)
 Set **Pick time limit on** to `TRUE` and enter the hours in **Pick time limit (hours)**. The page then shows a countdown, and a member whose time runs out is skipped automatically. The log says "turn skipped (time ran out)".

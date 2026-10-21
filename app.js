@@ -602,10 +602,9 @@
 
   /* Regular season board: one row per home game, all four seats per pick. */
   const rsFilter = { avail: 'all', tag: 'all', month: '', opp: '' };
-  // Months fold up. On phones they start closed (lots of scrolling otherwise); on bigger screens they start open.
+  // Months fold up; they all start open (tap a month's bar to close it).
   const monthOpen = {};
-  const smallScreen = () => !!(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
-  const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : (!!rsFilter.month || !smallScreen()));
+  const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : true);
   function renderRsBoard(s, takenBy, canPick, prevIds) {
     const games = s.inventory.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const openerId = games.length ? games[0].id : null;
