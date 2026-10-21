@@ -961,6 +961,10 @@ function mailer() {
   return transporter;
 }
 
+// Ticket Swap emails invite a reply so the commissioner can step in (replies go to the draft's Gmail).
+const SWAP_HELP = 'If you are experiencing any issues with this request, please reply to this email.';
+const swapHelpHtml = () => '<p style="font-size:14px;color:#13213a;margin:0 0 12px;padding-top:14px;border-top:1px solid #e3e7ee">' + escHtml(SWAP_HELP) + '</p>';
+
 /** Labeled sections for emails: [{ label, items: [..] }] → plain text and an HTML table, one item per line. */
 function detailRows(rows) {
   const list = (rows || []).filter((r) => r && r.items && r.items.length);
@@ -981,15 +985,17 @@ async function deliver(p, msg) {
     const d = detailRows(msg.rows);
     const intro = msg.rows ? (msg.intro || '') : msg.body;
     const button = msg.button || 'Open the draft';
+    const swap = /^ticket-swap/.test(msg.tag || '');
     jobs.push(mailer().sendMail({
       from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
       to: [p.email, p.email2].filter(Boolean).join(', '),
       subject: (isTest() ? '[TEST] ' : '') + msg.subject,
-      text: intro + (d.text ? '\n\n' + d.text : '') + '\n\n' + button + ': ' + msg.link + '\n\nChange your notification settings: ' + settings,
+      text: intro + (d.text ? '\n\n' + d.text : '') + '\n\n' + button + ': ' + msg.link + (swap ? '\n\n' + SWAP_HELP : '') + '\n\nChange your notification settings: ' + settings,
       html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
         '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">' + escHtml(msg.title) + '</p>' +
         (intro ? '<p style="margin:0 0 16px">' + escHtml(intro) + '</p>' : '') + d.html +
         '<p style="margin:0 0 24px"><a href="' + msg.link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">' + escHtml(button) + '</a></p>' +
+        (swap ? swapHelpHtml() : '') +
         '<p style="font-size:12px;color:#5d6b82;margin:0">Private draft page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Change your notification settings</a>.</p></div>',
     }).then(() => sent.push('email')).catch((e) => console.error('email', e.message)));
   }
@@ -1300,11 +1306,12 @@ async function announceListing(id, x, board, prefsAll, link) {
     to: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     bcc: Array.from(to).join(', '),
     subject: (isTest() ? '[TEST] ' : '') + 'Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
-    text: intro + '\n\n' + d.text + '\n\nSee it or make an offer: ' + link + '\n\nStop these emails: ' + settings,
+    text: intro + '\n\n' + d.text + '\n\nSee it or make an offer: ' + link + '\n\n' + SWAP_HELP + '\n\nStop these emails: ' + settings,
     html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
       '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">New Ticket Swap listing</p>' +
       '<p style="margin:0 0 16px">' + escHtml(intro) + '</p>' + d.html +
       '<p style="margin:0 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Make an offer</a></p>' +
+      swapHelpHtml() +
       '<p style="font-size:12px;color:#5d6b82;margin:0">Private page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Turn off Ticket Swap emails</a>.</p></div>',
   }).catch((e) => console.error('swap announce', e.message));
 }
