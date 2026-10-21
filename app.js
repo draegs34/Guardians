@@ -617,7 +617,7 @@
       fb.innerHTML =
         '<div class="frow" role="group" aria-label="Show">' + chip('avail', 'all', 'All games') + chip('avail', 'open', 'Available') + '</div>' +
         '<div class="frow" role="group" aria-label="Highlights">' + chip('tag', 'all', 'Any') + chip('tag', 'weekend', 'Weekends') +
-          chip('tag', 'daygame', 'Weekday day games') + chip('tag', 'holiday', 'Holidays') + chip('tag', 'promo', 'Promotions') + '</div>' +
+          chip('tag', 'weekday', 'Weekdays') + '</div>' +
         '<div class="frow selects"><label>Month <select data-fsel="month"><option value="">All</option>' +
           months.map((m) => { const p = m.split('-'); return '<option value="' + m + '">' + MONTH_FULL[+p[1] - 1] + '</option>'; }).join('') +
         '</select></label><label>Opponent <select data-fsel="opp"><option value="">All</option>' +
@@ -632,9 +632,7 @@
     const shown = enriched.filter(({ g, f, p }) => {
       if (rsFilter.avail === 'open' && p) return false;
       if (rsFilter.tag === 'weekend' && !f.weekend) return false;
-      if (rsFilter.tag === 'daygame' && !f.dayGame) return false;
-      if (rsFilter.tag === 'holiday' && !f.holiday) return false;
-      if (rsFilter.tag === 'promo' && !f.promos.length) return false;
+      if (rsFilter.tag === 'weekday' && f.weekend) return false;
       if (rsFilter.month && String(g.date).slice(0, 7) !== rsFilter.month) return false;
       if (rsFilter.opp && g.opponent !== rsFilter.opp) return false;
       return true;

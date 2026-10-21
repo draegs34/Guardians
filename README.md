@@ -163,7 +163,7 @@ Choose **Guardians Draft → Refresh regular season schedule from MLB** any time
 - **Holidays**: Mother's Day, Memorial Day, Father's Day, the Fourth of July and Labor Day. These are highlighted with a red edge.
 - **Weekday day game**: a Monday–Friday game starting before 5 PM ET, highlighted with a gold edge. These only show once MLB posts a start time.
 - **Promotions** from the Promotions column, and any **Notes** (separate several with `;`).
-- **Filters**: All or Available; Weekends, Weekday day games, Holidays or Promotions; Month; Opponent.
+- **Filters**: All or Available; Any, Weekends or Weekdays (Monday–Friday); Month; Opponent.
 
 ### Pick time limit (off for now)
 Set **Pick time limit on** to `TRUE` and enter the hours in **Pick time limit (hours)**. The page then shows a countdown, and a member whose time runs out is skipped automatically. The log says "turn skipped (time ran out)".
