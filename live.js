@@ -52,7 +52,7 @@ function toState(key, pub) {
   const data = {
     settings: {
       kind: key, title: s.title, season: s.season, snake: s.snake !== false, maxPicks: Number(s.maxPicks) || 0,
-      open: s.open !== false, timeLimitOn: !!s.timeLimitOn, timeLimitHours: Number(s.timeLimitHours) || 0, commissionerPin: '',
+      open: s.open !== false, showTab: s.showTab !== false, timeLimitOn: !!s.timeLimitOn, timeLimitHours: Number(s.timeLimitHours) || 0, commissionerPin: '',
     },
     // The page never sees PINs, only whether a member has one.
     members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: m.needsPin ? '•' : '', inactive: !!m.inactive })),

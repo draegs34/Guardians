@@ -53,6 +53,7 @@ function toEngineData(key, pub, sec) {
       snake: s.snake !== false,
       maxPicks: Number(s.maxPicks) || 0,
       open: s.open !== false,
+      showTab: s.showTab !== false,
       timeLimitOn: !!s.timeLimitOn,
       timeLimitHours: Number(s.timeLimitHours) || 0,
       commissionerPin: String(sec.commissionerPin || ''),
@@ -468,6 +469,7 @@ function validateAdmin(key, a) {
     snake: s.snake !== false,
     maxPicks: Math.max(0, Number(s.maxPicks) || 0),
     open: !!s.open,
+    showTab: s.showTab !== false, // postseason: whether members see its tab
     timeLimitOn: !!s.timeLimitOn,
     timeLimitHours: Math.max(0, Number(s.timeLimitHours) || 0),
     // Follow-up reminders to whoever is on the clock

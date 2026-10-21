@@ -32,13 +32,17 @@
   const VIEWS = { rs: 'regular-season', post: 'postseason', setup: 'setup' };
   const VIEW_KEY = 'guardians-draft-view';
   const isDraftView = (v) => v === 'rs' || v === 'post';
-  let setupKey = 'rs'; // which Setup section: 'rs', 'post' or 'archive'
+  let setupKey = 'rs'; // which Setup section: 'rs', 'post', 'archive-rs' or 'archive-post'
+  // Whether members see the Postseason tab (Setup → Postseason → Display Postseason tab). Last known value, until the draft loads.
+  const SHOW_POST_KEY = 'guardians-show-post';
+  let showPost = store.get(SHOW_POST_KEY) !== '0';
   function initialView() {
     const h = location.hash.replace('#', '');
-    if (h === 'past-drafts') { setupKey = 'archive'; return 'setup'; }
+    if (h === 'past-drafts') { setupKey = 'archive-rs'; return 'setup'; }
     for (const k in VIEWS) if (VIEWS[k] === h || k === h) return k;
     const saved = store.get(VIEW_KEY);
-    return isDraftView(saved) ? saved : 'post';
+    if (saved === 'post' && !showPost) return 'rs';
+    return isDraftView(saved) ? saved : (showPost ? 'post' : 'rs');
   }
   /* Prices sent from the Season Ticket Manager arrive as #prices=ALDS:432,ALCS:646,WS:1090 */
   function readPriceHash() {
@@ -213,7 +217,7 @@
     return apiPost({ action: 'archives', pin: commishPin, draft: 'rs' });
   }
   function apiPost(body) {
-    if (!body.draft) body.draft = isDraftView(view) ? view : (setupKey === 'post' ? 'post' : 'rs');
+    if (!body.draft) body.draft = isDraftView(view) ? view : (/post/.test(setupKey) ? 'post' : 'rs');
     if (DEMO) return demo.post(body);
     // text/plain avoids a CORS preflight, which Apps Script doesn't answer.
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
@@ -370,8 +374,17 @@
     ].map(([ms, text]) => setTimeout(() => { if (!states[view] && $('load-msg')) $('load-msg').textContent = text; }, ms));
   }
 
+  function setShowPost(on) {
+    on = on !== false;
+    if (on !== showPost) store.set(SHOW_POST_KEY, on ? '1' : '0');
+    showPost = on;
+    $('post-tab').hidden = !on;
+    // Members get moved off a hidden Postseason tab; the commissioner (Setup unlocked) can still look at it.
+    if (!on && view === 'post' && !commishPin && !sentPrices) switchView('rs');
+  }
   function apply(s) {
     loadTimers.forEach(clearTimeout);
+    if (view === 'post' && s && !s.notSetUp) setShowPost(s.showTab);
     $('clock').classList.remove('loading');
     $('board').removeAttribute('aria-busy');
     if (!staleViews.has(view)) saveCache(view, s);
@@ -680,7 +693,7 @@
   /* ------------------------------------------------------------------ */
   /* Past drafts                                                          */
   /* ------------------------------------------------------------------ */
-  const onArchives = () => view === 'setup' && setupKey === 'archive' && !!$('archive-list');
+  const onArchives = () => view === 'setup' && /^archive/.test(setupKey) && !!$('archive-list');
   function loadArchives() {
     return apiArchives().then((r) => {
       if (r && r.ok === false) throw new Error(r.error || 'Not allowed');
@@ -694,11 +707,13 @@
   function renderArchives() {
     if (!$('archive-list')) return;
     if (!archives) { $('archive-list').innerHTML = '<p class="empty">Loading…</p>'; return; }
-    if (!archives.length) {
-      $('archive-list').innerHTML = '<div class="notice-card">No archived drafts yet. Archive a finished draft with the ⚙ commissioner tools → <em>Archive this draft</em>.</div>';
+    const kind = setupKey === 'archive-post' ? 'post' : 'rs';
+    const list = archives.filter((a) => (a.kind === 'rs' ? 'rs' : 'post') === kind);
+    if (!list.length) {
+      $('archive-list').innerHTML = '<div class="notice-card">No archived ' + (kind === 'rs' ? 'regular season' : 'postseason') + ' drafts yet. Archive a finished draft with the ⚙ commissioner tools → <em>Archive this draft</em>.</div>';
       return;
     }
-    $('archive-list').innerHTML = archives.map((a, i) => {
+    $('archive-list').innerHTML = list.map((a, i) => {
       const picks = a.rows.filter((r) => r.type === 'pick' || r.type === 'assign');
       const when = a.archivedAt ? new Date(a.archivedAt) : null;
       return '<details class="card arch"' + (i === 0 ? ' open' : '') + '><summary><span class="arch-title">' + esc(a.title) + '</span>' +
@@ -766,7 +781,7 @@
   });
   window.addEventListener('hashchange', () => {
     const h = location.hash.replace('#', '');
-    if (h === 'past-drafts') { setupKey = 'archive'; if (view === 'setup') renderSetup(); else switchView('setup'); return; }
+    if (h === 'past-drafts') { setupKey = 'archive-rs'; if (view === 'setup') renderSetup(); else switchView('setup'); return; }
     for (const k in VIEWS) if (VIEWS[k] === h) switchView(k);
   });
   // (A #prices=… link from the Season Ticket Manager is handled with the price tool below.)
@@ -896,12 +911,12 @@
   /* The ⚙ button: commissioner tools for the draft on screen (from Setup, the section you're in). */
   let pendingCog = null; // opening the tools from Setup waits for that draft's board to load
   function openCog(want) {
-    const key = want || (isDraftView(view) ? view : (setupKey === 'post' ? 'post' : 'rs'));
+    const key = want || (isDraftView(view) ? view : (/post/.test(setupKey) ? 'post' : 'rs'));
     if (view !== key) switchView(key);
     if (state && state.notSetUp) { pendingCog = null; toast('This draft isn\'t set up yet. Use Setup to import it or start it empty.'); return; }
     if (!state || staleViews.has(view)) { pendingCog = key; return; }
     pendingCog = null;
-    $('commish-draft').textContent = '· ' + (key === 'rs' ? 'Regular season' : 'Postseason');
+    $('commish-draft').textContent = '· ' + (key === 'rs' ? 'Regular Season' : 'Postseason');
     $('commish-pin').value = commishPin || '';
     $('commish-error').textContent = '';
     disarmArchive();
@@ -1094,8 +1109,8 @@
 
   function renderSetup() {
     document.querySelectorAll('#setup-tabs button').forEach((b) => b.setAttribute('aria-current', b.dataset.sk === setupKey ? 'page' : 'false'));
-    if (setupKey === 'archive') {
-      $('setup-body').innerHTML = '<p class="hint setup-intro">Finished drafts you\'ve archived. Only the commissioner can see these.</p><div id="archive-list"></div>';
+    if (/^archive/.test(setupKey)) {
+      $('setup-body').innerHTML = '<p class="hint setup-intro">Finished ' + (setupKey === 'archive-rs' ? 'regular season' : 'postseason') + ' drafts you\'ve archived. Only the commissioner can see these.</p><div id="archive-list"></div>';
       renderArchives();
       if (!archives) loadArchives();
       return;
@@ -1127,6 +1142,7 @@
     const rem = !!s.reminderOn;
 
     let html = '';
+    if (!rs) html += '<section class="card sc show-post"><label class="check big-check"><input type="checkbox" data-bind="settings.showTab"' + (s.showTab !== false ? ' checked' : '') + '> <span><strong>Display Postseason tab</strong><small>When unchecked, members don\'t see the Postseason tab at the top of the page. Turn it on when it\'s time for a postseason draft. Save to apply.</small></span></label></section>';
     if (rs && sentEmails) html += '<section class="card sc sync-card"><h3>Members from Season Ticket Manager</h3><div id="sync-body"></div></section>';
 
     html += '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
@@ -1176,7 +1192,7 @@
     } else {
       const rsMembers = (admin.rs && admin.rs.members) || [];
       const emailOf = (n) => { const m = rsMembers.find((x) => x.name === n); return m ? m.email : ''; };
-      html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular season</strong> tab; change names, PINs and emails there. ' +
+      html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular Season</strong> tab; change names, PINs and emails there. ' +
         'Here the list order is the postseason draft order (new members start at the end). ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
@@ -1365,7 +1381,7 @@
     if (key === 'rs' && a.newCommissionerPin) { body.admin.newCommissionerPin = a.newCommissionerPin; body.newPin = a.newCommissionerPin; }
     setupCall(btn, body, true).then((res) => {
       if (res && res.ok && body.newPin) { rememberPin(body.newPin); toast('Saved. The new commissioner PIN works for both drafts.'); }
-      if (res && res.ok) { states.rs = undefined; states.post = undefined; }
+      if (res && res.ok) { states.rs = undefined; states.post = undefined; if (key === 'post') setShowPost(a.settings.showTab !== false); }
     });
   }
   function doImport(btn) {
@@ -1864,6 +1880,7 @@
     currentView: () => view,
     onLive(draft, s) {
       liveOn[draft] = true;
+      if (draft === 'post' && s && !s.notSetUp) setShowPost(s.showTab);
       if (draft !== view) { if (s && !s.notSetUp) states[draft] = s; return; }
       if (s && s.notSetUp) { states[draft] = s; state = s; markSynced(); renderNotSetUp(); return; }
       staleViews.delete(draft);
@@ -1882,6 +1899,8 @@
   // Keep the slow-pick clock and pick countdown current even when nothing else changes.
   setInterval(() => { if (state && !busy && isDraftView(view) && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
+  $('post-tab').hidden = !showPost;
+  if (view !== 'post' && !DEMO) apiGet('post').then((p) => { if (p && p.ok !== false && !p.notSetUp) { states.post = states.post || p; setShowPost(p.showTab); } }).catch(() => {});
   if (history.replaceState && !sentPrices && !sentEmails) history.replaceState(null, '', '#' + VIEWS[view]);
   syncSwitch();
   if (view === 'setup') { $('title').textContent = 'Commissioner setup'; document.title = 'Setup'; if (window.DraftLive) window.DraftLive.watch(null); openSetupView(); }

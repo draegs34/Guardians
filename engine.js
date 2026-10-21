@@ -234,6 +234,7 @@ var DraftEngine = (function () {
       maxPicks: s.maxPicks,
       open: s.open,
       timeLimit: { on: !!ms, hours: ms ? Number(s.timeLimitHours) : null },
+      showTab: s.showTab !== false,
       deadline: deadline,
       members: data.members.map(function (m) {
         // PINs never leave the backend

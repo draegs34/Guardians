@@ -4,12 +4,12 @@ Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The
 
 - **Regular season**: members draft home games one at a time. Each pick is one game with all four seats.
 - **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10).
-- **Setup** (commissioner only, asks for the commissioner PIN): a section for each draft plus **Past drafts**. See *Commissioner setup* below.
+- **Setup** (commissioner only, asks for the commissioner PIN): a section for each draft plus past drafts. See *Commissioner setup* below.
 - **⚙** (next to Setup): commissioner tools for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
 
 Both drafts run from one Google Sheet. A small Apps Script (`apps-script/Code.gs`) reads and writes it, and the page is hosted free on GitHub Pages at **https://draegs34.github.io/Guardians/**.
 
-- Link straight to a tab: `#regular-season`, `#postseason`, `#setup` or `#past-drafts` (Setup → Past drafts).
+- Link straight to a tab: `#regular-season`, `#postseason`, `#setup` or `#past-drafts` (Setup → Past Regular Season Drafts).
 - Until `config.js` has a script URL, the page runs in **demo mode** with sample members and the real 2027 schedule.
 
 ---
@@ -79,15 +79,15 @@ The Google Sheet then becomes a backup; nothing reads from it anymore. To change
 
 ## Commissioner setup
 
-Click **Setup** at the top and enter the commissioner PIN. It's remembered until you close the browser tab or app; **Lock** forgets it right away. Inside are three sections:
+Click **Setup** at the top and enter the commissioner PIN. It's remembered until you close the browser tab or app; **Lock** forgets it right away. Inside are four sections:
 
 - **Regular season**: settings, **members**, draft order (with **🎲 Randomize order**), home games, the MLB schedule, a CSV of picks and **Import data**.
   - **This member list is the source of truth for both drafts.** Names, PINs and emails changed here carry over to the Postseason, and new members are added to the Postseason too (active, at the end of its order). Renaming someone keeps their picks.
   - ✕ removes a member, but only if they have no picks in either draft (undo those first).
   - The list is alphabetical by last name. Anyone you add appears at the bottom while you type and moves into place when you save.
   - **New commissioner PIN** changes the one PIN used for both drafts.
-- **Postseason**: settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
-- **Past drafts**: archived drafts. Only the commissioner can see these.
+- **Postseason**: **Display Postseason tab** at the top (untick it to hide the Postseason tab from members until you need a postseason draft; you can still open it with ⚙ while Setup is unlocked), settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
+- **Past Regular Season Drafts** and **Past Postseason Drafts**: archived drafts of each kind. Only the commissioner can see these.
 
 James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
 

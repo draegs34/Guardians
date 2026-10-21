@@ -435,3 +435,9 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .slots .slot-main { flex: 1; padding: 6px 8px; }
 .slots .slot-name { font-weight: 600; }
 .slots li.inactive .slot-name { color: var(--muted); text-decoration: line-through; }
+.show-post { padding-top: 14px; padding-bottom: 14px; }
+.big-check { align-items: flex-start; }
+.big-check input { margin-top: 3px; width: 18px; height: 18px; }
+.big-check span { display: grid; gap: 2px; }
+.big-check strong { font-size: 15px; }
+.big-check small { color: var(--muted); font-size: 13px; font-weight: 400; }
