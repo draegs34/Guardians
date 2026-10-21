@@ -961,20 +961,35 @@ function mailer() {
   return transporter;
 }
 
+/** Labeled sections for emails: [{ label, items: [..] }] → plain text and an HTML table, one item per line. */
+function detailRows(rows) {
+  const list = (rows || []).filter((r) => r && r.items && r.items.length);
+  const text = list.map((r) => r.items.length === 1 ? r.label + ': ' + r.items[0] : r.label + ':\n' + r.items.map((i) => '  • ' + i).join('\n')).join('\n');
+  const html = list.length ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 18px;width:100%;max-width:520px">' +
+    list.map((r) => '<tr><td style="padding:10px 14px 10px 0;border-top:1px solid #e3e7ee;vertical-align:top;width:120px;font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#5d6b82">' + escHtml(r.label) + '</td>' +
+      '<td style="padding:10px 0;border-top:1px solid #e3e7ee;vertical-align:top">' + r.items.map((i) => '<div style="margin:0 0 2px">' + escHtml(i) + '</div>').join('') + '</td></tr>').join('') +
+    '</table>' : '';
+  return { text, html };
+}
+
 async function deliver(p, msg) {
   const sent = [];
   const jobs = [];
   if (p.emailOn && p.email && mailer()) {
     const settings = siteLink('notifications');
+    // Emails can have a short intro plus labeled sections; push always uses the one-line body.
+    const d = detailRows(msg.rows);
+    const intro = msg.rows ? (msg.intro || '') : msg.body;
+    const button = msg.button || 'Open the draft';
     jobs.push(mailer().sendMail({
       from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
       to: [p.email, p.email2].filter(Boolean).join(', '),
       subject: (isTest() ? '[TEST] ' : '') + msg.subject,
-      text: msg.body + '\n\nOpen the draft: ' + msg.link + '\n\nChange your notification settings: ' + settings,
+      text: intro + (d.text ? '\n\n' + d.text : '') + '\n\n' + button + ': ' + msg.link + '\n\nChange your notification settings: ' + settings,
       html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
         '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">' + escHtml(msg.title) + '</p>' +
-        '<p style="margin:0 0 16px">' + escHtml(msg.body) + '</p>' +
-        '<p style="margin:0 0 24px"><a href="' + msg.link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open the draft</a></p>' +
+        (intro ? '<p style="margin:0 0 16px">' + escHtml(intro) + '</p>' : '') + d.html +
+        '<p style="margin:0 0 24px"><a href="' + msg.link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">' + escHtml(button) + '</a></p>' +
         '<p style="font-size:12px;color:#5d6b82;margin:0">Private draft page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Change your notification settings</a>.</p></div>',
     }).then(() => sent.push('email')).catch((e) => console.error('email', e.message)));
   }
@@ -1148,7 +1163,19 @@ async function swapAction(body) {
     const body2 = realName + ' is interested in ' + L(wants) + ' (' + qty + ' tickets)' +
       (gives.length || giveOther ? ' and offers ' + [gives.length ? L(gives) : '', giveOther ? 'something else (see note)' : ''].filter(Boolean).join(' or ') + ' in return.' : '.') + (note ? ' Note: "' + note + '"' : '');
     if (via.emailOn || via.pushOn) {
-      await deliver(via, { subject: 'Ticket Swap offer from ' + realName, title: 'New Ticket Swap offer', body: body2, link, badge: 0, tag: 'ticket-swap' }).catch((e) => console.error('swap notify', e));
+      const G = (list) => list.map((gid) => gameLabel(board.games[gid]));
+      const contact = [me.email, me.email2, me.phone].filter(Boolean);
+      await deliver(via, {
+        subject: 'Ticket Swap offer from ' + realName, title: 'New Ticket Swap offer', body: body2, link, badge: 0, tag: 'ticket-swap', button: 'Accept or reject',
+        intro: realName + ' made an offer on your listing.',
+        rows: [
+          { label: 'Interested in', items: G(wants) },
+          { label: 'Tickets', items: [String(qty)] },
+          { label: 'Offering', items: G(gives).concat(giveOther ? ['Other (see note)'] : []) },
+          { label: 'Note', items: note ? [note] : [] },
+          { label: 'Contact', items: contact },
+        ],
+      }).catch((e) => console.error('swap notify', e));
     }
     return { ok: true, message: 'Offer sent to ' + x.member + '.' };
   }
@@ -1207,7 +1234,9 @@ async function swapAction(body) {
         if (yn.email || yn.push) {
           const yp = prefsOf(y.from);
           await deliver({ emailOn: !!yn.email, pushOn: !!yn.push, email: yp.email || '', email2: yp.email2 || '', tokens: yp.tokens || [], name: y.from },
-            { subject: 'Ticket Swap: ' + x.member + ' traded with someone else', title: 'Offer not accepted', body: x.member + ' accepted another offer, so your offer for ' + L(y.wants || []) + ' is closed.', link, badge: 0, tag: 'ticket-swap-reply' }).catch((e) => console.error('swap auto-reject', e));
+            { subject: 'Ticket Swap: ' + x.member + ' traded with someone else', title: 'Offer not accepted', body: x.member + ' accepted another offer, so your offer for ' + L(y.wants || []) + ' is closed.', link, badge: 0, tag: 'ticket-swap-reply', button: 'Open Ticket Swap',
+              intro: x.member + ' accepted another offer, so yours is closed.',
+              rows: [{ label: 'Your offer', items: (y.wants || []).map((gid) => gameLabel(board.games[gid])) }, { label: 'Tickets', items: [String(y.qty)] }] }).catch((e) => console.error('swap auto-reject', e));
         }
       }
       if (others.length) message += ' ' + others.length + ' other offer' + (others.length === 1 ? ' for the same game' + (o.wants.length === 1 ? '' : 's') + ' was' : 's for the same game' + (o.wants.length === 1 ? '' : 's') + ' were') + ' rejected automatically.';
@@ -1220,7 +1249,18 @@ async function swapAction(body) {
       const text = accept
         ? x.member + ' accepted your offer for ' + L(o.wants) + ' (' + o.qty + ' tickets).' + (contact ? ' Reach out at ' + contact + ' to swap tickets.' : ' Reach out to swap tickets.')
         : x.member + ' passed on your offer for ' + L(o.wants) + '.';
-      await deliver(via, { subject: 'Ticket Swap: ' + x.member + (accept ? ' accepted your offer' : ' passed on your offer'), title: accept ? 'Offer accepted' : 'Offer not accepted', body: text, link, badge: 0, tag: 'ticket-swap-reply' }).catch((e) => console.error('swap reply', e));
+      const G = (list) => list.map((gid) => gameLabel(board.games[gid]));
+      await deliver(via, {
+        subject: 'Ticket Swap: ' + x.member + (accept ? ' accepted your offer' : ' passed on your offer'), title: accept ? 'Offer accepted' : 'Offer not accepted', body: text, link, badge: 0, tag: 'ticket-swap-reply', button: 'Open Ticket Swap',
+        intro: accept ? x.member + ' accepted your offer. Reach out to arrange the swap.' : x.member + ' passed on your offer.',
+        rows: [
+          { label: 'You get', items: accept ? G(o.wants || []) : [] },
+          { label: 'Your offer', items: accept ? [] : G(o.wants || []) },
+          { label: 'Tickets', items: [String(o.qty)] },
+          { label: 'You give', items: G(o.gives || []).concat(o.giveOther ? ['Other (from your note)'] : []) },
+          { label: 'Contact', items: accept ? [lp.email, lp.email2, lp.phone].filter(Boolean) : [] },
+        ],
+      }).catch((e) => console.error('swap reply', e));
     }
     return { ok: true, message, closed };
   }
@@ -1247,22 +1287,24 @@ async function announceListing(id, x, board, prefsAll, link) {
     [p.email, p.email2].filter(Boolean).forEach((e) => to.add(e));
   });
   if (!to.size) return;
-  const lines = [
-    x.member + ' is looking to trade away: ' + L(x.games) + '.',
-    'Tickets: ' + x.qty + (x.split ? ' (will split into 2)' : '') + '.',
-    'Looking for: ' + (x.seekAny || !(x.seek || []).length ? 'any game' : L(x.seek)) + '.',
-  ];
+  const G = (list) => list.map((gid) => gameLabel(board.games[gid]));
+  const intro = x.member + ' posted a new Ticket Swap listing.';
+  const d = detailRows([
+    { label: 'Trading away', items: G(x.games) },
+    { label: 'Tickets', items: [x.qty + (x.split ? ' (will split into 2)' : '')] },
+    { label: 'Looking for', items: x.seekAny || !(x.seek || []).length ? ['Any game'] : G(x.seek) },
+  ]);
   const settings = siteLink('notifications');
   await mailer().sendMail({
     from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     to: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     bcc: Array.from(to).join(', '),
     subject: (isTest() ? '[TEST] ' : '') + 'Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
-    text: lines.join('\n') + '\n\nSee it or make an offer: ' + link + '\n\nStop these emails: ' + settings,
+    text: intro + '\n\n' + d.text + '\n\nSee it or make an offer: ' + link + '\n\nStop these emails: ' + settings,
     html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
       '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">New Ticket Swap listing</p>' +
-      lines.map((l) => '<p style="margin:0 0 6px">' + escHtml(l) + '</p>').join('') +
-      '<p style="margin:16px 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open Ticket Swap</a></p>' +
+      '<p style="margin:0 0 16px">' + escHtml(intro) + '</p>' + d.html +
+      '<p style="margin:0 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Make an offer</a></p>' +
       '<p style="font-size:12px;color:#5d6b82;margin:0">Private page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Turn off Ticket Swap emails</a>.</p></div>',
   }).catch((e) => console.error('swap announce', e.message));
 }
