@@ -740,7 +740,14 @@ async function notifyAction(key, body) {
   const ref = PREFS();
   if (body.action === 'notifyGet') {
     const p = (((await ref.get()).data() || {}).prefs || {})[lc(name)] || {};
-    return { ok: true, prefs: { email: p.email || '', email2: p.email2 || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, swapEmails: p.swapEmails !== false, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
+    // Test mode starts with no addresses. Suggest the member's real address so the field isn't blank;
+    // it's only used for test alerts once they save it here.
+    let suggest = '';
+    if (isTest() && !p.email && !p.email2) {
+      const real = (((await rawDb.doc('notify/members').get()).data() || {}).prefs || {})[lc(name)] || {};
+      suggest = real.email || '';
+    }
+    return { ok: true, suggestEmail: suggest, prefs: { email: p.email || '', email2: p.email2 || '', emailOn: !!p.emailOn, pushOn: !!p.pushOn, nextUp: !!p.nextUp, swapEmails: p.swapEmails !== false, devices: (p.tokens || []).length, hasThisDevice: !!(body.token && (p.tokens || []).includes(body.token)) }, emailReady: !!GMAIL_USER.value() };
   }
   if (body.action === 'notifySave') {
     const result = await db.runTransaction(async (tx) => {

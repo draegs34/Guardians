@@ -1925,6 +1925,7 @@
   let notifyName = '';
   let notifyPin = '';
   let notifyPrefs = null;
+  let notifySuggest = '';   // member's address to pre-fill when none is saved yet
   let notifyBusy = false;
 
   function notifyPost(body) {
@@ -1947,7 +1948,7 @@
       notifyPin = opts.pin || '';
       try {
         const res = await notifyPost({ action: 'notifyGet', token: store.get(PUSH_TOKEN_KEY) || '' });
-        if (res && res.ok) { notifyPrefs = res.prefs || {}; rememberNotifyOn(notifyPrefs); } else notifyPrefs = null;
+        if (res && res.ok) { notifyPrefs = res.prefs || {}; notifySuggest = res.suggestEmail || ''; rememberNotifyOn(notifyPrefs); } else notifyPrefs = null;
       } catch (e) { notifyPrefs = null; }
     }
     notifyOnClose = opts.onClose || null;
@@ -1975,7 +1976,7 @@
     // On-screen alerts: on if this device already follows this member, or if nobody is set yet.
     // (ticked to start, until this browser has saved a choice)
     $('notify-screen').checked = me ? me === notifyName : !store.get('guardians-screen-chosen');
-    $('notify-email').value = p.email || '';
+    $('notify-email').value = p.email || (!p.email2 && notifySuggest) || '';
     $('notify-email2').value = p.email2 || '';
     $('notify-email-on').checked = !!p.emailOn;
     $('notify-swap').checked = p.swapEmails !== false;
@@ -2074,6 +2075,7 @@
       const res = await notifyPost({ action: 'notifyGet', token: store.get(PUSH_TOKEN_KEY) || '' });
       if (!res || !res.ok) { $('notify-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
       notifyPrefs = res.prefs || {};
+      notifySuggest = res.suggestEmail || '';
       rememberNotifyOn(notifyPrefs);
       showNotifyStep(true);
     });
