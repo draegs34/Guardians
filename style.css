@@ -193,6 +193,8 @@ label.check input { width: auto; }
 .btn.drop { display: block; width: 100%; margin-bottom: 16px; background: var(--red); color: #fff; padding: 12px 16px; font-size: 15px; }
 .btn.drop:hover { filter: brightness(1.08); }
 .btn.drop:focus-visible { outline: 3px solid var(--navy-2); outline-offset: 2px; }
+.btn.drop-m { display: none; }
+@media (max-width: 860px) { .btn.drop-m { display: block; margin: 18px 0 8px; } }
 
 /* Turn alerts */
 .me-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -8px 0 18px; font-size: 14px; color: var(--muted); }

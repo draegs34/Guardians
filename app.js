@@ -1025,6 +1025,8 @@
   });
 
   /* Drop out */
+  // Same button at the bottom of the Games list on phones.
+  $('drop-btn-m').addEventListener('click', () => $('drop-btn').click());
   $('drop-btn').addEventListener('click', () => {
     if (!state || !state.members) return;
     const active = state.members.filter((m) => !m.out);
