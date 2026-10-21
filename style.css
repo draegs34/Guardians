@@ -516,6 +516,7 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .offer-rejected { opacity: .6; }
 .gchip.other { background: transparent; border-style: dashed; }
 .sw-decide { display: inline-flex; gap: 8px; }
+.sw-all { justify-self: end; margin: -6px 0 -4px; font-size: 14px; }
 @media (max-width: 520px) { #swap-list { grid-template-columns: minmax(0, 1fr); } .sw-row { grid-template-columns: 84px minmax(0, 1fr); } }
 .swap-view { padding-top: 6px; }
 .swap-view .swap-head { margin-top: 4px; }

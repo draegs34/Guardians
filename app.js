@@ -1781,6 +1781,7 @@
     const html =
       (L && a.pin === commishPin && L.member !== swapMe() ? '<p class="hint">Editing <strong>' + esc(L.member) + '</strong>\'s listing as commissioner.</p>' : '') +
       '<fieldset class="nset"><legend>Games to trade away</legend>' +
+        (away.length > 1 ? '<button type="button" class="link-btn sw-all" id="sw-away-all">Select all</button>' : '') +
         (away.length ? checkList('away', away, L ? L.liveGames : (away.length === 1 ? away : [])) : '<p class="hint">You don\'t have any upcoming regular season games to trade.</p>') + '</fieldset>' +
       '<fieldset class="nset"><legend>Tickets</legend><div class="sw-inline">' +
         '<label class="check"><input type="radio" name="sw-qty" value="4"' + (qty === 4 ? ' checked' : '') + '> <span>4 tickets</span></label>' +
@@ -1820,6 +1821,15 @@
     body.querySelectorAll('input[name="sw-qty"]').forEach((x) => x.addEventListener('change', syncQty));
     body.querySelectorAll('input[name="sw-seek"]').forEach((x) => x.addEventListener('change', syncSeek));
     syncQty();
+    // Select all / Clear all for the games to trade away.
+    const allBtn = $('sw-away-all');
+    if (allBtn) {
+      const boxes = () => Array.from(body.querySelectorAll('input[data-away]'));
+      const syncAll = () => { allBtn.textContent = boxes().every((x) => x.checked) ? 'Clear all' : 'Select all'; };
+      allBtn.addEventListener('click', () => { const on = !boxes().every((x) => x.checked); boxes().forEach((x) => { x.checked = on; }); syncAll(); });
+      boxes().forEach((x) => x.addEventListener('change', syncAll));
+      syncAll();
+    }
     wireOfferAlerts(a);
     if (!away.length) $('swap-dlg-actions').querySelector('[data-sa="save"]').disabled = true;
   }
