@@ -1119,11 +1119,20 @@ async function swapAction(body) {
     const wants = ids(body.wants).filter((gid) => (x.games || []).includes(gid) && upcoming(board.games[gid], today));
     if (!wants.length) return { ok: false, error: 'Choose the game(s) you\'re interested in.' };
     const own = mine(realName);
-    const gives = ids(body.gives).filter((gid) => own.includes(gid));
+    // Only games the lister asked for (when they named specific ones), or "Other" explained in the note.
+    const seekOnly = !x.seekAny && (x.seek || []).length;
+    const gives = ids(body.gives).filter((gid) => own.includes(gid) && (!seekOnly || x.seek.includes(gid)));
+    const giveOther = !!body.giveOther;
     const qty = Number(body.qty) === 2 && (x.qty === 2 || x.split) ? 2 : x.qty === 2 ? 2 : 4;
     const note = str(body.note, 1000);
+    if (!gives.length && !giveOther) return { ok: false, error: 'Choose what you\'d trade, or Other and explain in the note.' };
+    if (giveOther && !note) return { ok: false, error: 'Add a note explaining your Other offer.' };
+    const me = prefsOf(realName);
+    const reply = { email: !!(body.notify && body.notify.email), push: !!(body.notify && body.notify.push) };
+    if (reply.email && !(me.email || me.email2)) return { ok: false, error: 'Add your email address in Notification settings first, or untick email.' };
+    if (reply.push && !(me.tokens || []).length) return { ok: false, error: 'Turn on push notifications for a device in Notification settings first, or untick push.' };
     const now = new Date().toISOString();
-    const offer = { listingId: ref.id, from: realName, wants, gives, qty, note, createdAt: now, seen: false };
+    const offer = { listingId: ref.id, from: realName, wants, gives, giveOther, qty, note, notify: reply, status: 'pending', createdAt: now, seen: false };
     await db.collection('swapOffers').doc().set(offer);
     await ref.set(Object.assign({}, x, { offerCount: (Number(x.offerCount) || 0) + 1, newOffers: (Number(x.newOffers) || 0) + 1 }));
     // Tell the lister the way they chose for this listing.
@@ -1131,7 +1140,7 @@ async function swapAction(body) {
     const via = { emailOn: !!(x.notify && x.notify.email), pushOn: !!(x.notify && x.notify.push), email: p.email || '', email2: p.email2 || '', tokens: p.tokens || [], name: x.member };
     const L = (list) => list.map((gid) => gameLabel(board.games[gid])).join(', ');
     const body2 = realName + ' is interested in ' + L(wants) + ' (' + qty + ' tickets)' +
-      (gives.length ? ' and offers ' + L(gives) + ' in return.' : '.') + (note ? ' Note: "' + note + '"' : '');
+      (gives.length || giveOther ? ' and offers ' + [gives.length ? L(gives) : '', giveOther ? 'something else (see note)' : ''].filter(Boolean).join(' or ') + ' in return.' : '.') + (note ? ' Note: "' + note + '"' : '');
     if (via.emailOn || via.pushOn) {
       await deliver(via, { subject: 'Ticket Swap offer from ' + realName, title: 'New Ticket Swap offer', body: body2, link, badge: 0, tag: 'ticket-swap' }).catch((e) => console.error('swap notify', e));
     }
@@ -1152,6 +1161,44 @@ async function swapAction(body) {
       await Promise.all(qs.docs.filter((d) => d.data().listingId === ref.id && !d.data().seen).map((d) => d.ref.set(Object.assign({}, d.data(), { seen: true }))));
     }
     return { ok: true, offers };
+  }
+
+  if (body.action === 'swapRespond') {
+    // The lister accepts or rejects an offer; the offerer hears back the way they chose.
+    const oref = db.collection('swapOffers').doc(str(body.offerId, 80));
+    const o = (await oref.get()).data();
+    if (!o) return { ok: false, error: 'That offer wasn\'t found.' };
+    const ref = db.collection('swaps').doc(o.listingId);
+    const x = (await ref.get()).data();
+    if (!x) return { ok: false, error: 'That listing wasn\'t found.' };
+    if (lc(x.member) !== lc(name) && !isCommish) return { ok: false, error: 'Only ' + x.member + ' can answer offers on this listing.' };
+    if ((o.status || 'pending') !== 'pending') return { ok: false, error: 'You already ' + o.status + ' that offer.' };
+    const accept = body.decision === 'accept';
+    const now = new Date().toISOString();
+    await oref.set(Object.assign({}, o, { status: accept ? 'accepted' : 'rejected', respondedAt: now, seen: true }));
+    const L = (list) => list.map((gid) => gameLabel(board.games[gid])).join(', ');
+    const n = o.notify || {};
+    let message = (accept ? 'Offer accepted. ' : 'Offer rejected. ') + (n.email || n.push ? o.from + ' has been told.' : o.from + ' didn\'t turn on alerts, so let them know yourself.');
+    let closed = false;
+    if (accept) {
+      // Accepted games come off the listing; when none are left, the listing is fulfilled.
+      const left = (x.games || []).filter((gid) => !(o.wants || []).includes(gid));
+      const liveLeft = left.filter((gid) => upcoming(board.games[gid], today));
+      closed = !liveLeft.length;
+      await ref.set(Object.assign({}, x, { games: left.length ? left : x.games, status: closed ? 'fulfilled' : x.status, updatedAt: now }));
+      message += closed ? ' Your listing is now marked fulfilled.' : ' ' + L(o.wants) + (o.wants.length === 1 ? ' is' : ' are') + ' off your listing; the rest stay listed.';
+    }
+    const p = prefsOf(o.from);
+    const via = { emailOn: !!n.email, pushOn: !!n.push, email: p.email || '', email2: p.email2 || '', tokens: p.tokens || [], name: o.from };
+    if (via.emailOn || via.pushOn) {
+      const lp = prefsOf(x.member);
+      const contact = [lp.email, lp.email2].filter(Boolean)[0];
+      const text = accept
+        ? x.member + ' accepted your offer for ' + L(o.wants) + ' (' + o.qty + ' tickets).' + (contact ? ' Reach out at ' + contact + ' to swap tickets.' : ' Reach out to swap tickets.')
+        : x.member + ' passed on your offer for ' + L(o.wants) + '.';
+      await deliver(via, { subject: 'Ticket Swap: ' + x.member + (accept ? ' accepted your offer' : ' passed on your offer'), title: accept ? 'Offer accepted' : 'Offer not accepted', body: text, link, badge: 0, tag: 'ticket-swap-reply' }).catch((e) => console.error('swap reply', e));
+    }
+    return { ok: true, message, closed };
   }
 
   if (body.action === 'swapMine') {

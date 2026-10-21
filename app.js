@@ -1839,8 +1839,10 @@
     const a = swapAuth;
     if (a.name === L.member) { swapDlg('Make an offer', '<p class="hint">That\'s your own listing. Use <strong>Edit</strong> to change it.</p>', [close]); return; }
     const canTwo = L.qty === 2 || L.split;
-    const mine = a.mine.slice().sort((x, y) => String((rsGame(x) || {}).date).localeCompare(String((rsGame(y) || {}).date)));
-    const wanted = (id) => (!L.seekAny && L.seek.includes(id) ? ' <span class="tag want">Wanted</span>' : '');
+    const seekOnly = !L.seekAny && L.seek.length > 0;
+    // When the lister named games, only those (that you hold) can be offered.
+    const mine = a.mine.filter((id) => !seekOnly || L.seek.includes(id))
+      .sort((x, y) => String((rsGame(x) || {}).date).localeCompare(String((rsGame(y) || {}).date)));
     const html =
       '<p class="hint"><strong>' + esc(L.member) + '</strong> is trading away ' + L.liveGames.length + ' game' + (L.liveGames.length === 1 ? '' : 's') + '. They\'ll get your offer' +
         (L.notify.push && L.notify.email ? ' by push and email' : L.notify.push ? ' by push notification' : L.notify.email ? ' by email' : ' on the Ticket Swap page') + '.</p>' +
@@ -1850,21 +1852,33 @@
           ? '<div class="sw-inline"><label class="check"><input type="radio" name="sw-oqty" value="4" checked> <span>4 tickets</span></label><label class="check"><input type="radio" name="sw-oqty" value="2"> <span>2 tickets</span></label></div>'
           : '<p>' + L.qty + ' tickets</p>') + '</fieldset>' +
       '<fieldset class="nset"><legend>What you\'d trade</legend>' +
-        '<p class="hint">' + (L.seekAny || !L.seek.length ? esc(L.member) + ' is open to any game.' : esc(L.member) + ' is looking for: ' + esc(L.seek.map(gLabel).join(', ')) + '.') + ' Pick from your games, or leave blank and explain in the note.</p>' +
-        (mine.length ? checkList('give', mine, mine.filter((id) => !L.seekAny && L.seek.includes(id)), wanted) : '<p class="hint">You don\'t have upcoming regular season games to offer.</p>') + '</fieldset>' +
-      '<label><span>Note <span class="opt">(optional)</span></span><textarea id="sw-note" rows="3" maxlength="1000" placeholder="e.g. Happy to do just 2, or I can meet you at the gate"></textarea></label>';
+        '<p class="hint">' + (seekOnly ? esc(L.member) + ' is looking for: ' + esc(L.seek.map(gLabel).join(', ')) + '.' : esc(L.member) + ' is open to any game.') +
+          (seekOnly && !mine.length ? ' You don\'t hold any of those, so choose Other and explain in the note.' : '') + '</p>' +
+        '<div class="sw-checks">' + mine.map((id) => '<label class="check"><input type="checkbox" data-give="' + esc(id) + '"' + (mine.length === 1 ? ' checked' : '') + '> <span>' + esc(gLabel(id)) + '</span></label>').join('') +
+          '<label class="check"><input type="checkbox" id="sw-other"' + (mine.length ? '' : ' checked') + '> <span>Other (see note)</span></label></div></fieldset>' +
+      '<label><span>Note <span class="opt" id="sw-note-opt">(optional)</span></span><textarea id="sw-note" rows="3" maxlength="1000" placeholder="e.g. Happy to do just 2, or I can meet you at the gate"></textarea></label>' +
+      '<fieldset class="nset"><legend>Tell me if they accept or reject by</legend><div id="sw-notify">' + offerAlertOpts(a, { push: a.push, email: a.email }) + '</div></fieldset>';
     swapDlg('Offer to ' + L.member, html, [close, { id: 'send', label: 'Send offer', cls: 'primary', submit: true, run: (b) => {
       const wants = checked('want');
       if (!wants.length) return swapErr('Choose the game(s) you\'re interested in.');
+      const gives = checked('give');
+      const other = $('sw-other').checked;
+      if (!gives.length && !other) return swapErr('Choose what you\'d trade, or Other and explain in the note.');
+      if (other && !$('sw-note').value.trim()) return swapErr('Add a note explaining your Other offer.');
       const q = Number((($('swap-dlg-body').querySelector('input[name="sw-oqty"]:checked')) || {}).value) || L.qty;
+      const notify = { push: $('sw-n-push').checked, email: $('sw-n-email').checked };
       busyRun(b, async () => {
-        const r = await swapPost({ action: 'swapOffer', id: L.id, name: a.name, pin: a.pin, wants, gives: checked('give'), qty: q, note: $('sw-note').value });
+        const r = await swapPost({ action: 'swapOffer', id: L.id, name: a.name, pin: a.pin, wants, gives, giveOther: other, qty: q, note: $('sw-note').value, notify });
         if (!r || !r.ok) return swapErr((r && r.error) || 'Something went wrong.');
         $('swap-dialog').close();
         toast(r.message || 'Offer sent.');
         loadSwap();
       });
     } }]);
+    wireOfferAlerts(a);
+    const syncOther = () => { $('sw-note-opt').textContent = $('sw-other').checked ? '(required for Other)' : '(optional)'; };
+    $('sw-other').addEventListener('change', syncOther);
+    syncOther();
   }
 
   /* Offers on your listing */
@@ -1873,17 +1887,36 @@
     swapPost({ action: 'swapOffers', id: L.id, name: swapAuth.name, pin: swapAuth.pin }).then((r) => {
       if (!r || !r.ok) { $('swap-dlg-body').innerHTML = ''; return swapErr((r && r.error) || 'Something went wrong.'); }
       const offers = r.offers || [];
-      $('swap-dlg-body').innerHTML = '<p class="hint">Trading away: ' + esc(L.liveGames.map(gLabel).join(', ')) + '. Reach out to work it out, then use <strong>Edit → Mark fulfilled</strong>.</p>' +
+      $('swap-dlg-body').innerHTML = '<p class="hint">Trading away: ' + esc(L.liveGames.map(gLabel).join(', ')) + '. Accept or reject each offer; they\'ll hear back the way they asked. Accepted games come off your listing, and once they\'re all traded it\'s marked fulfilled.</p>' +
         (offers.length ? offers.map((o) => {
           const when = o.createdAt ? new Date(o.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
           const mail = o.email ? '<a class="btn ghost small" href="mailto:' + esc([o.email, o.email2].filter(Boolean).join(',')) + '?subject=' + encodeURIComponent('Ticket Swap: ' + L.liveGames.map(gLabel).join(', ')) + '">Email ' + esc(o.from.split(' ')[0]) + '</a>' : '<span class="hint">No email on file</span>';
-          return '<div class="offer' + (o.seen ? '' : ' new') + '"><div class="sw-top"><span class="sw-who">' + esc(o.from) + (o.seen ? '' : ' <span class="tag new">New</span>') + '</span><span class="sw-when">' + esc(when) + '</span></div>' +
+          const st = o.status || 'pending';
+          const tag = st === 'accepted' ? ' <span class="tag ok">Accepted</span>' : st === 'rejected' ? ' <span class="tag">Rejected</span>' : o.seen ? '' : ' <span class="tag new">New</span>';
+          const decide = st === 'pending' ? '<button type="button" class="btn small ghost" data-resp="reject" data-oid="' + esc(o.id) + '">Reject</button><button type="button" class="btn small primary" data-resp="accept" data-oid="' + esc(o.id) + '">Accept</button>' : '';
+          return '<div class="offer offer-' + st + (o.seen || st !== 'pending' ? '' : ' new') + '"><div class="sw-top"><span class="sw-who">' + esc(o.from) + tag + '</span><span class="sw-when">' + esc(when) + '</span></div>' +
             '<div class="sw-row"><span class="sw-k">Wants</span><div class="gchips">' + gChips(o.wants) + '</div></div>' +
             '<div class="sw-row"><span class="sw-k">Tickets</span><span>' + o.qty + '</span></div>' +
-            '<div class="sw-row"><span class="sw-k">Offers</span>' + (o.gives.length ? '<div class="gchips">' + gChips(o.gives) + '</div>' : '<span class="hint">Nothing listed</span>') + '</div>' +
+            '<div class="sw-row"><span class="sw-k">Offers</span>' + (o.gives.length || o.giveOther ? '<div class="gchips">' + gChips(o.gives) + (o.giveOther ? '<span class="gchip other">Other (see note)</span>' : '') + '</div>' : '<span class="hint">Nothing listed</span>') + '</div>' +
             (o.note ? '<div class="sw-row"><span class="sw-k">Note</span><span class="sw-note">' + esc(o.note) + '</span></div>' : '') +
-            '<div class="sw-actions">' + mail + '</div></div>';
+            '<div class="sw-actions">' + mail + '<span class="sw-decide">' + decide + '</span></div></div>';
         }).join('') : '<p class="empty">No offers yet.</p>');
+      $('swap-dlg-body').querySelectorAll('button[data-resp]').forEach((b) => b.addEventListener('click', () => {
+        const accept = b.dataset.resp === 'accept';
+        if (!b.classList.contains('armed')) {
+          $('swap-dlg-body').querySelectorAll('button[data-resp].armed').forEach((x) => { x.classList.remove('armed'); x.textContent = x.dataset.resp === 'accept' ? 'Accept' : 'Reject'; });
+          b.classList.add('armed');
+          b.textContent = accept ? 'Yes, accept' : 'Yes, reject';
+          return;
+        }
+        busyRun(b, async () => {
+          const res = await swapPost({ action: 'swapRespond', offerId: b.dataset.oid, decision: b.dataset.resp, name: swapAuth.name, pin: swapAuth.pin });
+          if (!res || !res.ok) return swapErr((res && res.error) || 'Something went wrong.');
+          toast(res.message);
+          const o = offers.find((x) => x.id === b.dataset.oid);
+          offersView(accept && o ? Object.assign({}, L, { liveGames: L.liveGames.filter((g) => !o.wants.includes(g)) }) : L);
+        });
+      }));
       loadSwap();
     }).catch(() => swapErr("Couldn't reach the draft."));
   }

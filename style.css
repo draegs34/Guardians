@@ -511,6 +511,11 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .tag.new { background: var(--red); color: #fff; }
 .offer { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
 .offer.new { border-color: var(--red); }
+.tag.ok { background: var(--open); color: var(--surface); }
+.offer-accepted { border-color: var(--open); }
+.offer-rejected { opacity: .6; }
+.gchip.other { background: transparent; border-style: dashed; }
+.sw-decide { display: inline-flex; gap: 8px; }
 @media (max-width: 520px) { #swap-list { grid-template-columns: minmax(0, 1fr); } .sw-row { grid-template-columns: 84px minmax(0, 1fr); } }
 .swap-view { padding-top: 6px; }
 .swap-view .swap-head { margin-top: 4px; }
