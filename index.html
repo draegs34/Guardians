@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610211453">
+  <link rel="stylesheet" href="style.css?v=202610211505">
 </head>
 <body>
   <header class="top">
@@ -249,7 +249,7 @@
   <dialog id="notify-dialog">
     <form method="dialog" id="notify-form">
       <h3>Notification settings</h3>
-      <p class="hint">Choose how you hear that it's your turn: by push notification on your phone or computer and by email, even when the page is closed, and on screen while this page is open.</p>
+      <p class="hint">Set up how to reach you once, then choose what you hear about for the drafts and Ticket Swap.</p>
       <div id="notify-who">
         <label>Your name
           <select id="notify-name"></select>
@@ -263,27 +263,41 @@
       </div>
       <div id="notify-settings" hidden>
         <p class="notify-for">Settings for <strong id="notify-for"></strong> <button type="button" class="link-btn" id="notify-change">Not you?</button></p>
-        <fieldset class="nset">
-          <legend>Push notifications</legend>
-          <p class="hint" id="push-status"></p>
-          <button type="button" class="btn" id="push-btn">Turn on for this device</button>
-        </fieldset>
-        <fieldset class="nset">
-          <legend>Email</legend>
-          <label class="check"><input type="checkbox" id="notify-email-on"> Email me when it's my turn</label>
-          <label class="check"><input type="checkbox" id="notify-swap"> Email me when someone posts a Ticket Swap listing</label>
-          <label>Email address
-            <input id="notify-email" type="email" autocomplete="email" placeholder="you@example.com">
-          </label>
-          <label><span>Second email address <span class="opt">(optional)</span></span>
-            <input id="notify-email2" type="email" autocomplete="off" placeholder="e.g. a spouse or work address">
-          </label>
-        </fieldset>
-        <fieldset class="nset">
-          <legend>In this browser</legend>
-          <label class="check"><input type="checkbox" id="notify-screen"> <span>Show on-screen alerts here when it's my turn: a banner, a flashing browser tab and an icon badge</span></label>
-        </fieldset>
-        <label class="check"><input type="checkbox" id="notify-next"> <span>Also tell me when I'm <strong>up next</strong></span></label>
+        <section class="nsec">
+          <h4>How to reach you</h4>
+          <fieldset class="nset">
+            <legend>Push notifications</legend>
+            <p class="hint" id="push-status"></p>
+            <button type="button" class="btn" id="push-btn">Turn on for this device</button>
+          </fieldset>
+          <fieldset class="nset">
+            <legend>Email</legend>
+            <label>Email address
+              <input id="notify-email" type="email" autocomplete="email" placeholder="you@example.com">
+            </label>
+            <label><span>Second email address <span class="opt">(optional)</span></span>
+              <input id="notify-email2" type="email" autocomplete="off" placeholder="e.g. a spouse or work address">
+            </label>
+          </fieldset>
+        </section>
+        <section class="nsec">
+          <h4>Drafts</h4>
+          <fieldset class="nset">
+            <legend>When it's my turn to pick</legend>
+            <label class="check"><input type="checkbox" id="notify-push-on"> <span>Push notification <small class="hint" id="notify-push-hint">(turn on push above first)</small></span></label>
+            <label class="check"><input type="checkbox" id="notify-email-on"> <span>Email</span></label>
+            <label class="check"><input type="checkbox" id="notify-screen"> <span>On-screen alerts in this browser: a banner, a flashing tab and an icon badge</span></label>
+            <label class="check"><input type="checkbox" id="notify-next"> <span>Also tell me when I'm <strong>up next</strong></span></label>
+          </fieldset>
+        </section>
+        <section class="nsec">
+          <h4>Ticket Swap</h4>
+          <fieldset class="nset">
+            <legend>New listings</legend>
+            <label class="check"><input type="checkbox" id="notify-swap"> <span>Email me when someone posts a listing</span></label>
+            <p class="hint">Offers on your own listings: you choose push or email on each listing when you post it.</p>
+          </fieldset>
+        </section>
         <div class="actions">
           <button type="button" class="btn ghost" id="notify-test">Send me a test (5 sec)</button>
           <button type="button" class="btn primary" id="notify-save">Save</button>
@@ -308,9 +322,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610211453"></script>
-  <script src="engine.js?v=202610211453"></script>
-  <script type="module" src="live.js?v=202610211453"></script>
-  <script src="app.js?v=202610211453"></script>
+  <script src="config.js?v=202610211505"></script>
+  <script src="engine.js?v=202610211505"></script>
+  <script type="module" src="live.js?v=202610211505"></script>
+  <script src="app.js?v=202610211505"></script>
 </body>
 </html>

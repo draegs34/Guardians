@@ -1980,11 +1980,17 @@
     $('notify-email-on').checked = !!p.emailOn;
     $('notify-swap').checked = p.swapEmails !== false;
     $('notify-next').checked = !!p.nextUp;
+    $('notify-push-on').checked = p.pushOn !== false;
     renderPushStatus();
   }
   async function renderPushStatus() {
     const st = window.DraftPush ? await window.DraftPush.status() : 'off';
     const p = notifyPrefs || {};
+    // Draft turn push only makes sense once a device is on.
+    const anyDevice = (p.devices || 0) > 0;
+    $('notify-push-on').disabled = !anyDevice;
+    $('notify-push-hint').hidden = anyDevice;
+    if (!anyDevice) $('notify-push-on').checked = false;
     const mine = !!store.get(PUSH_TOKEN_KEY) && p.hasThisDevice;
     const others = Math.max(0, (p.devices || 0) - (mine ? 1 : 0));
     const btn = $('push-btn');
@@ -2046,7 +2052,7 @@
       .catch((e) => { console.warn(e); $('notify-error').textContent = "Couldn't reach the draft. Try again."; })
       .finally(() => { notifyBusy = false; btn.disabled = false; });
   }
-  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, swapEmails: $('notify-swap').checked, nextUp: $('notify-next').checked });
+  const notifyForm = () => ({ email: $('notify-email').value.trim(), email2: $('notify-email2').value.trim(), emailOn: $('notify-email-on').checked, pushOn: $('notify-push-on').checked, swapEmails: $('notify-swap').checked, nextUp: $('notify-next').checked });
 
   $('notify-btn').addEventListener('click', () => openNotify());
   $('swap-notify-btn').addEventListener('click', () => openNotify(swapAuth ? { name: swapAuth.name, pin: swapAuth.pin } : undefined));
@@ -2108,7 +2114,7 @@
         }
         const old = store.get(PUSH_TOKEN_KEY);
         const res = await notifyPost({ action: 'notifySave', prefs: Object.assign(notifyForm(), { pushOn: true }), addToken: token, removeToken: old && old !== token ? old : undefined });
-        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; renderNotifyCheck(); toast('Push notifications are on for this device.'); }
+        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; $('notify-push-on').checked = true; renderNotifyCheck(); toast('Push notifications are on for this device.'); }
       } else {
         const token = store.get(PUSH_TOKEN_KEY);
         const res = await notifyPost({ action: 'notifySave', prefs: notifyForm(), removeToken: token });
@@ -2127,7 +2133,7 @@
     const ways = [];
     if (me && me === notifyName) ways.push('on-screen alerts here');
     if (p.emailOn && p.email) ways.push('email');
-    if (p.devices) ways.push('push on ' + p.devices + ' device' + (p.devices === 1 ? '' : 's'));
+    if (p.devices && p.pushOn !== false) ways.push('push on ' + p.devices + ' device' + (p.devices === 1 ? '' : 's'));
     const list = ways.length > 1 ? ways.slice(0, -1).join(', ') + ' and ' + ways[ways.length - 1] : ways[0];
     return ways.length ? "You'll get " + list + " when it's your turn" + (p.nextUp ? ' and when you\'re up next.' : '.') : "You won't get any alerts outside this page.";
   }

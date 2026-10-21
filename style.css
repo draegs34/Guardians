@@ -384,6 +384,9 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .nset .hint { margin: 0; }
 .nset .btn { justify-self: start; }
 .notify-for { margin: 0; font-size: 14px; }
+.nsec { display: grid; gap: 10px; }
+.nsec + .nsec { border-top: 1px solid var(--line); padding-top: 12px; }
+.nsec h4 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .push-on { color: var(--open); font-weight: 600; }
 
 /* Emails sent from the Season Ticket Manager */
