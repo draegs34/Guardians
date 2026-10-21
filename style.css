@@ -431,3 +431,7 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .stable td:nth-child(2) .tag { margin-top: 4px; }
 .dlg-sub { font-weight: 500; color: var(--muted); font-size: 15px; }
 .sync-card { border: 1.5px solid var(--open); }
+.site-updated { display: block; margin-top: 4px; }
+.slots .slot-main { flex: 1; padding: 6px 8px; }
+.slots .slot-name { font-weight: 600; }
+.slots li.inactive .slot-name { color: var(--muted); text-decoration: line-through; }

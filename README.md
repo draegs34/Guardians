@@ -84,8 +84,9 @@ Click **Setup** at the top and enter the commissioner PIN. It's remembered until
 - **Regular season**: settings, **members**, draft order (with **🎲 Randomize order**), home games, the MLB schedule, a CSV of picks and **Import data**.
   - **This member list is the source of truth for both drafts.** Names, PINs and emails changed here carry over to the Postseason, and new members are added to the Postseason too (active, at the end of its order). Renaming someone keeps their picks.
   - ✕ removes a member, but only if they have no picks in either draft (undo those first).
+  - The list is alphabetical by last name. Anyone you add appears at the bottom while you type and moves into place when you save.
   - **New commissioner PIN** changes the one PIN used for both drafts.
-- **Postseason**: settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order, **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
+- **Postseason**: settings (now including a **pick time limit**), games & seat pairs, **Members** (alphabetical by last name; names, PINs and emails are read-only here; **✕** marks someone **inactive** for the postseason, keeping any picks but giving no more turns, and ↺ brings them back) and **Draft order** (↑ ↓ to arrange, new members start at the end, and **🎲 Randomize order** shuffles the active members, moving inactive ones to the end).
 - **Past drafts**: archived drafts. Only the commissioner can see these.
 
 James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
@@ -198,5 +199,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js`, `live.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
 - **Draft rules:** these live in `engine.js`. The Firebase functions load it directly; it's copied into `functions/` when you deploy. (`apps-script/Code.gs` has an older copy from the Google Sheet days; it doesn't know about inactive postseason members.)
 - **Choosing a draft:** the script's web app takes `?draft=rs` or `?draft=post` (the default), plus `?view=archives`. POST bodies carry `"draft"`.
+
+The page footer shows when the site was last published (the time GitHub Pages put your latest push live).
 
 *Private page for our season ticket group. Not affiliated with the Cleveland Guardians or MLB.*

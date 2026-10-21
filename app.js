@@ -1074,6 +1074,7 @@
         const x = res[k];
         if (x && x.ok && x.admin) {
           x.admin.members.forEach((m) => { m.orig = m.name; });
+          if (k === 'rs') x.admin.members.sort((p, q) => byLast(p.name, q.name)); // the list reads alphabetically by last name
           admin[k] = x.admin;
           setupBoards[k] = x;
         } else admin[k] = null;
@@ -1145,7 +1146,7 @@
       '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p></section>';
 
     if (rs) {
-      html += '<section class="card sc"><h3>Members</h3><p class="hint">This list is used by both drafts: names, PINs and emails here update the Postseason tab too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Email &amp; push alerts</em>.</p>' +
+      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason tab too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Email &amp; push alerts</em>.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => {
           const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
@@ -1175,13 +1176,18 @@
     } else {
       const rsMembers = (admin.rs && admin.rs.members) || [];
       const emailOf = (n) => { const m = rsMembers.find((x) => x.name === n); return m ? m.email : ''; };
-      html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular season</strong> tab; change names, PINs and emails there. ' +
-        'Here the list order is the postseason draft order. ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); click again to bring them back.</p>' +
-        '<div class="tbl"><table class="stable"><thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
-        a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
-          '<td class="acts">' + iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '') +
-          (m.inactive ? iconBtn('toggle-member', i, 'Make ' + m.name + ' active again', '↺') : iconBtn('toggle-member', i, 'Mark ' + m.name + ' inactive', '✕')) + '</td></tr>').join('') +
-        '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="shuffle-post">🎲 Randomize order</button></div>' +
+      html += '<section class="card sc"><h3>Members</h3><p class="hint">Members come from the <strong>Regular season</strong> tab, listed by last name; change names, PINs and emails there. ' +
+        '✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
+        '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
+        a.members.map((m, i) => ({ m, i })).sort((p, q) => byLast(p.m.name, q.m.name)).map(({ m, i }) =>
+          '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
+          '<td class="acts">' + (m.inactive ? iconBtn('toggle-member', i, 'Make ' + m.name + ' active again', '↺') : iconBtn('toggle-member', i, 'Mark ' + m.name + ' inactive', '✕')) + '</td></tr>').join('') +
+        '</tbody></table></div></section>';
+      const act = a.members.filter((m) => !m.inactive).length;
+      html += '<section class="card sc"><h3>Draft order</h3><p class="hint">The order members pick in. <strong>' + act + ' active member' + (act === 1 ? '' : 's') + '.</strong> Inactive members are skipped. New members start at the end. Snake order reverses each round.</p>' +
+        '<ol class="slots">' + a.members.map((m, i) => '<li' + (m.inactive ? ' class="inactive"' : '') + '><span class="slot-no">' + (i + 1) + '</span><span class="slot-main"><span class="slot-name">' + esc(m.name) + '</span>' + (m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</span>' +
+          iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '') + '</li>').join('') + '</ol>' +
+        '<div class="row-btns"><button type="button" class="btn ghost" data-act="shuffle-post">🎲 Randomize order</button></div>' +
         '<p class="hint">Randomize shuffles the active members (inactive ones move to the end). ' + esc(FIRST3) + ' always gets one of the first 3 picks. Click again for a new order; nothing changes until you save.</p></section>';
     }
 
@@ -1357,7 +1363,9 @@
   function saveSetup(btn) {
     const a = A();
     const key = setupKey;
-    const body = { action: 'adminSave', pin: commishPin, draft: key, admin: { settings: a.settings, members: a.members, inventory: a.inventory } };
+    // Regular season members are kept alphabetical by last name, so anyone added lands in the right row on save.
+    const members = key === 'rs' ? a.members.filter((m) => String(m.name || '').trim()).slice().sort((p, q) => byLast(p.name, q.name)) : a.members;
+    const body = { action: 'adminSave', pin: commishPin, draft: key, admin: { settings: a.settings, members, inventory: a.inventory } };
     if (key === 'rs') body.admin.order = a.order;
     if (key === 'rs' && a.newCommissionerPin) { body.admin.newCommissionerPin = a.newCommissionerPin; body.newPin = a.newCommissionerPin; }
     setupCall(btn, body, true).then((res) => {
@@ -1834,6 +1842,27 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
   }
+
+  /* Footer: when the site was last published (GitHub Pages stamps each file when you push). */
+  (function siteUpdated() {
+    const el = $('site-updated');
+    if (!el) return;
+    const fmt = (d) => {
+      try { return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d) + ' ET'; } catch (e) { return d.toLocaleString(); }
+    };
+    const show = (d) => { if (d && !isNaN(d)) el.textContent = 'Site updated ' + fmt(d) + '.'; };
+    const fromRepo = () => fetch('https://api.github.com/repos/draegs34/Guardians/commits/main', { headers: { Accept: 'application/vnd.github+json' } })
+      .then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.commit) show(new Date(j.commit.committer.date)); }).catch(() => {});
+    // The page's Last-Modified time is when it was published. If the server didn't send one,
+    // the browser reports "now", so fall back to the latest commit on GitHub.
+    fetch('app.js?v=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then((r) => {
+        const lm = r.headers.get('Last-Modified');
+        const d = lm ? new Date(lm) : null;
+        if (d && !isNaN(d) && Date.now() - d.getTime() > 5000) show(d); else return fromRepo();
+      })
+      .catch(fromRepo);
+  })();
 
   /* Hooks for live.js (Firebase live updates) */
   window.DraftApp = {
