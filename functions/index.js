@@ -22,7 +22,28 @@ const nodemailer = require('nodemailer');
 const Engine = require('./engine');
 
 admin.initializeApp();
-const db = admin.firestore();
+const rawDb = admin.firestore();
+
+/* Test mode (the site opened with ?test): the same code runs against a separate set of
+   documents — drafts/rs-test, secrets/post-test, notify/members-test, swapsTest, … —
+   so testing never touches the real drafts, members' alert settings or emails. */
+const { AsyncLocalStorage } = require('node:async_hooks');
+const NS = new AsyncLocalStorage();
+const isTest = () => !!(NS.getStore() && NS.getStore().test);
+const TEST_COLS = { archives: 'archivesTest', swaps: 'swapsTest', swapOffers: 'swapOffersTest' };
+function mapPath(p) {
+  if (!isTest()) return p;
+  const seg = p.split('/');
+  if (seg.length === 2 && ['drafts', 'secrets', 'notify'].includes(seg[0])) return seg[0] + '/' + seg[1] + '-test';
+  if (TEST_COLS[seg[0]]) seg[0] = TEST_COLS[seg[0]];
+  return seg.join('/');
+}
+const db = {
+  doc: (p) => rawDb.doc(mapPath(p)),
+  collection: (c) => rawDb.collection(isTest() && TEST_COLS[c] ? TEST_COLS[c] : c),
+  runTransaction: (fn) => rawDb.runTransaction(fn),
+  batch: () => rawDb.batch(),
+};
 
 // Asked for once when you deploy. Needed only for the first import / "start fresh".
 const SETUP_KEY = defineString('SETUP_KEY', { description: 'A private phrase you will type once on the site to import your data (not your commissioner PIN).' });
@@ -98,7 +119,25 @@ async function commishPinOk(pin) {
 /* HTTP API                                                             */
 /* ------------------------------------------------------------------ */
 
-exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, region: 'us-central1', secrets: [GMAIL_APP_PASSWORD] }, async (req, res) => {
+exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, region: 'us-central1', secrets: [GMAIL_APP_PASSWORD] }, (req, res) => {
+  let test = !!(req.query && req.query.test === '1');
+  if (req.method === 'POST') {
+    try {
+      let b = req.body;
+      if (typeof b === 'string') b = JSON.parse(b || '{}');
+      if (!b || typeof b !== 'object') b = JSON.parse((req.rawBody || '{}').toString());
+      test = test || !!b.test;
+    } catch (e) { /* the handler reports bad input */ }
+  }
+  return NS.run({ test }, async () => {
+    if (test) {
+      try { await ensureTestData(); } catch (e) { console.error('test data', e); }
+    }
+    return apiHandler(req, res);
+  });
+});
+
+async function apiHandler(req, res) {
   res.set('Cache-Control', 'no-store');
   try {
     if (req.method === 'GET') {
@@ -112,6 +151,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     if (!body || typeof body !== 'object') body = JSON.parse((req.rawBody || '{}').toString());
     const key = body.draft === 'rs' ? 'rs' : 'post';
     if (body.action === 'archives') return res.json(await commishPinOk(body.pin) ? await readArchives() : { ok: false, error: "That commissioner PIN doesn't match." });
+    if (body.action === 'testReset') return res.json(await testReset(body));
     if (body.action === 'syncMembers') return res.json(await syncMembers(key, body));
     if (/^swap/.test(body.action || '')) return res.json(await swapAction(body));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
@@ -123,7 +163,7 @@ exports.api = onRequest({ cors: true, invoker: 'public', maxInstances: 10, regio
     console.error(e);
     return res.status(200).json({ ok: false, error: 'Something went wrong on the server. Please try again.' });
   }
-});
+}
 
 async function readState(key) {
   const ref = db.doc('drafts/' + key);
@@ -163,9 +203,13 @@ async function sweepTx(key) {
 
 // Every 10 minutes: skip anyone whose pick time ran out (only does anything when the limit is on).
 exports.timeLimitSweep = onSchedule({ schedule: 'every 10 minutes', region: 'us-central1', secrets: [GMAIL_APP_PASSWORD] }, async () => {
-  for (const key of KEYS) {
-    try { await sweep(key); } catch (e) { console.error('sweep', key, e); }
-    try { await remindSweep(key); } catch (e) { console.error('reminders', key, e); }
+  for (const test of [false, true]) {
+    await NS.run({ test }, async () => {
+      for (const key of KEYS) {
+        try { await sweep(key); } catch (e) { console.error('sweep', key, test ? '(test)' : '', e); }
+        try { await remindSweep(key); } catch (e) { console.error('reminders', key, test ? '(test)' : '', e); }
+      }
+    });
   }
 });
 
@@ -219,7 +263,7 @@ async function remindSweep(key) {
     subject: "Reminder: you're still on the clock — " + title,
     title: 'Reminder: it\'s still your pick, ' + cur.name,
     body: 'You\'ve been on the clock in the ' + title + ' since ' + (due.since ? et(due.since) : 'earlier') + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (st.deadline ? ' Please pick by ' + et(st.deadline) + '.' : ''),
-    link: SITE_URL.value() + '#' + (key === 'rs' ? 'regular-season' : 'postseason'),
+    link: siteLink(key === 'rs' ? 'regular-season' : 'postseason'),
     badge: 1,
   });
 }
@@ -606,7 +650,10 @@ async function importAll(body) {
     allowed = secs.some((s) => s.exists && s.data().commissionerPin && s.data().commissionerPin === key);
   }
   if (!allowed) return { ok: false, error: "That setup key doesn't match." };
+  return writeImport(p);
+}
 
+async function writeImport(p) {
   const batch = db.batch();
   const done = [];
   for (const k of KEYS) {
@@ -722,7 +769,7 @@ async function notifyAction(key, body) {
       subject: 'Test from the Guardians Ticket Draft',
       title: 'Test notification',
       body: 'This is a test. You\'ll get messages like this when it\'s your turn to pick.',
-      link: SITE_URL.value(),
+      link: siteLink(''),
       badge: 1,
     });
     return { ok: true, message: sent.length ? 'Sent a test by ' + sent.join(' and ') + '.' : 'Nothing sent. Turn on email or push first.' };
@@ -871,7 +918,7 @@ async function maybeNotify(key, before, after) {
     if (!todo.length) return;
 
     const prefs = ((await PREFS().get()).data() || {}).prefs || {};
-    const link = SITE_URL.value() + '#' + (key === 'rs' ? 'regular-season' : 'postseason');
+    const link = siteLink(key === 'rs' ? 'regular-season' : 'postseason');
     const title = after.title || 'Ticket draft';
     const deadline = after.deadline ? new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(after.deadline)) + ' ET' : '';
     const outNames = new Set((after.members || []).filter((m) => m.out).map((m) => lc(m.name)));
@@ -905,11 +952,11 @@ async function deliver(p, msg) {
   const sent = [];
   const jobs = [];
   if (p.emailOn && p.email && mailer()) {
-    const settings = SITE_URL.value() + '#notifications';
+    const settings = siteLink('notifications');
     jobs.push(mailer().sendMail({
       from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
       to: [p.email, p.email2].filter(Boolean).join(', '),
-      subject: msg.subject,
+      subject: (isTest() ? '[TEST] ' : '') + msg.subject,
       text: msg.body + '\n\nOpen the draft: ' + msg.link + '\n\nChange your notification settings: ' + settings,
       html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
         '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">' + escHtml(msg.title) + '</p>' +
@@ -922,7 +969,7 @@ async function deliver(p, msg) {
   if (tokens.length) {
     jobs.push(admin.messaging().sendEachForMulticast({
       tokens,
-      notification: { title: msg.title, body: msg.body },
+      notification: { title: (isTest() ? '[TEST] ' : '') + msg.title, body: msg.body },
       data: { badge: msg.badge ? String(msg.badge) : '0' },
       webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + 'icon-192.png', badge: SITE_URL.value() + 'icon-192.png', tag: msg.tag || 'draft-turn', renotify: true } },
     }).then(async (r) => {
@@ -1015,7 +1062,7 @@ async function swapAction(body) {
   const board = await rsBoard();
   const prefsAll = ((await PREFS().get()).data() || {}).prefs || {};
   const prefsOf = (n) => prefsAll[lc(n)] || {};
-  const link = SITE_URL.value() + '#ticket-swap';
+  const link = siteLink('ticket-swap');
   const mine = (n) => Object.keys(board.holder).filter((gid) => lc(board.holder[gid]) === lc(n) && upcoming(board.games[gid], today));
   const realName = board.members.find((m) => lc(m) === lc(name)) || name;
 
@@ -1127,12 +1174,12 @@ async function announceListing(id, x, board, prefsAll, link) {
     'Tickets: ' + x.qty + (x.split ? ' (will split into 2)' : '') + '.',
     'Looking for: ' + (x.seekAny || !(x.seek || []).length ? 'any game' : L(x.seek)) + '.',
   ];
-  const settings = SITE_URL.value() + '#notifications';
+  const settings = siteLink('notifications');
   await mailer().sendMail({
     from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     to: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
     bcc: Array.from(to).join(', '),
-    subject: 'Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
+    subject: (isTest() ? '[TEST] ' : '') + 'Ticket Swap: ' + x.member + ' posted ' + (x.games.length === 1 ? gameLabel(board.games[x.games[0]]) : x.games.length + ' games'),
     text: lines.join('\n') + '\n\nSee it or make an offer: ' + link + '\n\nStop these emails: ' + settings,
     html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
       '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">New Ticket Swap listing</p>' +
@@ -1140,4 +1187,36 @@ async function announceListing(id, x, board, prefsAll, link) {
       '<p style="margin:16px 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open Ticket Swap</a></p>' +
       '<p style="font-size:12px;color:#5d6b82;margin:0">Private page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Turn off Ticket Swap emails</a>.</p></div>',
   }).catch((e) => console.error('swap announce', e.message));
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Test mode data                                                       */
+/* ------------------------------------------------------------------ */
+function siteLink(hash) {
+  return SITE_URL.value() + (isTest() ? '?test' : '') + (hash ? '#' + hash : '');
+}
+
+/** First visit in test mode: load the test drafts (2026 ticket holders, shifted to 2027 dates). */
+let testChecked = false;
+async function ensureTestData() {
+  if (testChecked) return;
+  const snap = await db.doc('drafts/rs').get();
+  if (!snap.exists) await writeImport(require('./testdata.json'));
+  testChecked = true;
+}
+
+/** Setup → Regular Season → Reset test data (test mode only, commissioner PIN). */
+async function testReset(body) {
+  if (!isTest()) return { ok: false, error: 'This only works in test mode.' };
+  if (!(await commishPinOk(body.pin))) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  for (const c of ['swaps', 'swapOffers', 'archives']) {
+    const qs = await db.collection(c).get();
+    await Promise.all(qs.docs.map((d) => d.ref.delete()));
+  }
+  await Promise.all(['notify/log-rs', 'notify/log-post'].map((p) => db.doc(p).delete().catch(() => {})));
+  testChecked = false;
+  const r = await writeImport(require('./testdata.json'));
+  testChecked = true;
+  return r.ok ? { ok: true, message: 'Test data reset: drafts reloaded and Ticket Swap cleared. Notification settings were kept.' } : r;
 }

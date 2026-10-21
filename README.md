@@ -218,6 +218,17 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 
 ---
 
+## Test mode
+
+Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?test) to use a separate test copy of everything. A purple banner shows you're in test mode.
+
+- The test draft is loaded with the 2026 season games shifted to 2027 dates, each already assigned to its 2026 owner (Bill Thoburn in place of Marty Jones, Marie Thompson in place of Chris Koehler).
+- Test PINs: every member is 1234, commissioner is 0000.
+- Test mode has its own drafts, notification settings, Ticket Swap listings and past drafts. Nothing you do there touches the real site.
+- Emails and push alerts only go to addresses and devices that were set up while in test mode, and are marked [TEST].
+- To start over, open Setup → Regular Season and click **Reset test data** (twice to confirm).
+- Click **Leave test mode** in the banner to go back to the real site.
+
 ## For developers
 - **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js`, `live.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
 - **Draft rules:** these live in `engine.js`. The Firebase functions load it directly; it's copied into `functions/` when you deploy. (`apps-script/Code.gs` has an older copy from the Google Sheet days; it doesn't know about inactive postseason members.)

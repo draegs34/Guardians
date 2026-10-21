@@ -16,7 +16,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <link rel="stylesheet" href="style.css?v=202610211827">
+  <link rel="stylesheet" href="style.css?v=202610211441">
 </head>
 <body>
   <header class="top">
@@ -43,6 +43,9 @@
     <div class="wrap">Demo mode: sample members and picks, saved only in this tab. Test PINs: Alex 1111, Jordan 2222, Casey 3333, Morgan 4444; commissioner 0000. The regular season games are the real 2027 schedule from MLB. Add your Apps Script URL to <code>config.js</code> to go live.</div>
   </div>
 
+  <div id="test-banner" class="demo-banner test-banner" hidden>
+    <div class="wrap"><strong>Test mode.</strong> You're using test data (the 2026 ticket holders on 2027 dates), separate from the real drafts. Test PINs: members 1234, commissioner 0000. Alerts only go to emails and devices set up here, marked [TEST]. <a href="./">Leave test mode</a></div>
+  </div>
   <div id="email-banner" class="demo-banner price-banner" hidden>
     <div class="wrap"><span id="email-banner-text"></span> <button class="link-btn" id="email-review" type="button">Review changes</button></div>
   </div>
@@ -302,9 +305,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610211827"></script>
-  <script src="engine.js?v=202610211827"></script>
-  <script type="module" src="live.js?v=202610211827"></script>
-  <script src="app.js?v=202610211827"></script>
+  <script src="config.js?v=202610211441"></script>
+  <script src="engine.js?v=202610211441"></script>
+  <script type="module" src="live.js?v=202610211441"></script>
+  <script src="app.js?v=202610211441"></script>
 </body>
 </html>

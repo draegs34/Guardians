@@ -3,6 +3,9 @@
 
   const API = (window.DRAFT_API_URL || '').trim();
   const DEMO = !API;
+  // Test mode: open the site with ?test to use separate test data (see README → Test mode).
+  const TEST = !DEMO && /[?&]test(=|&|$)/.test(location.search);
+  window.DRAFT_TEST = TEST;
   const REFRESH_MS = Math.max(5, Number(window.DRAFT_REFRESH_SECONDS) || 10) * 1000;
   const UP_NEXT_COUNT = 10; // rows in Up next, including whoever is on the clock (dropouts aren't listed)
 
@@ -205,7 +208,7 @@
   /* ------------------------------------------------------------------ */
   function getJson(params) {
     const q = Object.keys(params).map((k) => k + '=' + encodeURIComponent(params[k])).join('&');
-    return fetch(API + (API.includes('?') ? '&' : '?') + q + '&t=' + Date.now(), { method: 'GET' })
+    return fetch(API + (API.includes('?') ? '&' : '?') + q + (TEST ? '&test=1' : '') + '&t=' + Date.now(), { method: 'GET' })
       .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   }
   function apiGet(draft) {
@@ -219,6 +222,7 @@
   function apiPost(body) {
     if (!body.draft) body.draft = isDraftView(view) ? view : (/post/.test(setupKey) ? 'post' : 'rs');
     if (DEMO) return demo.post(body);
+    if (TEST) body.test = true;
     // text/plain avoids a CORS preflight, which Apps Script doesn't answer.
     return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
       .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
@@ -263,7 +267,7 @@
 
   /* Saved copy of the last board per draft, shown instantly on the next visit
      while the live data loads. Picking stays locked until the live board arrives. */
-  const cacheKey = (v) => 'guardians-draft-board:' + API + ':' + v;
+  const cacheKey = (v) => 'guardians-draft-board:' + API + (TEST ? ':test' : '') + ':' + v;
   function saveCache(v, s) {
     if (DEMO || !s || !s.inventory) return;
     store.set(cacheKey(v), JSON.stringify({ at: Date.now(), s }));
@@ -457,9 +461,11 @@
     if (!s || s.notSetUp) { if (s) renderNotSetUp(); return; }
     const rs = isRS(s);
     baseTitle = s.title || 'Ticket Draft';
+    if (TEST) baseTitle = 'TEST · ' + baseTitle;
     if (!titleTimer) document.title = baseTitle;
     $('title').textContent = s.title || 'Ticket Draft';
     $('demo-banner').hidden = !DEMO;
+    $('test-banner').hidden = !TEST;
     const stale = staleViews.has(view);
 
     const takenBy = {};
@@ -1260,7 +1266,9 @@
 
     html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
-    if (rs) html += importCard;
+    if (rs && TEST) html += '<section class="card sc test-card"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. Notification settings made in test mode are kept.</p>' +
+      '<div class="row-btns"><button type="button" class="btn danger" data-act="test-reset">Reset test data</button></div></section>';
+    if (rs && !TEST) html += importCard;
     html += '<div class="save-bar"><span class="hint" id="setup-msg"></span><button type="button" class="btn primary" data-act="save">Save ' + (rs ? 'regular season' : 'postseason') + '</button></div>';
     $('setup-body').innerHTML = html;
     if (rs && sentEmails) renderEmailTool();
@@ -1389,6 +1397,9 @@
       case 'csv': return downloadCsv();
       case 'save': return saveSetup(b);
       case 'load-mlb': return setupCall(b, { action: 'loadSchedule', pin: commishPin, draft: 'rs' }, true);
+      case 'test-reset':
+        if (!b.classList.contains('armed')) { b.classList.add('armed'); b.textContent = 'Yes, reset the test data'; return; }
+        return setupCall(b, { action: 'testReset', pin: commishPin, draft: 'rs' }, true).then((r) => { if (r && r.ok) { states.rs = undefined; states.post = undefined; swapListings = null; } });
       case 'import': return doImport(b);
       case 'fresh': return doFresh(b);
     }
@@ -2276,6 +2287,7 @@
   setInterval(() => { if (state && !busy && isDraftView(view) && !document.querySelector('dialog[open]')) render(null); }, 60000);
 
   $('post-tab').hidden = !showPost;
+  $('test-banner').hidden = !TEST;
   if (!DEMO && view !== 'swap') setTimeout(loadSwap, 1500); // for the new-offer badge on the Ticket Swap tab
   renderNotifyCheck();
   setRsSeason(store.get(RS_SEASON_KEY) || '');

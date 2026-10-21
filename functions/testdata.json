@@ -1,0 +1,1480 @@
+{
+ "rs": {
+  "settings": {
+   "title": "TEST 2027 Regular Season Draft",
+   "season": "2027",
+   "open": true,
+   "snake": true
+  },
+  "commissionerPin": "0000",
+  "members": [
+   {
+    "name": "Sean DeCrane",
+    "pin": "1234",
+    "cap": 10
+   },
+   {
+    "name": "James Draeger",
+    "pin": "1234",
+    "cap": 6
+   },
+   {
+    "name": "Lauren Falcone",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Andrew Hanigosky",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Steve Hanigosky",
+    "pin": "1234",
+    "cap": 15
+   },
+   {
+    "name": "Bill Thoburn",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Matt Jones",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Marie Thompson",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Ken Schmitz",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Tim Lewis",
+    "pin": "1234",
+    "cap": 2
+   },
+   {
+    "name": "Mike Smith",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Jackie Wohleber",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Angela Wright",
+    "pin": "1234",
+    "cap": 5
+   },
+   {
+    "name": "Zak Wright",
+    "pin": "1234",
+    "cap": 3
+   }
+  ],
+  "order": [
+   "Sean DeCrane",
+   "Sean DeCrane",
+   "James Draeger",
+   "Lauren Falcone",
+   "Andrew Hanigosky",
+   "Steve Hanigosky",
+   "Steve Hanigosky",
+   "Steve Hanigosky",
+   "Bill Thoburn",
+   "Matt Jones",
+   "Marie Thompson",
+   "Ken Schmitz",
+   "Mike Smith",
+   "Jackie Wohleber",
+   "Angela Wright"
+  ],
+  "inventory": [
+   {
+    "id": "test-2027-04-03",
+    "date": "2027-04-03",
+    "opponent": "Chicago Cubs",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-04",
+    "date": "2027-04-04",
+    "opponent": "Chicago Cubs",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-05",
+    "date": "2027-04-05",
+    "opponent": "Chicago Cubs",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-06",
+    "date": "2027-04-06",
+    "opponent": "Kansas City Royals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-07",
+    "date": "2027-04-07",
+    "opponent": "Kansas City Royals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-08",
+    "date": "2027-04-08",
+    "opponent": "Kansas City Royals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-16",
+    "date": "2027-04-16",
+    "opponent": "Baltimore Orioles",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-17",
+    "date": "2027-04-17",
+    "opponent": "Baltimore Orioles",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-18",
+    "date": "2027-04-18",
+    "opponent": "Baltimore Orioles",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-19",
+    "date": "2027-04-19",
+    "opponent": "Baltimore Orioles",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-20",
+    "date": "2027-04-20",
+    "opponent": "Houston Astros",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-21",
+    "date": "2027-04-21",
+    "opponent": "Houston Astros",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-22",
+    "date": "2027-04-22",
+    "opponent": "Houston Astros",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-27",
+    "date": "2027-04-27",
+    "opponent": "Tampa Bay Rays",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-28",
+    "date": "2027-04-28",
+    "opponent": "Tampa Bay Rays",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-04-29",
+    "date": "2027-04-29",
+    "opponent": "Tampa Bay Rays",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-08",
+    "date": "2027-05-08",
+    "opponent": "Minnesota Twins",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-09",
+    "date": "2027-05-09",
+    "opponent": "Minnesota Twins",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-10",
+    "date": "2027-05-10",
+    "opponent": "Minnesota Twins",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-11",
+    "date": "2027-05-11",
+    "opponent": "Los Angeles Angels",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-12",
+    "date": "2027-05-12",
+    "opponent": "Los Angeles Angels",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-13",
+    "date": "2027-05-13",
+    "opponent": "Los Angeles Angels",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-15",
+    "date": "2027-05-15",
+    "opponent": "Cincinnati Reds",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-16",
+    "date": "2027-05-16",
+    "opponent": "Cincinnati Reds",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-17",
+    "date": "2027-05-17",
+    "opponent": "Cincinnati Reds",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-25",
+    "date": "2027-05-25",
+    "opponent": "Washington Nationals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-26",
+    "date": "2027-05-26",
+    "opponent": "Washington Nationals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-27",
+    "date": "2027-05-27",
+    "opponent": "Washington Nationals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-29",
+    "date": "2027-05-29",
+    "opponent": "Boston Red Sox",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-30",
+    "date": "2027-05-30",
+    "opponent": "Boston Red Sox",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-05-31",
+    "date": "2027-05-31",
+    "opponent": "Boston Red Sox",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-08",
+    "date": "2027-06-08",
+    "opponent": "New York Yankees",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-09",
+    "date": "2027-06-09",
+    "opponent": "New York Yankees",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-10",
+    "date": "2027-06-10",
+    "opponent": "New York Yankees",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-12",
+    "date": "2027-06-12",
+    "opponent": "Detroit Tigers",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-13",
+    "date": "2027-06-13",
+    "opponent": "Detroit Tigers",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-14",
+    "date": "2027-06-14",
+    "opponent": "Detroit Tigers",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-26",
+    "date": "2027-06-26",
+    "opponent": "Seattle Mariners",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-27",
+    "date": "2027-06-27",
+    "opponent": "Seattle Mariners",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-28",
+    "date": "2027-06-28",
+    "opponent": "Seattle Mariners",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-29",
+    "date": "2027-06-29",
+    "opponent": "Texas Rangers",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-06-30",
+    "date": "2027-06-30",
+    "opponent": "Texas Rangers",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-01",
+    "date": "2027-07-01",
+    "opponent": "Texas Rangers",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-02",
+    "date": "2027-07-02",
+    "opponent": "Chicago White Sox",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-03",
+    "date": "2027-07-03",
+    "opponent": "Chicago White Sox",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-04",
+    "date": "2027-07-04",
+    "opponent": "Chicago White Sox",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-05",
+    "date": "2027-07-05",
+    "opponent": "Chicago White Sox",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-17",
+    "date": "2027-07-17",
+    "opponent": "Pittsburgh Pirates",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-18",
+    "date": "2027-07-18",
+    "opponent": "Pittsburgh Pirates",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-19",
+    "date": "2027-07-19",
+    "opponent": "Pittsburgh Pirates",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-20",
+    "date": "2027-07-20",
+    "opponent": "Minnesota Twins",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-21",
+    "date": "2027-07-21",
+    "opponent": "Minnesota Twins",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-22",
+    "date": "2027-07-22",
+    "opponent": "Minnesota Twins",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-23",
+    "date": "2027-07-23",
+    "opponent": "Minnesota Twins",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-07-31",
+    "date": "2027-07-31",
+    "opponent": "Arizona Diamondbacks",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-01",
+    "date": "2027-08-01",
+    "opponent": "Arizona Diamondbacks",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-02",
+    "date": "2027-08-02",
+    "opponent": "Arizona Diamondbacks",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-04",
+    "date": "2027-08-04",
+    "opponent": "New York Mets",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-05",
+    "date": "2027-08-05",
+    "opponent": "New York Mets",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-06",
+    "date": "2027-08-06",
+    "opponent": "New York Mets",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-14",
+    "date": "2027-08-14",
+    "opponent": "San Diego Padres",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-15",
+    "date": "2027-08-15",
+    "opponent": "San Diego Padres",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-16",
+    "date": "2027-08-16",
+    "opponent": "San Diego Padres",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-18",
+    "date": "2027-08-18",
+    "opponent": "San Francisco Giants",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-19",
+    "date": "2027-08-19",
+    "opponent": "San Francisco Giants",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-20",
+    "date": "2027-08-20",
+    "opponent": "San Francisco Giants",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-28",
+    "date": "2027-08-28",
+    "opponent": "Kansas City Royals",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-29",
+    "date": "2027-08-29",
+    "opponent": "Kansas City Royals",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-08-30",
+    "date": "2027-08-30",
+    "opponent": "Kansas City Royals",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-01",
+    "date": "2027-09-01",
+    "opponent": "Toronto Blue Jays",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-02",
+    "date": "2027-09-02",
+    "opponent": "Toronto Blue Jays",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-03",
+    "date": "2027-09-03",
+    "opponent": "Toronto Blue Jays",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-04",
+    "date": "2027-09-04",
+    "opponent": "Detroit Tigers",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-05",
+    "date": "2027-09-05",
+    "opponent": "Detroit Tigers",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-06",
+    "date": "2027-09-06",
+    "opponent": "Detroit Tigers",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-14",
+    "date": "2027-09-14",
+    "opponent": "Chicago White Sox",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-15",
+    "date": "2027-09-15",
+    "opponent": "Chicago White Sox",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-16",
+    "date": "2027-09-16",
+    "opponent": "Chicago White Sox",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-18",
+    "date": "2027-09-18",
+    "opponent": "Athletics",
+    "time": "4:10 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-19",
+    "date": "2027-09-19",
+    "opponent": "Athletics",
+    "time": "1:40 PM",
+    "promos": "",
+    "notes": ""
+   },
+   {
+    "id": "test-2027-09-20",
+    "date": "2027-09-20",
+    "opponent": "Athletics",
+    "time": "7:10 PM",
+    "promos": "",
+    "notes": ""
+   }
+  ],
+  "events": [
+   {
+    "type": "assign",
+    "member": "Zak Wright",
+    "itemId": "test-2027-04-03",
+    "time": "2026-10-01T15:00:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "James Draeger",
+    "itemId": "test-2027-04-04",
+    "time": "2026-10-01T15:01:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-04-05",
+    "time": "2026-10-01T15:02:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Mike Smith",
+    "itemId": "test-2027-04-06",
+    "time": "2026-10-01T15:03:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-04-07",
+    "time": "2026-10-01T15:04:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-04-08",
+    "time": "2026-10-01T15:05:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Jackie Wohleber",
+    "itemId": "test-2027-04-16",
+    "time": "2026-10-01T15:06:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Angela Wright",
+    "itemId": "test-2027-04-17",
+    "time": "2026-10-01T15:07:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Matt Jones",
+    "itemId": "test-2027-04-18",
+    "time": "2026-10-01T15:08:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "James Draeger",
+    "itemId": "test-2027-04-19",
+    "time": "2026-10-01T15:09:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-04-20",
+    "time": "2026-10-01T15:10:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Andrew Hanigosky",
+    "itemId": "test-2027-04-21",
+    "time": "2026-10-01T15:11:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-04-22",
+    "time": "2026-10-01T15:12:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Lauren Falcone",
+    "itemId": "test-2027-04-27",
+    "time": "2026-10-01T15:13:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Matt Jones",
+    "itemId": "test-2027-04-28",
+    "time": "2026-10-01T15:14:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Ken Schmitz",
+    "itemId": "test-2027-04-29",
+    "time": "2026-10-01T15:15:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Ken Schmitz",
+    "itemId": "test-2027-05-08",
+    "time": "2026-10-01T15:16:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Angela Wright",
+    "itemId": "test-2027-05-09",
+    "time": "2026-10-01T15:17:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Jackie Wohleber",
+    "itemId": "test-2027-05-10",
+    "time": "2026-10-01T15:18:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-05-11",
+    "time": "2026-10-01T15:19:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Marie Thompson",
+    "itemId": "test-2027-05-12",
+    "time": "2026-10-01T15:20:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-05-13",
+    "time": "2026-10-01T15:21:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Mike Smith",
+    "itemId": "test-2027-05-15",
+    "time": "2026-10-01T15:22:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Andrew Hanigosky",
+    "itemId": "test-2027-05-16",
+    "time": "2026-10-01T15:23:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "James Draeger",
+    "itemId": "test-2027-05-17",
+    "time": "2026-10-01T15:24:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-05-25",
+    "time": "2026-10-01T15:25:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Marie Thompson",
+    "itemId": "test-2027-05-26",
+    "time": "2026-10-01T15:26:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Bill Thoburn",
+    "itemId": "test-2027-05-27",
+    "time": "2026-10-01T15:27:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-05-29",
+    "time": "2026-10-01T15:28:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Zak Wright",
+    "itemId": "test-2027-05-30",
+    "time": "2026-10-01T15:29:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-05-31",
+    "time": "2026-10-01T15:30:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-06-08",
+    "time": "2026-10-01T15:31:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Lauren Falcone",
+    "itemId": "test-2027-06-09",
+    "time": "2026-10-01T15:32:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "James Draeger",
+    "itemId": "test-2027-06-10",
+    "time": "2026-10-01T15:33:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Marie Thompson",
+    "itemId": "test-2027-06-12",
+    "time": "2026-10-01T15:34:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Andrew Hanigosky",
+    "itemId": "test-2027-06-13",
+    "time": "2026-10-01T15:35:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-06-14",
+    "time": "2026-10-01T15:36:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Mike Smith",
+    "itemId": "test-2027-06-26",
+    "time": "2026-10-01T15:37:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Ken Schmitz",
+    "itemId": "test-2027-06-27",
+    "time": "2026-10-01T15:38:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-06-28",
+    "time": "2026-10-01T15:39:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Andrew Hanigosky",
+    "itemId": "test-2027-06-29",
+    "time": "2026-10-01T15:40:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-06-30",
+    "time": "2026-10-01T15:41:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-07-01",
+    "time": "2026-10-01T15:42:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Angela Wright",
+    "itemId": "test-2027-07-02",
+    "time": "2026-10-01T15:43:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Matt Jones",
+    "itemId": "test-2027-07-03",
+    "time": "2026-10-01T15:44:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Andrew Hanigosky",
+    "itemId": "test-2027-07-04",
+    "time": "2026-10-01T15:45:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Zak Wright",
+    "itemId": "test-2027-07-05",
+    "time": "2026-10-01T15:46:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-07-17",
+    "time": "2026-10-01T15:47:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Bill Thoburn",
+    "itemId": "test-2027-07-18",
+    "time": "2026-10-01T15:48:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Lauren Falcone",
+    "itemId": "test-2027-07-19",
+    "time": "2026-10-01T15:49:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-07-20",
+    "time": "2026-10-01T15:50:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Tim Lewis",
+    "itemId": "test-2027-07-21",
+    "time": "2026-10-01T15:51:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Jackie Wohleber",
+    "itemId": "test-2027-07-22",
+    "time": "2026-10-01T15:52:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Bill Thoburn",
+    "itemId": "test-2027-07-23",
+    "time": "2026-10-01T15:53:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-07-31",
+    "time": "2026-10-01T15:54:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Angela Wright",
+    "itemId": "test-2027-08-01",
+    "time": "2026-10-01T15:55:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Lauren Falcone",
+    "itemId": "test-2027-08-02",
+    "time": "2026-10-01T15:56:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Marie Thompson",
+    "itemId": "test-2027-08-04",
+    "time": "2026-10-01T15:57:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Jackie Wohleber",
+    "itemId": "test-2027-08-05",
+    "time": "2026-10-01T15:58:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-08-06",
+    "time": "2026-10-01T15:59:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Matt Jones",
+    "itemId": "test-2027-08-14",
+    "time": "2026-10-01T15:00:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "James Draeger",
+    "itemId": "test-2027-08-15",
+    "time": "2026-10-01T15:01:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-08-16",
+    "time": "2026-10-01T15:02:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Tim Lewis",
+    "itemId": "test-2027-08-18",
+    "time": "2026-10-01T15:03:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Mike Smith",
+    "itemId": "test-2027-08-19",
+    "time": "2026-10-01T15:04:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Bill Thoburn",
+    "itemId": "test-2027-08-20",
+    "time": "2026-10-01T15:05:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Ken Schmitz",
+    "itemId": "test-2027-08-28",
+    "time": "2026-10-01T15:06:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Angela Wright",
+    "itemId": "test-2027-08-29",
+    "time": "2026-10-01T15:07:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Bill Thoburn",
+    "itemId": "test-2027-08-30",
+    "time": "2026-10-01T15:08:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Mike Smith",
+    "itemId": "test-2027-09-01",
+    "time": "2026-10-01T15:09:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Marie Thompson",
+    "itemId": "test-2027-09-02",
+    "time": "2026-10-01T15:10:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-09-03",
+    "time": "2026-10-01T15:11:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-09-04",
+    "time": "2026-10-01T15:12:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Ken Schmitz",
+    "itemId": "test-2027-09-05",
+    "time": "2026-10-01T15:13:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "James Draeger",
+    "itemId": "test-2027-09-06",
+    "time": "2026-10-01T15:14:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-09-14",
+    "time": "2026-10-01T15:15:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Lauren Falcone",
+    "itemId": "test-2027-09-15",
+    "time": "2026-10-01T15:16:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Jackie Wohleber",
+    "itemId": "test-2027-09-16",
+    "time": "2026-10-01T15:17:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Steve Hanigosky",
+    "itemId": "test-2027-09-18",
+    "time": "2026-10-01T15:18:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Matt Jones",
+    "itemId": "test-2027-09-19",
+    "time": "2026-10-01T15:19:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   },
+   {
+    "type": "assign",
+    "member": "Sean DeCrane",
+    "itemId": "test-2027-09-20",
+    "time": "2026-10-01T15:20:00.000Z",
+    "note": "Test data (from the 2026 ticket holder list)"
+   }
+  ]
+ },
+ "post": {
+  "settings": {
+   "title": "TEST Postseason Draft",
+   "open": true,
+   "snake": true,
+   "showTab": true
+  },
+  "commissionerPin": "0000",
+  "members": [
+   {
+    "name": "Sean DeCrane",
+    "pin": "1234"
+   },
+   {
+    "name": "James Draeger",
+    "pin": "1234"
+   },
+   {
+    "name": "Lauren Falcone",
+    "pin": "1234"
+   },
+   {
+    "name": "Andrew Hanigosky",
+    "pin": "1234"
+   },
+   {
+    "name": "Steve Hanigosky",
+    "pin": "1234"
+   },
+   {
+    "name": "Bill Thoburn",
+    "pin": "1234"
+   },
+   {
+    "name": "Matt Jones",
+    "pin": "1234"
+   },
+   {
+    "name": "Marie Thompson",
+    "pin": "1234"
+   },
+   {
+    "name": "Ken Schmitz",
+    "pin": "1234"
+   },
+   {
+    "name": "Tim Lewis",
+    "pin": "1234"
+   },
+   {
+    "name": "Mike Smith",
+    "pin": "1234"
+   },
+   {
+    "name": "Jackie Wohleber",
+    "pin": "1234"
+   },
+   {
+    "name": "Angela Wright",
+    "pin": "1234"
+   },
+   {
+    "name": "Zak Wright",
+    "pin": "1234"
+   }
+  ],
+  "inventory": [
+   {
+    "id": "ALDS-G1-S7",
+    "series": "AL Division Series",
+    "game": "Game 1",
+    "date": "TBD",
+    "seats": "7 & 8",
+    "price": 432,
+    "notes": ""
+   },
+   {
+    "id": "ALDS-G1-S9",
+    "series": "AL Division Series",
+    "game": "Game 1",
+    "date": "TBD",
+    "seats": "9 & 10",
+    "price": 432,
+    "notes": ""
+   },
+   {
+    "id": "ALDS-G2-S7",
+    "series": "AL Division Series",
+    "game": "Game 2",
+    "date": "TBD",
+    "seats": "7 & 8",
+    "price": 432,
+    "notes": ""
+   },
+   {
+    "id": "ALDS-G2-S9",
+    "series": "AL Division Series",
+    "game": "Game 2",
+    "date": "TBD",
+    "seats": "9 & 10",
+    "price": 432,
+    "notes": ""
+   },
+   {
+    "id": "ALCS-HG1-S7",
+    "series": "AL Championship Series",
+    "game": "Home Game 1",
+    "date": "TBD",
+    "seats": "7 & 8",
+    "price": 646,
+    "notes": ""
+   },
+   {
+    "id": "ALCS-HG1-S9",
+    "series": "AL Championship Series",
+    "game": "Home Game 1",
+    "date": "TBD",
+    "seats": "9 & 10",
+    "price": 646,
+    "notes": ""
+   },
+   {
+    "id": "ALCS-HG2-S7",
+    "series": "AL Championship Series",
+    "game": "Home Game 2",
+    "date": "TBD",
+    "seats": "7 & 8",
+    "price": 646,
+    "notes": ""
+   },
+   {
+    "id": "ALCS-HG2-S9",
+    "series": "AL Championship Series",
+    "game": "Home Game 2",
+    "date": "TBD",
+    "seats": "9 & 10",
+    "price": 646,
+    "notes": ""
+   },
+   {
+    "id": "WS-HG1-S7",
+    "series": "World Series",
+    "game": "Home Game 1",
+    "date": "TBD",
+    "seats": "7 & 8",
+    "price": 1090,
+    "notes": ""
+   },
+   {
+    "id": "WS-HG1-S9",
+    "series": "World Series",
+    "game": "Home Game 1",
+    "date": "TBD",
+    "seats": "9 & 10",
+    "price": 1090,
+    "notes": ""
+   }
+  ],
+  "events": []
+ },
+ "archives": []
+}

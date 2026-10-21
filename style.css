@@ -508,3 +508,9 @@ body.stale .seat:not(.taken) { opacity: .7; }
 @media (max-width: 520px) { #swap-list { grid-template-columns: minmax(0, 1fr); } .sw-row { grid-template-columns: 84px minmax(0, 1fr); } }
 .swap-view { padding-top: 6px; }
 .swap-view .swap-head { margin-top: 4px; }
+
+/* Test mode */
+.test-banner { background: #efe6ff; color: #3b1f73; border-color: #d7c5ff; }
+:root[data-theme="dark"] .test-banner { background: #2a1d47; color: #e1d4ff; border-color: #3d2a66; }
+.test-banner a { color: inherit; font-weight: 700; }
+.test-card { border: 1.5px dashed #9c7ae0; }

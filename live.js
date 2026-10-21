@@ -33,7 +33,7 @@ async function start() {
     if (unsub) { unsub(); unsub = null; }
     watching = draft;
     if (draft !== 'post' && draft !== 'rs') return;
-    unsub = onSnapshot(doc(db, 'drafts', draft), (snap) => {
+    unsub = onSnapshot(doc(db, 'drafts', draft + (window.DRAFT_TEST ? '-test' : '')), (snap) => {
       if (!snap.exists()) { window.DraftApp.onLive(draft, { ok: false, notSetUp: true, kind: draft }); return; }
       window.DraftApp.onLive(draft, toState(draft, snap.data()));
     }, (err) => {
