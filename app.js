@@ -505,7 +505,7 @@
     // Board
     $('board-heading').textContent = rs ? 'Home games' : 'Games';
     if (rs) renderRsBoard(s, takenBy, canPick, prevIds);
-    else { $('rs-filters').hidden = true; renderPostBoard(s, takenBy, canPick, prevIds); }
+    else { $('rs-filters').hidden = true; document.querySelector('.board-col').classList.remove('cal-mode'); renderPostBoard(s, takenBy, canPick, prevIds); }
 
     // Up next. The server trims this list to the number of items left, but if
     // someone ahead drops out the draft keeps going, so rebuild a longer list
@@ -619,6 +619,20 @@
 
   /* Regular season board: one row per home game, all four seats per pick. */
   const rsFilter = { avail: 'all', tag: 'all', month: '', opp: '' };
+  // List or calendar (remembered in this browser).
+  const RS_VIEW_KEY = 'guardians-rs-view';
+  let rsView = store.get(RS_VIEW_KEY) === 'cal' ? 'cal' : 'list';
+  // Short team codes like the printed schedule.
+  const TEAM_ABBR = {
+    'Arizona Diamondbacks': 'AZ', 'Athletics': 'ATH', 'Oakland Athletics': 'ATH', 'Atlanta Braves': 'ATL', 'Baltimore Orioles': 'BAL',
+    'Boston Red Sox': 'BOS', 'Chicago Cubs': 'CHC', 'Chicago White Sox': 'CWS', 'Cincinnati Reds': 'CIN', 'Colorado Rockies': 'COL',
+    'Detroit Tigers': 'DET', 'Houston Astros': 'HOU', 'Kansas City Royals': 'KC', 'Los Angeles Angels': 'LAA', 'Los Angeles Dodgers': 'LAD',
+    'Miami Marlins': 'MIA', 'Milwaukee Brewers': 'MIL', 'Minnesota Twins': 'MIN', 'New York Mets': 'NYM', 'New York Yankees': 'NYY',
+    'Philadelphia Phillies': 'PHI', 'Pittsburgh Pirates': 'PIT', 'San Diego Padres': 'SD', 'San Francisco Giants': 'SF', 'Seattle Mariners': 'SEA',
+    'St. Louis Cardinals': 'STL', 'Tampa Bay Rays': 'TB', 'Texas Rangers': 'TEX', 'Toronto Blue Jays': 'TOR', 'Washington Nationals': 'WSH',
+  };
+  const teamAbbr = (n) => TEAM_ABBR[n] || String(n || '').split(' ').pop().slice(0, 3).toUpperCase();
+  const lastName = (n) => String(n || '').trim().split(/\s+/).pop();
   // Months fold up; they all start open (tap a month's bar to close it).
   const monthOpen = {};
   const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : true);
@@ -635,6 +649,9 @@
     if (fb.dataset.sig !== sig) {
       const chip = (k, v, t) => '<button type="button" class="fchip" data-fk="' + k + '" data-fv="' + v + '">' + t + '</button>';
       fb.innerHTML =
+        '<div class="vtoggle" role="group" aria-label="View">' +
+          '<button type="button" data-rsview="list"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>List</button>' +
+          '<button type="button" data-rsview="cal"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button></div>' +
         '<div class="frow" role="group" aria-label="Show">' + chip('avail', 'all', 'All games') + chip('avail', 'open', 'Available') + '</div>' +
         '<div class="frow" role="group" aria-label="Highlights">' + chip('tag', 'all', 'Any') + chip('tag', 'weekend', 'Weekends') +
           chip('tag', 'weekday', 'Weekdays') + '</div>' +
@@ -647,6 +664,7 @@
     }
     fb.hidden = false;
     fb.querySelectorAll('.fchip').forEach((b) => b.setAttribute('aria-pressed', String(rsFilter[b.dataset.fk] === b.dataset.fv)));
+    fb.querySelectorAll('[data-rsview]').forEach((b) => b.setAttribute('aria-pressed', String(rsView === b.dataset.rsview)));
     fb.querySelectorAll('select[data-fsel]').forEach((sel) => { if (sel !== document.activeElement) sel.value = rsFilter[sel.dataset.fsel]; });
 
     const shown = enriched.filter(({ g, f, p }) => {
@@ -662,7 +680,10 @@
     const shownMonths = [...new Set(shown.map((x) => String(x.g.date).slice(0, 7)))];
     const allOpen = shownMonths.length > 0 && shownMonths.every(isMonthOpen);
     const ma = $('month-all');
-    if (ma) { ma.textContent = allOpen ? 'Collapse all' : 'Expand all'; ma.dataset.open = allOpen ? '1' : ''; ma.hidden = shownMonths.length < 2; }
+    if (ma) { ma.textContent = allOpen ? 'Collapse all' : 'Expand all'; ma.dataset.open = allOpen ? '1' : ''; ma.hidden = shownMonths.length < 2 || rsView === 'cal'; }
+
+    document.querySelector('.board-col').classList.toggle('cal-mode', rsView === 'cal');
+    if (rsView === 'cal' && games.length) { renderRsCalendar(enriched, new Set(shown.map((x) => x.g.id)), canPick, prevIds); return; }
 
     if (!shown.length) {
       $('board').innerHTML = '<div class="notice-card">' + (games.length ? 'No games match these filters.' : 'No games loaded yet. Commissioner: choose <em>Guardians Draft → Refresh regular season schedule from MLB</em> in the Google Sheet.') + '</div>';
@@ -702,6 +723,43 @@
     }).join('');
   }
 
+  /* Calendar view: month grids like the printed schedule. Home games are red (taken ones gray,
+     yours navy); games that don't match the filters fade out. The Month filter shows just that month. */
+  function renderRsCalendar(enriched, match, canPick, prevIds) {
+    const byDate = {};
+    enriched.forEach((x) => { byDate[x.g.date] = x; });
+    const months = [...new Set(enriched.map((x) => String(x.g.date).slice(0, 7)))].filter((m) => /^\d{4}-\d{2}$/.test(m) && (!rsFilter.month || m === rsFilter.month));
+    const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const pad = (n) => String(n).padStart(2, '0');
+    $('board').innerHTML = '<div class="cal-legend"><span><i class="cl open"></i>Available</span><span><i class="cl taken"></i>Taken</span>' + (me ? '<span><i class="cl mine"></i>Yours</span>' : '') + '</div>' +
+      '<div class="cal-months">' + months.map((key) => {
+        const [y, m] = key.split('-').map(Number);
+        const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+        const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        const inMonth = enriched.filter((x) => String(x.g.date).slice(0, 7) === key);
+        const open = inMonth.filter((x) => !x.p).length;
+        let cells = '';
+        for (let i = 0; i < first; i++) cells += '<div class="cal-d blank"></div>';
+        for (let d = 1; d <= days; d++) {
+          const x = byDate[key + '-' + pad(d)];
+          if (!x) { cells += '<div class="cal-d"><span class="cn">' + d + '</span></div>'; continue; }
+          const { g, f, p: pick } = x;
+          const time = g.time && !/^tbd$/i.test(g.time) ? g.time : 'TBD';
+          const mineCls = pick && me && pick.member === me ? ' mine' : '';
+          const fresh = prevIds && pick && !prevIds.has(g.id) ? ' just' : '';
+          const dim = match.has(g.id) ? '' : ' dim';
+          const tip = f.dow + ' ' + MON[m - 1] + ' ' + d + ' vs ' + g.opponent + ' · ' + time + (pick ? ' — ' + pick.member : ' — available') + (f.opener ? ' · Home Opener' : '') + (f.holiday ? ' · ' + f.holiday : '');
+          const mark = f.opener || f.holiday ? '<span class="cstar" aria-hidden="true">★</span>' : '';
+          const inner = '<span class="cn">' + d + '</span>' + mark + '<span class="ct">' + esc(teamAbbr(g.opponent)) + '</span>' +
+            '<span class="cw">' + esc(pick ? (mineCls ? 'You' : lastName(pick.member)) : time.replace(/\s?PM$/i, 'p').replace(/\s?AM$/i, 'a')) + '</span>';
+          if (!pick && canPick && !dim) cells += '<button type="button" class="cal-d g open" data-id="' + esc(g.id) + '" title="' + esc(tip) + '" aria-label="Pick ' + esc(tip) + '">' + inner + '</button>';
+          else cells += '<div class="cal-d g' + (pick ? ' taken' + mineCls : ' avail') + fresh + dim + '" title="' + esc(tip) + '">' + inner + '</div>';
+        }
+        return '<div class="series cal-month"><div class="series-head"><h3>' + esc(MONTH_FULL[m - 1] + ' ' + y) + '</h3><span class="price">' + open + ' of ' + inMonth.length + ' open</span></div>' +
+          '<div class="cal-grid">' + DOW.map((w) => '<div class="cal-w">' + w + '</div>').join('') + cells + '</div></div>';
+      }).join('') + '</div>';
+  }
+
   $('board').addEventListener('click', (e) => {
     const t = e.target.closest('.month-toggle');
     if (!t) return;
@@ -713,6 +771,13 @@
     if (all) {
       const openAll = !all.dataset.open;
       ((state && state.inventory) || []).forEach((g) => { monthOpen[String(g.date).slice(0, 7)] = openAll; });
+      if (state) render(null);
+      return;
+    }
+    const v = e.target.closest('[data-rsview]');
+    if (v) {
+      rsView = v.dataset.rsview;
+      store.set(RS_VIEW_KEY, rsView);
       if (state) render(null);
       return;
     }
@@ -837,7 +902,7 @@
   /* Pick flow                                                            */
   /* ------------------------------------------------------------------ */
   $('board').addEventListener('click', (e) => {
-    const btn = e.target.closest('.seat.open');
+    const btn = e.target.closest('.seat.open, .cal-d.open');
     if (!btn || !state) return;
     const item = state.inventory.find((i) => i.id === btn.dataset.id);
     if (!item) return;

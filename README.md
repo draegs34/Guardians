@@ -196,6 +196,8 @@ Set **Pick time limit on** to `TRUE` and enter the hours in **Pick time limit (h
 
 ---
 
+**List or Calendar:** above the filters on the regular season board, members can switch between the list and a calendar laid out like the printed schedule (home games in red, taken games gray with the holder's last name, your own games navy). Tap a red game to pick it. The filters still apply: games that don't match fade out, and choosing a month shows just that month. Each browser remembers the choice.
+
 ## Postseason draft
 This works the same as before, using the **Draft Settings**, **Draft Members**, **Draft Inventory** and **Draft Picks** tabs. For a brand-new sheet, choose **Guardians Draft → Set up postseason tabs**.
 
