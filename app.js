@@ -2088,6 +2088,7 @@
   function showNotifyStep(settings) {
     $('notify-who').hidden = settings;
     $('notify-settings').hidden = !settings;
+    $('notify-dialog').classList.toggle('wide', settings); // two columns on wider screens
     if (settings) fillNotify();
   }
   function fillNotify() {

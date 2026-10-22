@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610231300">
+  <link rel="stylesheet" href="style.css?v=202610231345">
 </head>
 <body>
   <header class="top">
@@ -274,7 +274,7 @@
       </div>
       <div id="notify-settings" hidden>
         <p class="notify-for">Settings for <strong id="notify-for"></strong> <button type="button" class="link-btn" id="notify-change">Not you?</button></p>
-        <section class="nsec">
+        <section class="nsec" id="nsec-reach">
           <h4>How to reach you</h4>
           <fieldset class="nset">
             <legend>Push notifications</legend>
@@ -298,11 +298,11 @@
             <p class="hint">Only shared in Ticket Swap: with the lister when you make an offer, and with the member whose offer you accept. <strong>Text message notifications are not available.</strong></p>
           </fieldset>
         </section>
-        <section class="nsec">
+        <section class="nsec" id="nsec-drafts">
           <h4>Drafts</h4>
           <fieldset class="nset">
             <legend>When it's my turn to pick</legend>
-            <label class="check"><input type="checkbox" id="notify-push-on"> <span>Push notification <small class="hint" id="notify-push-hint">(turn on push above first)</small></span></label>
+            <label class="check"><input type="checkbox" id="notify-push-on"> <span>Push notification <small class="hint" id="notify-push-hint">(turn on push for this device first)</small></span></label>
             <label class="check"><input type="checkbox" id="notify-email-on"> <span>Email</span></label>
             <label class="check"><input type="checkbox" id="notify-screen"> <span>On-screen alerts in this browser: a banner, a flashing tab and an icon badge</span></label>
           </fieldset>
@@ -312,7 +312,7 @@
             <p class="hint" id="nextup-hint">Goes out by whichever of push and email you ticked above, one pick before your turn. The on-screen banner always shows when you're up next.</p>
           </div>
         </section>
-        <section class="nsec">
+        <section class="nsec" id="nsec-swap">
           <h4>Ticket Swap</h4>
           <fieldset class="nset">
             <legend>New listings</legend>
@@ -320,7 +320,7 @@
             <p class="hint">Offers on your own listings: you choose push or email on each listing when you post it.</p>
           </fieldset>
         </section>
-        <div class="actions">
+        <div class="actions" id="notify-actions">
           <button type="button" class="btn ghost" id="notify-test">Send me a test (5 sec)</button>
           <button type="button" class="btn primary" id="notify-save">Save</button>
         </div>
@@ -332,7 +332,7 @@
             <label>Current PIN
               <input id="pin-old" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Your current PIN">
             </label>
-            <label>New PIN <span class="opt">(4 to 8 digits)</span>
+            <label><span>New PIN <span class="opt">(4 to 8 digits)</span></span>
               <input id="pin-new" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
             </label>
             <label>New PIN again
@@ -365,9 +365,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610231300"></script>
-  <script src="engine.js?v=202610231300"></script>
-  <script type="module" src="live.js?v=202610231300"></script>
-  <script src="app.js?v=202610231300"></script>
+  <script src="config.js?v=202610231345"></script>
+  <script src="engine.js?v=202610231345"></script>
+  <script type="module" src="live.js?v=202610231345"></script>
+  <script src="app.js?v=202610231345"></script>
 </body>
 </html>

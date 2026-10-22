@@ -605,3 +605,25 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .nextup-opt .nextup-k { margin: 0; font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .nextup-opt .hint { margin: 0; font-size: 12.5px; }
 .nextup-opt.off label.check { opacity: .55; }
+
+/* Notification & PIN settings on wider screens: two columns instead of one long scroll.
+   Left: how to reach you. Right: drafts and Ticket Swap. Save and PIN run across the bottom. */
+@media (min-width: 900px) {
+  #notify-dialog.wide { width: min(980px, calc(100vw - 48px)); }
+  #notify-dialog.wide form { padding: 24px 28px; }
+  #notify-dialog.wide #notify-settings:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "for for" "reach drafts" "reach swap" "actions actions" "pin pin";
+    column-gap: 32px; row-gap: 14px; align-items: start;
+  }
+  #notify-dialog.wide .notify-for { grid-area: for; }
+  #notify-dialog.wide #nsec-reach { grid-area: reach; }
+  #notify-dialog.wide #nsec-drafts { grid-area: drafts; border-top: 0; padding-top: 0; }
+  #notify-dialog.wide #nsec-swap { grid-area: swap; }
+  #notify-dialog.wide #notify-actions { grid-area: actions; border-top: 1px solid var(--line); padding-top: 14px; }
+  #notify-dialog.wide #pin-sec { grid-area: pin; }
+  /* PIN fields side by side */
+  #notify-dialog.wide #pin-fields:not([hidden]) { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; align-items: end; }
+  #notify-dialog.wide #pin-fields legend, #notify-dialog.wide #pin-fields .form-error, #notify-dialog.wide #pin-fields .actions { grid-column: 1 / -1; }
+  #notify-dialog.wide > form > .hint { max-width: 760px; }
+}
