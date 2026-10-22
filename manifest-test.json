@@ -1,0 +1,26 @@
+{
+  "id": "./?test",
+  "name": "Guardians Ticket Draft (TEST)",
+  "short_name": "Draft TEST",
+  "description": "Test copy of the season ticket draft.",
+  "start_url": "./?test",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#0C2340",
+  "icons": [
+    { "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    { "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    { "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
