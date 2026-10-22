@@ -701,7 +701,7 @@
       const name = p.length === 2 ? MONTH_FULL[+p[1] - 1] + ' ' + p[0] : 'Date TBD';
       const open = grp.items.filter((x) => !x.p).length;
       const isOpen = isMonthOpen(grp.key);
-      return '<div class="series rs-month' + (isOpen ? '' : ' closed') + '"><button type="button" class="series-head month-toggle" data-month="' + esc(grp.key) + '" aria-expanded="' + isOpen + '">' +
+      return '<div class="series rs-month' + (isOpen ? '' : ' closed') + (open ? '' : ' full') + '"><button type="button" class="series-head month-toggle" data-month="' + esc(grp.key) + '" aria-expanded="' + isOpen + '">' +
         '<h3><span class="chev" aria-hidden="true">▾</span>' + esc(name) + '</h3><span class="price">' + open + ' of ' + grp.items.length + ' open</span></button>' +
         '<div class="month-body"' + (isOpen ? '' : ' hidden') + '>' +
         grp.items.map(({ g, f, p: pick }) => {
@@ -755,7 +755,7 @@
           if (!pick && canPick && !dim) cells += '<button type="button" class="cal-d g open" data-id="' + esc(g.id) + '" title="' + esc(tip) + '" aria-label="Pick ' + esc(tip) + '">' + inner + '</button>';
           else cells += '<div class="cal-d g' + (pick ? ' taken' + mineCls : ' avail') + fresh + dim + '" title="' + esc(tip) + '">' + inner + '</div>';
         }
-        return '<div class="series cal-month"><div class="series-head"><h3>' + esc(MONTH_FULL[m - 1] + ' ' + y) + '</h3><span class="price">' + open + ' of ' + inMonth.length + ' open</span></div>' +
+        return '<div class="series cal-month' + (open ? '' : ' full') + '"><div class="series-head"><h3>' + esc(MONTH_FULL[m - 1] + ' ' + y) + '</h3><span class="price">' + open + ' of ' + inMonth.length + ' open</span></div>' +
           '<div class="cal-grid">' + DOW.map((w) => '<div class="cal-w">' + w + '</div>').join('') + cells + '</div></div>';
       }).join('') + '</div>';
   }

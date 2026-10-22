@@ -594,3 +594,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 
 .board-col.cal-mode .section-head .legend { display: none; }
 :root[data-theme="dark"] .cal-d.taken.mine { background: var(--red); color: #fff; }
+
+/* Month with no games left to pick: gray bar instead of navy. */
+.series.full .series-head { background: #7b8696; }
+.series.full .series-head .price { color: #eef1f5; }
+:root[data-theme="dark"] .series.full .series-head { background: #3a4659; }
