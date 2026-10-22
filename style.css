@@ -172,7 +172,7 @@ dialog h3 { font-size: 20px; }
 .pick-item .pi-title { font-weight: 700; }
 .pick-item .pi-sub { color: var(--muted); font-size: 14px; }
 label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
-select, input { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; }
+select, input, #swap-dialog textarea { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; }
 select:focus, input:focus { outline: 2px solid var(--navy-2); outline-offset: 1px; }
 .hint { margin: 0; color: var(--muted); font-size: 14px; }
 .form-error { margin: 0; color: var(--red); font-size: 14px; font-weight: 600; min-height: 1em; }
