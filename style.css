@@ -627,3 +627,10 @@ body.stale .seat:not(.taken) { opacity: .7; }
   #notify-dialog.wide #pin-fields legend, #notify-dialog.wide #pin-fields .form-error, #notify-dialog.wide #pin-fields .actions { grid-column: 1 / -1; }
   #notify-dialog.wide > form > .hint { max-width: 760px; }
 }
+
+/* Your own rows in Draft Order and the Pick Log (the name chosen for on-screen alerts) */
+.upcoming li.me, .log li.me { --me: #2b5d9b; background: #eaf1fb; padding-left: 12px; padding-right: 8px; border-radius: 8px; border-left: 4px solid var(--me); }
+.upcoming li.me span:first-child, .log li.me b { color: var(--me); font-weight: 800; }
+.upcoming li.me:first-child span:first-child { color: var(--red); }
+.upcoming li.me + li, .log li.me + li { border-top-color: transparent; }
+:root[data-theme="dark"] .upcoming li.me, :root[data-theme="dark"] .log li.me { --me: #8bb8f0; background: #16263d; }

@@ -565,7 +565,7 @@
             const what = it ? (it.label || it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats) : p.itemId;
             body = '<b>' + (p.assigned ? '' : num) + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '');
           }
-          return '<li>' + body + stamp + '</li>';
+          return '<li' + (me && p.member === me ? ' class="me"' : '') + '>' + body + stamp + '</li>';
         }).join('')
       : '<li class="empty">No picks yet.</li>';
 
