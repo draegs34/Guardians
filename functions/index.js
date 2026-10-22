@@ -289,7 +289,7 @@ async function remindSweep(key) {
   const title = st.title || 'Ticket draft';
   await deliver(p, {
     subject: "Reminder: you're still on the clock — " + title,
-    title: 'Reminder: it\'s still your pick, ' + cur.name,
+    title: 'Reminder: it\'s still your pick, ' + firstName(cur.name),
     body: 'You\'ve been on the clock in the ' + title + ' since ' + (due.since ? et(due.since) : 'earlier') + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (st.deadline ? ' Please pick by ' + et(st.deadline) + '.' : ''),
     link: siteLink(key === 'rs' ? 'regular-season' : 'postseason'),
     badge: 1,
@@ -936,6 +936,8 @@ async function saveAdminEmails(members) {
 }
 
 /* After any change: if someone new is on the clock (or up next), tell them once. */
+const firstName = (n) => String(n || '').trim().split(/\s+/)[0];
+
 async function maybeNotify(key, before, after) {
   try {
     if (!after || !after.open || !after.current) return;
@@ -969,9 +971,9 @@ async function maybeNotify(key, before, after) {
       if (!p || outNames.has(lc(t.name))) return null;
       if (t.type === 'next' && !p.nextUp) return null;
       const msg = t.type === 'turn'
-        ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + t.name + '!',
+        ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + firstName(t.name) + '!',
             body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link, badge: 1 }
-        : { subject: "You're up next — " + title, title: "You're up next, " + t.name,
+        : { subject: "You're up next — " + title, title: "You're up next, " + firstName(t.name),
             body: cur.name + ' is picking now in the ' + title + '. You\'re next.', link };
       return deliver(p, msg);
     }));
