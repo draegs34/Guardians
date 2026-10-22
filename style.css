@@ -634,3 +634,9 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .upcoming li.me:first-child span:first-child { color: var(--red); }
 .upcoming li.me + li, .log li.me + li { border-top-color: transparent; }
 :root[data-theme="dark"] .upcoming li.me, :root[data-theme="dark"] .log li.me { --me: #8bb8f0; background: #16263d; }
+
+/* "Who are you?" button next to Notification & PIN settings */
+#who-btn { display: inline-flex; align-items: center; gap: 7px; }
+#who-btn svg { flex: none; }
+#who-btn.is-set { color: #2b5d9b; border-color: #b9cfe9; background: #eef4fb; }
+:root[data-theme="dark"] #who-btn.is-set { color: #8bb8f0; border-color: #2b4268; background: #16263d; }

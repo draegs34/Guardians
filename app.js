@@ -95,7 +95,8 @@
   // Who's using this browser, for highlighting "you" (Up Next, Pick Log, calendar). Remembered from
   // on-screen alerts, Notification & PIN settings, or Ticket Swap, whichever they've used.
   const VIEWER_KEY = 'guardians-viewer';
-  const viewer = () => me || store.get(VIEWER_KEY) || store.get('guardians-swap-me') || '';
+  const viewer = () => store.get(VIEWER_KEY) || me || store.get('guardians-swap-me') || '';
+  let whoPin = ''; // PIN from "Who are you?", kept only while the page is open
   const setViewer = (n) => { if (n) store.set(VIEWER_KEY, n); };
 
   /* ------------------------------------------------------------------ */
@@ -930,7 +931,7 @@
     const needsPin = !mem || mem.needsPin !== false;
     $('pick-pin-wrap').hidden = !needsPin;
     $('pick-pin').required = needsPin;
-    $('pick-pin').value = '';
+    $('pick-pin').value = whoPin && pendingName === viewer() ? whoPin : '';
     $('pick-dialog').showModal();
     setTimeout(() => (needsPin ? $('pick-pin') : $('pick-submit')).focus(), 50);
   });
@@ -2328,6 +2329,7 @@
     const names = s.members.map((m) => m.name);
     if (me && !names.includes(me)) me = '';
     $('me-status').textContent = me ? 'On-screen alerts in this browser: ' + me : '';
+    renderWho();
 
     const meMember = s.members.find((m) => m.name === me);
     const mine = !!me && !done && s.current && s.current.name === me && !(meMember && meMember.out);
@@ -2398,6 +2400,72 @@
   }
 
   // On-screen alerts follow the member chosen in Notification settings (both drafts).
+  /* "Who are you?": pick your name (and PIN) without setting up notifications. */
+  function renderWho() {
+    const v = viewer();
+    $('who-label').textContent = v ? 'You: ' + v : 'Who are you?';
+    $('who-btn').classList.toggle('is-set', !!v);
+  }
+  async function openWho() {
+    if (!notifyMembers()) await ensureRs();
+    const members = notifyMembers() || [];
+    const names = sortedNames(members);
+    const v = viewer();
+    $('who-name').innerHTML = '<option value="">Choose your name…</option>' + names.map((n) => '<option' + (n === v ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+    $('who-pin').value = '';
+    $('who-error').textContent = '';
+    $('who-forget').hidden = !v;
+    syncWhoPin();
+    $('who-dialog').showModal();
+  }
+  function syncWhoPin() {
+    const m = (notifyMembers() || []).find((x) => x.name === $('who-name').value);
+    $('who-pin-wrap').hidden = !!m && !m.needsPin;
+  }
+  $('who-btn').addEventListener('click', openWho);
+  $('who-name').addEventListener('change', syncWhoPin);
+  $('who-cancel').addEventListener('click', () => $('who-dialog').close());
+  $('who-forget').addEventListener('click', () => {
+    const v = viewer();
+    store.set(VIEWER_KEY, '');
+    store.set('guardians-swap-me', '');
+    if (me && me === v) setMe('');
+    whoPin = '';
+    if (notifyName === v) { notifyName = ''; notifyPin = ''; notifyPrefs = null; }
+    if (swapAuth && swapAuth.name === v) swapAuth = null;
+    $('who-dialog').close();
+    renderWho();
+    if (state) render(null);
+    toast('This browser no longer knows who you are.');
+  });
+  $('who-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('who-name').value;
+    if (!name) { $('who-error').textContent = 'Choose your name.'; return; }
+    const pin = $('who-pin').value.trim();
+    $('who-go').disabled = true;
+    $('who-error').textContent = '';
+    apiPost({ draft: 'rs', action: 'notifyGet', name, pin, token: store.get(PUSH_TOKEN_KEY) || '' })
+      .then((res) => {
+        if (!res || !res.ok) { $('who-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
+        setViewer(name);
+        store.set('guardians-swap-me', name);
+        whoPin = pin;
+        // Signed in for this visit: Notification & PIN settings and Ticket Swap won't ask again.
+        notifyName = name; notifyPin = pin; notifyPrefs = res.prefs || {}; notifySuggest = res.suggestEmail || '';
+        rememberNotifyOn(notifyPrefs);
+        if (!swapAuth || swapAuth.name !== name) swapAuth = { name, pin, mine: [], email: !!(notifyPrefs.email || notifyPrefs.email2), push: (notifyPrefs.devices || 0) > 0 };
+        $('who-dialog').close();
+        renderWho();
+        if (state) render(null);
+        if (typeof renderSwap === 'function' && swapListings) { renderSwapBadge(); renderSwap(); }
+        toast('Thanks, ' + name.split(' ')[0] + '. This browser will remember you.');
+      })
+      .catch(() => { $('who-error').textContent = "Couldn't reach the draft. Try again."; })
+      .finally(() => { $('who-go').disabled = false; });
+  });
+  renderWho();
+
   function setMe(name) {
     me = name || '';
     ['rs', 'post'].forEach((k) => store.set(meKey(k), me));
