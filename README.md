@@ -223,9 +223,9 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 
 ## Test mode
 
-Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?test) to use a separate test copy of everything. A purple banner shows you're in test mode.
+Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?test) to use a separate test copy of everything. A yellow banner shows you're in test mode, and the tab and Home Screen icon are a yellow ticket.
 
-- The test draft is loaded with the 2026 season games shifted to 2027 dates, each already assigned to its 2026 owner (Bill Thoburn in place of Marty Jones, Marie Thompson in place of Chris Koehler).
+- The test draft is loaded with the 2026 season games shifted to 2027 dates, each already assigned to its 2026 owner (Bill Thoburn in place of Marty Jones, Marie Thompson in place of Chris Koehler). Nine games are left open so you can try picking: the order starts Sean DeCrane, Lauren Falcone, James Draeger, then Andrew Hanigosky, Steve Hanigosky, Bill Thoburn, Matt Jones, Marie Thompson and Mike Smith.
 - Test PINs: every member is 1234, commissioner is 0000.
 - Test mode has its own drafts, notification settings, Ticket Swap listings and past drafts. Nothing you do there touches the real site.
 - Emails and push alerts only go to addresses and devices that were set up while in test mode, and are marked [TEST].

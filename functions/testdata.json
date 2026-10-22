@@ -81,18 +81,15 @@
   ],
   "order": [
    "Sean DeCrane",
-   "Sean DeCrane",
-   "James Draeger",
    "Lauren Falcone",
+   "James Draeger",
    "Andrew Hanigosky",
-   "Steve Hanigosky",
-   "Steve Hanigosky",
    "Steve Hanigosky",
    "Bill Thoburn",
    "Matt Jones",
    "Marie Thompson",
-   "Ken Schmitz",
    "Mike Smith",
+   "Ken Schmitz",
    "Jackie Wohleber",
    "Angela Wright"
   ],
@@ -756,23 +753,9 @@
    },
    {
     "type": "assign",
-    "member": "James Draeger",
-    "itemId": "test-2027-04-04",
-    "time": "2026-10-01T15:01:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
     "member": "Sean DeCrane",
     "itemId": "test-2027-04-05",
     "time": "2026-10-01T15:02:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
-    "member": "Mike Smith",
-    "itemId": "test-2027-04-06",
-    "time": "2026-10-01T15:03:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
    },
    {
@@ -805,13 +788,6 @@
    },
    {
     "type": "assign",
-    "member": "Matt Jones",
-    "itemId": "test-2027-04-18",
-    "time": "2026-10-01T15:08:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
     "member": "James Draeger",
     "itemId": "test-2027-04-19",
     "time": "2026-10-01T15:09:00.000Z",
@@ -822,13 +798,6 @@
     "member": "Steve Hanigosky",
     "itemId": "test-2027-04-20",
     "time": "2026-10-01T15:10:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
-    "member": "Andrew Hanigosky",
-    "itemId": "test-2027-04-21",
-    "time": "2026-10-01T15:11:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
    },
    {
@@ -889,20 +858,6 @@
    },
    {
     "type": "assign",
-    "member": "Marie Thompson",
-    "itemId": "test-2027-05-12",
-    "time": "2026-10-01T15:20:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
-    "member": "Sean DeCrane",
-    "itemId": "test-2027-05-13",
-    "time": "2026-10-01T15:21:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
     "member": "Mike Smith",
     "itemId": "test-2027-05-15",
     "time": "2026-10-01T15:22:00.000Z",
@@ -938,13 +893,6 @@
    },
    {
     "type": "assign",
-    "member": "Bill Thoburn",
-    "itemId": "test-2027-05-27",
-    "time": "2026-10-01T15:27:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
     "member": "Steve Hanigosky",
     "itemId": "test-2027-05-29",
     "time": "2026-10-01T15:28:00.000Z",
@@ -969,13 +917,6 @@
     "member": "Steve Hanigosky",
     "itemId": "test-2027-06-08",
     "time": "2026-10-01T15:31:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
-    "member": "Lauren Falcone",
-    "itemId": "test-2027-06-09",
-    "time": "2026-10-01T15:32:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
    },
    {
@@ -1074,13 +1015,6 @@
     "member": "Zak Wright",
     "itemId": "test-2027-07-05",
     "time": "2026-10-01T15:46:00.000Z",
-    "note": "Test data (from the 2026 ticket holder list)"
-   },
-   {
-    "type": "assign",
-    "member": "Steve Hanigosky",
-    "itemId": "test-2027-07-17",
-    "time": "2026-10-01T15:47:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
    },
    {
