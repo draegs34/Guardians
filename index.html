@@ -22,10 +22,13 @@
       if (/[?&]test(=|&|$)/.test(location.search)) {
         document.querySelector('link[rel="manifest"]').href = 'manifest-test.json';
         document.querySelector('meta[name="apple-mobile-web-app-title"]').content = 'Draft TEST';
+        // Yellow ticket icon so the test copy looks different (tab icon and Home Screen).
+        document.querySelector('link[rel="icon"]').href = 'icon-192-test.png';
+        document.querySelector('link[rel="apple-touch-icon"]').href = 'apple-touch-icon-test.png';
       }
     } catch (e) {}
   </script>
-  <link rel="stylesheet" href="style.css?v=202610221200">
+  <link rel="stylesheet" href="style.css?v=202610230900">
 </head>
 <body>
   <header class="top">
@@ -360,9 +363,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610221200"></script>
-  <script src="engine.js?v=202610221200"></script>
-  <script type="module" src="live.js?v=202610221200"></script>
-  <script src="app.js?v=202610221200"></script>
+  <script src="config.js?v=202610230900"></script>
+  <script src="engine.js?v=202610230900"></script>
+  <script type="module" src="live.js?v=202610230900"></script>
+  <script src="app.js?v=202610230900"></script>
 </body>
 </html>

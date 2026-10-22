@@ -1036,7 +1036,7 @@ async function deliver(p, msg) {
       tokens,
       notification: { title: (isTest() ? '[TEST] ' : '') + msg.title, body: msg.body },
       data: { badge: msg.badge ? String(msg.badge) : '0' },
-      webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + 'icon-192.png', badge: SITE_URL.value() + 'icon-192.png', tag: msg.tag || 'draft-turn', renotify: true } },
+      webpush: { fcmOptions: { link: msg.link }, notification: { icon: SITE_URL.value() + (isTest() ? 'icon-192-test.png' : 'icon-192.png'), badge: SITE_URL.value() + (isTest() ? 'icon-192-test.png' : 'icon-192.png'), tag: msg.tag || 'draft-turn', renotify: true } },
     }).then(async (r) => {
       if (r.successCount) sent.push('push');
       const dead = [];
