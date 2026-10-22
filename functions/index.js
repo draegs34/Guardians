@@ -293,6 +293,7 @@ async function remindSweep(key) {
     body: 'You\'ve been on the clock in the ' + title + ' since ' + (due.since ? et(due.since) : 'earlier') + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (st.deadline ? ' Please pick by ' + et(st.deadline) + '.' : ''),
     link: siteLink(key === 'rs' ? 'regular-season' : 'postseason'),
     badge: 1,
+    extra: draftOrderBlock(now, cur.name),
   });
 }
 
@@ -972,9 +973,9 @@ async function maybeNotify(key, before, after) {
       if (t.type === 'next' && !p.nextUp) return null;
       const msg = t.type === 'turn'
         ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + firstName(t.name) + '!',
-            body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link, badge: 1 }
+            body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link, badge: 1, extra: draftOrderBlock(after, t.name) }
         : { subject: "You're up next — " + title, title: "You're up next, " + firstName(t.name),
-            body: cur.name + ' is picking now in the ' + title + '. You\'re next.', link };
+            body: cur.name + ' is picking now in the ' + title + '. You\'re next.', link, extra: draftOrderBlock(after, t.name) };
       return deliver(p, msg);
     }));
   } catch (e) {
@@ -995,6 +996,26 @@ function mailer() {
 // Ticket Swap emails invite a reply so the commissioner can step in (replies go to the draft's Gmail).
 const SWAP_HELP = 'If you are experiencing any issues with this request, please reply to this email.';
 const swapHelpHtml = () => '<p style="font-size:14px;color:#13213a;margin:0 0 12px;padding-top:14px;border-top:1px solid #e3e7ee">' + escHtml(SWAP_HELP) + '</p>';
+
+/** "Up next" list for draft emails: who's on the clock (red) and the next picks, with the
+ *  recipient's own picks in blue. Up to 5 rows, like the draft page. */
+function draftOrderBlock(st, me) {
+  if (!st || !st.current) return { html: '', text: '' };
+  const rows = [Object.assign({ now: true }, st.current)].concat((st.upcoming || []).filter((u) => !u.out)).slice(0, 5);
+  const isMe = (r) => lc(r.name) === lc(me || '');
+  const text = 'UP NEXT\n' + rows.map((r) => (r.now ? '> ' : '  ') + r.name + (isMe(r) ? ' (you)' : '') + ' — Rd ' + r.round + ' · #' + r.pick + (r.now ? ' (on the clock)' : '')).join('\n');
+  const html = '<p style="margin:0 0 6px;font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#5d6b82">Up next</p>' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 20px;width:100%;max-width:420px">' +
+    rows.map((r, i) => {
+      const color = r.now ? '#D50032' : isMe(r) ? '#2b5d9b' : '#13213a';
+      const weight = r.now || isMe(r) ? 'bold' : 'normal';
+      const bg = isMe(r) ? 'background:#eaf1fb;' : '';
+      const edge = isMe(r) ? 'border-left:4px solid ' + (r.now ? '#D50032' : '#2b5d9b') + ';' : 'border-left:4px solid transparent;';
+      return '<tr><td style="' + bg + edge + 'padding:8px 10px;' + (i ? 'border-top:1px solid #e3e7ee;' : '') + 'color:' + color + ';font-weight:' + weight + '">' + escHtml(r.name) + (isMe(r) ? ' <span style="font-weight:normal;color:#5d6b82">(you)</span>' : '') + '</td>' +
+        '<td style="' + bg + 'padding:8px 10px;' + (i ? 'border-top:1px solid #e3e7ee;' : '') + 'text-align:right;white-space:nowrap;font-size:13px;color:#5d6b82;font-weight:' + (r.now ? 'bold' : 'normal') + '">Rd ' + r.round + ' · #' + r.pick + '</td></tr>';
+    }).join('') + '</table>';
+  return { html, text };
+}
 
 /** Labeled sections for emails: [{ label, items: [..] }] → plain text and an HTML table, one item per line. */
 function detailRows(rows) {
@@ -1021,10 +1042,10 @@ async function deliver(p, msg) {
       from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
       to: [p.email, p.email2].filter(Boolean).join(', '),
       subject: (isTest() ? '[TEST] ' : '') + msg.subject,
-      text: intro + (d.text ? '\n\n' + d.text : '') + '\n\n' + button + ': ' + msg.link + (swap ? '\n\n' + SWAP_HELP : '') + '\n\nChange your notification settings: ' + settings,
+      text: intro + (d.text ? '\n\n' + d.text : '') + (msg.extra ? '\n\n' + msg.extra.text : '') + '\n\n' + button + ': ' + msg.link + (swap ? '\n\n' + SWAP_HELP : '') + '\n\nChange your notification settings: ' + settings,
       html: '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
         '<p style="font-size:18px;font-weight:bold;margin:0 0 8px">' + escHtml(msg.title) + '</p>' +
-        (intro ? '<p style="margin:0 0 16px">' + escHtml(intro) + '</p>' : '') + d.html +
+        (intro ? '<p style="margin:0 0 16px">' + escHtml(intro) + '</p>' : '') + d.html + (msg.extra ? msg.extra.html : '') +
         '<p style="margin:0 0 24px"><a href="' + msg.link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">' + escHtml(button) + '</a></p>' +
         (swap ? swapHelpHtml() : '') +
         '<p style="font-size:12px;color:#5d6b82;margin:0">Private draft page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Change your notification settings</a>.</p></div>',
