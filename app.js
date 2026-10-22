@@ -2049,29 +2049,27 @@
     $('notify-push-hint').hidden = anyDevice;
     if (!anyDevice) $('notify-push-on').checked = false;
     const mine = !!store.get(PUSH_TOKEN_KEY) && p.hasThisDevice;
-    const others = Math.max(0, (p.devices || 0) - (mine ? 1 : 0));
     const btn = $('push-btn');
-    const more = others ? ' Also on ' + others + ' other device' + (others === 1 ? '' : 's') + '.' : '';
     btn.hidden = false;
     btn.disabled = false;
     if (st === 'off') {
       $('push-status').textContent = DEMO ? 'Push works once the draft is live.' : "Push isn't set up yet. Email works now.";
       btn.hidden = true;
     } else if (st === 'ios-install') {
-      $('push-status').innerHTML = 'On iPhone or iPad, first add this page to your Home Screen: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>. Then open the draft from that icon and come back here.' + esc(more);
+      $('push-status').innerHTML = 'On iPhone or iPad, first add this page to your Home Screen: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>. Then open the draft from that icon and come back here.';
       btn.hidden = true;
     } else if (st === 'unsupported') {
-      $('push-status').textContent = "This browser can't receive push notifications. Try Chrome, Edge, Firefox or Safari, or use email." + more;
+      $('push-status').textContent = "This browser can't receive push notifications. Try Chrome, Edge, Firefox or Safari, or use email.";
       btn.hidden = true;
     } else if (st === 'denied') {
-      $('push-status').textContent = 'Notifications are blocked for this site. Allow them in your browser or phone settings, then try again.' + more;
+      $('push-status').textContent = 'Notifications are blocked for this site. Allow them in your browser or phone settings, then try again.';
       btn.hidden = true;
     } else if (mine) {
-      $('push-status').innerHTML = '<span class="push-on">✓ On for this device.</span>' + esc(more);
+      $('push-status').innerHTML = '<span class="push-on">✓ On for this device.</span>';
       btn.textContent = 'Turn off for this device';
       btn.dataset.mode = 'off';
     } else {
-      $('push-status').textContent = 'Get a notification on this ' + (/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'phone' : 'device') + " when it's your turn." + more;
+      $('push-status').textContent = 'Get a notification on this ' + (/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'phone' : 'device') + " when it's your turn.";
       btn.textContent = 'Turn on for this device';
       btn.dataset.mode = 'on';
     }
