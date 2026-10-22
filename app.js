@@ -609,11 +609,12 @@
 
   function seatCell(it, p, canPick, prevIds, label, aria) {
     const fresh = prevIds && p && !prevIds.has(it.id) ? ' just' : '';
+    const lab = label ? '<span class="s-label">' + esc(label) + '</span>' : '';
     if (p) {
-      return '<div class="seat taken' + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '"><span class="s-label">' + esc(label) + '</span><span class="s-val">' + esc(p.member) + '</span></div>';
+      return '<div class="seat taken' + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '">' + lab + '<span class="s-val">' + esc(p.member) + '</span></div>';
     }
-    if (!canPick) return '<div class="seat"><span class="s-label">' + esc(label) + '</span><span class="s-val">Available</span></div>';
-    return '<button type="button" class="seat open" data-id="' + esc(it.id) + '" aria-label="Pick ' + esc(aria) + '"><span class="s-label">' + esc(label) + '</span><span class="s-val">Pick</span></button>';
+    if (!canPick) return '<div class="seat">' + lab + '<span class="s-val">Available</span></div>';
+    return '<button type="button" class="seat open" data-id="' + esc(it.id) + '" aria-label="Pick ' + esc(aria) + '">' + lab + '<span class="s-val">Pick</span></button>';
   }
 
   /* Regular season board: one row per home game, all four seats per pick. */
@@ -696,7 +697,7 @@
             '<div class="rsg-date' + (f.weekend ? ' wknd' : '') + '"><span class="mon">' + (d ? MON[d[1] - 1] : '') + '</span><span class="dnum">' + (d ? d[2] : '?') + '</span><span class="dow">' + esc(f.dow) + '</span></div>' +
             '<div class="rsg-info"><div class="game-name">vs ' + esc(g.opponent) + '</div><div class="game-sub">' + time + '</div>' +
               (tags.length ? '<div class="badges">' + tags.join('') + '</div>' : '') + '</div>' +
-            '<div class="rsg-act">' + seatCell(g, pick, canPick, prevIds, 'Seats 7–10', g.label || g.game) + '</div></div>';
+            '<div class="rsg-act">' + seatCell(g, pick, canPick, prevIds, '', g.label || g.game) + '</div></div>';
         }).join('') + '</div></div>';
     }).join('');
   }
@@ -846,7 +847,7 @@
       const f = gameFlags(item, null);
       const extras = [f.holiday, f.dayGame ? 'Weekday day game' : ''].concat(f.promos).filter(Boolean);
       $('pick-item').innerHTML = '<div class="pi-title">' + esc(f.dow) + ', ' + (d ? MON[d[1] - 1] + ' ' + d[2] : '') + ' — vs ' + esc(item.opponent) + '</div>' +
-        '<div class="pi-sub">All 4 seats (7–10) · ' + (item.time && !/^tbd$/i.test(item.time) ? esc(item.time) + ' ET' : 'Time TBD') + (extras.length ? ' · ' + esc(extras.join(' · ')) : '') + '</div>';
+        '<div class="pi-sub">4 tickets · ' + (item.time && !/^tbd$/i.test(item.time) ? esc(item.time) + ' ET' : 'Time TBD') + (extras.length ? ' · ' + esc(extras.join(' · ')) : '') + '</div>';
     } else {
       $('pick-item').innerHTML = '<div class="pi-title">' + esc(item.series) + ' — ' + esc(item.game) + '</div>' +
         '<div class="pi-sub">Seats ' + esc(item.seats) + ' · ' + (item.date && item.date !== 'TBD' ? esc(item.date) + ' · ' : '') + money(item.price) + '</div>';
