@@ -723,8 +723,8 @@
     }).join('');
   }
 
-  /* Calendar view: month grids like the printed schedule. Home games are red (taken ones gray,
-     yours navy); games that don't match the filters fade out. The Month filter shows just that month. */
+  /* Calendar view: month grids like the printed schedule. Available home games are navy (taken ones gray,
+     yours red); games that don't match the filters fade out. The Month filter shows just that month. */
   function renderRsCalendar(enriched, match, canPick, prevIds) {
     const byDate = {};
     enriched.forEach((x) => { byDate[x.g.date] = x; });
