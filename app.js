@@ -617,7 +617,7 @@
     const fresh = prevIds && p && !prevIds.has(it.id) ? ' just' : '';
     const lab = label ? '<span class="s-label">' + esc(label) + '</span>' : '';
     if (p) {
-      return '<div class="seat taken' + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '">' + lab + '<span class="s-val">' + esc(p.member) + '</span></div>';
+      return '<div class="seat taken' + (viewer() && p.member === viewer() ? ' mine' : '') + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '">' + lab + '<span class="s-val">' + esc(p.member) + '</span></div>';
     }
     if (!canPick) return '<div class="seat">' + lab + '<span class="s-val">Available</span></div>';
     return '<button type="button" class="seat open" data-id="' + esc(it.id) + '" aria-label="Pick ' + esc(aria) + '">' + lab + '<span class="s-val">Pick</span></button>';
@@ -658,7 +658,7 @@
         '<div class="vtoggle" role="group" aria-label="View">' +
           '<button type="button" data-rsview="list"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>List</button>' +
           '<button type="button" data-rsview="cal"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button></div>' +
-        '<div class="frow" role="group" aria-label="Show">' + chip('avail', 'all', 'All games') + chip('avail', 'open', 'Available') + '</div>' +
+        '<div class="frow" role="group" aria-label="Show">' + chip('avail', 'all', 'All games') + chip('avail', 'open', 'Available') + chip('avail', 'mine', 'My games') + '</div>' +
         '<div class="frow" role="group" aria-label="Highlights">' + chip('tag', 'all', 'Any') + chip('tag', 'weekend', 'Weekends') +
           chip('tag', 'weekday', 'Weekdays') + '</div>' +
         '<div class="frow selects"><label>Month <select data-fsel="month"><option value="">All</option>' +
@@ -675,6 +675,7 @@
 
     const shown = enriched.filter(({ g, f, p }) => {
       if (rsFilter.avail === 'open' && p) return false;
+      if (rsFilter.avail === 'mine' && !(p && viewer() && p.member === viewer())) return false;
       if (rsFilter.tag === 'weekend' && !f.weekend) return false;
       if (rsFilter.tag === 'weekday' && f.weekend) return false;
       if (rsFilter.month && String(g.date).slice(0, 7) !== rsFilter.month) return false;
@@ -692,7 +693,7 @@
     if (rsView === 'cal' && games.length) { renderRsCalendar(enriched, new Set(shown.map((x) => x.g.id)), canPick, prevIds); return; }
 
     if (!shown.length) {
-      $('board').innerHTML = '<div class="notice-card">' + (games.length ? 'No games match these filters.' : 'No games loaded yet. Commissioner: choose <em>Guardians Draft → Refresh regular season schedule from MLB</em> in the Google Sheet.') + '</div>';
+      $('board').innerHTML = '<div class="notice-card">' + (games.length && rsFilter.avail === 'mine' && !viewer() ? 'Tap <strong>Who are you?</strong> above so the page knows which games are yours.' : games.length && rsFilter.avail === 'mine' ? 'You don\'t have any games yet' + (rsFilter.month || rsFilter.opp || rsFilter.tag !== 'all' ? ' that match these filters.' : '.') : games.length ? 'No games match these filters.' : 'No games loaded yet. Commissioner: choose <em>Guardians Draft → Refresh regular season schedule from MLB</em> in the Google Sheet.') + '</div>';
       return;
     }
     const groups = [];
@@ -707,8 +708,9 @@
       const name = p.length === 2 ? MONTH_FULL[+p[1] - 1] + ' ' + p[0] : 'Date TBD';
       const open = grp.items.filter((x) => !x.p).length;
       const isOpen = isMonthOpen(grp.key);
-      return '<div class="series rs-month' + (isOpen ? '' : ' closed') + (open ? '' : ' full') + '"><button type="button" class="series-head month-toggle" data-month="' + esc(grp.key) + '" aria-expanded="' + isOpen + '">' +
-        '<h3><span class="chev" aria-hidden="true">▾</span>' + esc(name) + '</h3><span class="price">' + open + ' of ' + grp.items.length + ' open</span></button>' +
+      const mineOnly = rsFilter.avail === 'mine';
+      return '<div class="series rs-month' + (isOpen ? '' : ' closed') + (open || mineOnly ? '' : ' full') + '"><button type="button" class="series-head month-toggle" data-month="' + esc(grp.key) + '" aria-expanded="' + isOpen + '">' +
+        '<h3><span class="chev" aria-hidden="true">▾</span>' + esc(name) + '</h3><span class="price">' + (mineOnly ? grp.items.length + (grp.items.length === 1 ? ' game' : ' games') : open + ' of ' + grp.items.length + ' open') + '</span></button>' +
         '<div class="month-body"' + (isOpen ? '' : ' hidden') + '>' +
         grp.items.map(({ g, f, p: pick }) => {
           const d = ymd(g.date);
@@ -720,7 +722,7 @@
           String(g.notes || '').split(';').map((x) => x.trim()).filter(Boolean).forEach((n) => tags.push('<span class="cond">' + esc(n) + '</span>'));
           const time = g.time && !/^tbd$/i.test(g.time) ? esc(g.time) + ' ET' : 'Time TBD';
           const hl = f.holiday ? ' hl-holiday' : f.dayGame ? ' hl-day' : '';
-          return '<div class="rsg' + (pick ? ' is-taken' : '') + hl + '">' +
+          return '<div class="rsg' + (pick ? ' is-taken' : '') + (pick && viewer() && pick.member === viewer() ? ' is-mine' : '') + hl + '">' +
             '<div class="rsg-date' + (f.weekend ? ' wknd' : '') + '"><span class="mon">' + (d ? MON[d[1] - 1] : '') + '</span><span class="dnum">' + (d ? d[2] : '?') + '</span><span class="dow">' + esc(f.dow) + '</span></div>' +
             '<div class="rsg-info"><div class="game-name">vs ' + esc(g.opponent) + '</div><div class="game-sub">' + time + '</div>' +
               (tags.length ? '<div class="badges">' + tags.join('') + '</div>' : '') + '</div>' +
@@ -791,6 +793,7 @@
     if (!b) return;
     rsFilter[b.dataset.fk] = b.dataset.fv;
     if (state) render(null);
+    if (b.dataset.fv === 'mine' && !viewer()) openWho(); // need to know who "my" is
   });
   $('rs-filters').addEventListener('change', (e) => {
     const sel = e.target.closest('select[data-fsel]');
@@ -2405,6 +2408,7 @@
     const v = viewer();
     $('who-label').textContent = v ? 'You: ' + v : 'Who are you?';
     $('who-btn').classList.toggle('is-set', !!v);
+    $('legend-mine').hidden = !v;
   }
   async function openWho() {
     if (!notifyMembers()) await ensureRs();

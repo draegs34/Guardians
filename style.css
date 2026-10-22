@@ -11,8 +11,10 @@
   --line: #dfe4ec;
   --open: #1f7a4d;
   --open-bg: #e8f5ee;
-  --open-solid: #1b7a4b;
-  --open-solid-hover: #146a40;
+  --open-solid: #0C2340;
+  --open-solid-hover: #173a63;
+  --avail-bg: #eaf1fb;
+  --avail: #2b5d9b;
   --taken-bg: #eef1f5;
   --shadow: 0 1px 2px rgba(12, 35, 64, .06), 0 4px 14px rgba(12, 35, 64, .06);
   --radius: 12px;
@@ -129,8 +131,8 @@ code { font-size: .9em; }
 .seat.taken .s-val { color: var(--muted); font-weight: 600; }
 .seat.taken .s-val::before { content: "✓ "; }
 /* Open but not pickable right now (paused) */
-.seat:not(.open):not(.taken) { background: var(--open-bg); border-color: var(--open); }
-.seat:not(.open):not(.taken) .s-val { color: var(--open); }
+.seat:not(.open):not(.taken) { background: var(--avail-bg); border-color: var(--avail); }
+.seat:not(.open):not(.taken) .s-val { color: var(--avail); }
 .seat.open:active { transform: scale(.98); }
 .seat.open:focus-visible { outline: 3px solid var(--navy-2); outline-offset: 2px; }
 .seat.just { animation: flash 1.6s ease-out; }
@@ -640,3 +642,15 @@ body.stale .seat:not(.taken) { opacity: .7; }
 #who-btn svg { flex: none; }
 #who-btn.is-set { color: #2b5d9b; border-color: #b9cfe9; background: #eef4fb; }
 :root[data-theme="dark"] #who-btn.is-set { color: #8bb8f0; border-color: #2b4268; background: #16263d; }
+
+/* Pick buttons are navy; dark mode uses a brighter blue so they stand out. */
+:root[data-theme="dark"] { --open-solid: #2b5d9b; --open-solid-hover: #3a6fb0; --avail-bg: #16263d; --avail: #8bb8f0; }
+
+/* Your own games are green: list view seat + row stripe, calendar cell, legend. */
+.seat.taken.mine { background: var(--open-bg); border: 1.5px solid var(--open); border-style: solid; }
+.seat.taken.mine .s-val { color: var(--open); font-weight: 800; }
+.rsg.is-mine { box-shadow: inset 4px 0 0 var(--open); }
+.dot.mine { background: var(--open); border: 1.5px solid var(--open); }
+.cl.mine { background: var(--open) !important; }
+.cal-d.taken.mine, :root[data-theme="dark"] .cal-d.taken.mine { background: var(--open); color: #fff; }
+:root[data-theme="dark"] .cal-d.taken.mine { color: #0b1422; }
