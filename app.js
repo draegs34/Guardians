@@ -919,7 +919,7 @@
     }
     pendingName = state.current ? state.current.name : null;
     $('pick-for').textContent = pendingName || '';
-    $('pick-submit').textContent = 'Lock it in for ' + (pendingName || '');
+    $('pick-submit').textContent = 'Lock it in';
     $('pick-error').textContent = '';
     const mem = state.members.find((m) => m.name === pendingName);
     const needsPin = !mem || mem.needsPin !== false;
@@ -957,7 +957,7 @@
         busy = false;
         lastPickCount = state && state.picks ? state.picks.length : lastPickCount;
         $('pick-submit').disabled = false;
-        $('pick-submit').textContent = 'Lock it in for ' + (pendingName || '');
+        $('pick-submit').textContent = 'Lock it in';
       });
   });
 
