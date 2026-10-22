@@ -9,26 +9,24 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>try { if (localStorage.getItem('guardians-draft-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon-192.png" type="image/png">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script>
+    // Home Screen setup. Test mode (?test) gets its own manifest (opens ?test), name and yellow ticket icon.
+    // Written into the page while it loads (not swapped later) so iPhone's Add to Home Screen picks it up.
+    (function () {
+      var t = false;
+      try { t = /[?&]test(=|&|$)/.test(location.search); } catch (e) {}
+      document.write(
+        '<link rel="manifest" href="' + (t ? 'manifest-test.json' : 'manifest.json') + '">' +
+        '<link rel="icon" href="' + (t ? 'icon-192-test.png' : 'icon-192.png') + '" type="image/png">' +
+        '<link rel="apple-touch-icon" href="' + (t ? 'apple-touch-icon-test.png' : 'apple-touch-icon.png') + '">' +
+        '<meta name="apple-mobile-web-app-title" content="' + (t ? 'Draft TEST' : 'Ticket Draft') + '">');
+    })();
+  </script>
+  <noscript><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="apple-touch-icon.png"></noscript>
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Ticket Draft">
-  <script>
-    // Test mode (?test): Add to Home Screen should open the test copy, under its own name.
-    try {
-      if (/[?&]test(=|&|$)/.test(location.search)) {
-        document.querySelector('link[rel="manifest"]').href = 'manifest-test.json';
-        document.querySelector('meta[name="apple-mobile-web-app-title"]').content = 'Draft TEST';
-        // Yellow ticket icon so the test copy looks different (tab icon and Home Screen).
-        document.querySelector('link[rel="icon"]').href = 'icon-192-test.png';
-        document.querySelector('link[rel="apple-touch-icon"]').href = 'apple-touch-icon-test.png';
-      }
-    } catch (e) {}
-  </script>
-  <link rel="stylesheet" href="style.css?v=202610230900">
+  <link rel="stylesheet" href="style.css?v=202610231130">
 </head>
 <body>
   <header class="top">
@@ -363,9 +361,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610230900"></script>
-  <script src="engine.js?v=202610230900"></script>
-  <script type="module" src="live.js?v=202610230900"></script>
-  <script src="app.js?v=202610230900"></script>
+  <script src="config.js?v=202610231130"></script>
+  <script src="engine.js?v=202610231130"></script>
+  <script type="module" src="live.js?v=202610231130"></script>
+  <script src="app.js?v=202610231130"></script>
 </body>
 </html>
