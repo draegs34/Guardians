@@ -2103,6 +2103,7 @@
     $('notify-email-on').checked = !!p.emailOn;
     $('notify-swap').checked = p.swapEmails !== false;
     $('notify-next').checked = !!p.nextUp;
+    syncNextUp();
     $('notify-push-on').checked = p.pushOn !== false;
     renderPushStatus();
   }
@@ -2114,6 +2115,7 @@
     $('notify-push-on').disabled = !anyDevice;
     $('notify-push-hint').hidden = anyDevice;
     if (!anyDevice) $('notify-push-on').checked = false;
+    syncNextUp();
     const mine = !!store.get(PUSH_TOKEN_KEY) && p.hasThisDevice;
     const btn = $('push-btn');
     btn.hidden = false;
@@ -2181,6 +2183,16 @@
   $('notify-cancel').addEventListener('click', () => $('notify-dialog').close());
   $('notify-name').addEventListener('change', syncNotifyPinField);
   $('notify-change').addEventListener('click', () => { notifyPrefs = null; showNotifyStep(false); });
+  // "Up next" needs push or email ticked for drafts; otherwise there's nothing to send it by.
+  function syncNextUp() {
+    const any = $('notify-push-on').checked || $('notify-email-on').checked;
+    $('notify-next').disabled = !any;
+    $('nextup-opt').classList.toggle('off', !any);
+    $('nextup-hint').textContent = any
+      ? 'Goes out by whichever of push and email you ticked above, one pick before your turn. The on-screen banner always shows when you\'re up next.'
+      : 'Tick push or email above to use this. The on-screen banner always shows when you\'re up next.';
+  }
+  ['notify-push-on', 'notify-email-on'].forEach((id) => $(id).addEventListener('change', syncNextUp));
 
   /* Change your own PIN (saved to the member list the commissioner sees in Setup). */
   function showPinFields(on) {
@@ -2268,7 +2280,7 @@
         }
         const old = store.get(PUSH_TOKEN_KEY);
         const res = await notifyPost({ action: 'notifySave', prefs: Object.assign(notifyForm(), { pushOn: true }), addToken: token, removeToken: old && old !== token ? old : undefined });
-        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; $('notify-push-on').checked = true; renderNotifyCheck(); toast('Push notifications are on for this device.'); }
+        if (notifyDone(res)) { store.set(PUSH_TOKEN_KEY, token); notifyPrefs.hasThisDevice = true; $('notify-push-on').checked = true; syncNextUp(); renderNotifyCheck(); toast('Push notifications are on for this device.'); }
       } else {
         const token = store.get(PUSH_TOKEN_KEY);
         const res = await notifyPost({ action: 'notifySave', prefs: notifyForm(), removeToken: token });

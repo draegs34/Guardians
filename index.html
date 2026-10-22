@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610231200">
+  <link rel="stylesheet" href="style.css?v=202610231300">
 </head>
 <body>
   <header class="top">
@@ -305,8 +305,12 @@
             <label class="check"><input type="checkbox" id="notify-push-on"> <span>Push notification <small class="hint" id="notify-push-hint">(turn on push above first)</small></span></label>
             <label class="check"><input type="checkbox" id="notify-email-on"> <span>Email</span></label>
             <label class="check"><input type="checkbox" id="notify-screen"> <span>On-screen alerts in this browser: a banner, a flashing tab and an icon badge</span></label>
-            <label class="check"><input type="checkbox" id="notify-next"> <span>Also tell me when I'm <strong>up next</strong></span></label>
           </fieldset>
+          <div class="nextup-opt" id="nextup-opt">
+            <p class="nextup-k">Extra heads-up</p>
+            <label class="check"><input type="checkbox" id="notify-next"> <span>Also send a push or email when I'm <strong>up next</strong></span></label>
+            <p class="hint" id="nextup-hint">Goes out by whichever of push and email you ticked above, one pick before your turn. The on-screen banner always shows when you're up next.</p>
+          </div>
         </section>
         <section class="nsec">
           <h4>Ticket Swap</h4>
@@ -361,9 +365,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610231200"></script>
-  <script src="engine.js?v=202610231200"></script>
-  <script type="module" src="live.js?v=202610231200"></script>
-  <script src="app.js?v=202610231200"></script>
+  <script src="config.js?v=202610231300"></script>
+  <script src="engine.js?v=202610231300"></script>
+  <script type="module" src="live.js?v=202610231300"></script>
+  <script src="app.js?v=202610231300"></script>
 </body>
 </html>
