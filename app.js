@@ -92,6 +92,11 @@
   const meKey = (v) => 'guardians-draft-me:' + v;
   if (store.get('guardians-draft-me') && !store.get(meKey('post'))) store.set(meKey('post'), store.get('guardians-draft-me'));
   let me = store.get(meKey(view)) || '';
+  // Who's using this browser, for highlighting "you" (Up Next, Pick Log, calendar). Remembered from
+  // on-screen alerts, Notification & PIN settings, or Ticket Swap, whichever they've used.
+  const VIEWER_KEY = 'guardians-viewer';
+  const viewer = () => me || store.get(VIEWER_KEY) || store.get('guardians-swap-me') || '';
+  const setViewer = (n) => { if (n) store.set(VIEWER_KEY, n); };
 
   /* ------------------------------------------------------------------ */
   /* Demo backend: in-memory "sheets" run through the same DraftEngine   */
@@ -525,7 +530,7 @@
     $('upcoming').innerHTML = up.length
       ? up.map((t) => {
           const extra = eligibleIdx++ >= left; // only gets a turn if someone ahead drops out
-          const cls = [me && t.name === me ? 'me' : '', extra ? 'standby' : ''].filter(Boolean).join(' ');
+          const cls = [viewer() && t.name === viewer() ? 'me' : '', extra ? 'standby' : ''].filter(Boolean).join(' ');
           return '<li' + (cls ? ' class="' + cls + '"' : '') + '><span>' + esc(t.name) + '</span><span class="meta">' +
             (extra ? 'If needed' : 'Rd ' + t.round + ' · #' + t.pick) + '</span></li>';
         }).join('')
@@ -565,7 +570,7 @@
             const what = it ? (it.label || it.series.replace(/^AL /, '') + ' ' + it.game + ' · Seats ' + it.seats) : p.itemId;
             body = '<b>' + (p.assigned ? '' : num) + esc(p.member) + '</b> — ' + esc(what) + (p.assigned ? ' <span class="meta">(assigned)</span>' : '');
           }
-          return '<li' + (me && p.member === me ? ' class="me"' : '') + '>' + body + stamp + '</li>';
+          return '<li' + (viewer() && p.member === viewer() ? ' class="me"' : '') + '>' + body + stamp + '</li>';
         }).join('')
       : '<li class="empty">No picks yet.</li>';
 
@@ -731,7 +736,7 @@
     const months = [...new Set(enriched.map((x) => String(x.g.date).slice(0, 7)))].filter((m) => /^\d{4}-\d{2}$/.test(m) && (!rsFilter.month || m === rsFilter.month));
     const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const pad = (n) => String(n).padStart(2, '0');
-    $('board').innerHTML = '<div class="cal-legend"><span><i class="cl open"></i>Available</span><span><i class="cl taken"></i>Taken</span>' + (me ? '<span><i class="cl mine"></i>Yours</span>' : '') + '</div>' +
+    $('board').innerHTML = '<div class="cal-legend"><span><i class="cl open"></i>Available</span><span><i class="cl taken"></i>Taken</span>' + (viewer() ? '<span><i class="cl mine"></i>Yours</span>' : '') + '</div>' +
       '<div class="cal-months">' + months.map((key) => {
         const [y, m] = key.split('-').map(Number);
         const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
@@ -745,7 +750,7 @@
           if (!x) { cells += '<div class="cal-d"><span class="cn">' + d + '</span></div>'; continue; }
           const { g, f, p: pick } = x;
           const time = g.time && !/^tbd$/i.test(g.time) ? g.time : 'TBD';
-          const mineCls = pick && me && pick.member === me ? ' mine' : '';
+          const mineCls = pick && viewer() && pick.member === viewer() ? ' mine' : '';
           const fresh = prevIds && pick && !prevIds.has(g.id) ? ' just' : '';
           const dim = match.has(g.id) ? '' : ' dim';
           const tip = f.dow + ' ' + MON[m - 1] + ' ' + d + ' vs ' + g.opponent + ' · ' + time + (pick ? ' — ' + pick.member : ' — available') + (f.opener ? ' · Home Opener' : '') + (f.holiday ? ' · ' + f.holiday : '');
@@ -1797,6 +1802,7 @@
           if (!r || !r.ok) return swapErr((r && r.error) || 'Something went wrong.');
           swapAuth = { name, pin, mine: r.games || [], email: !!r.email, push: !!r.push };
           store.set(SWAP_ME_KEY, name);
+          setViewer(name);
           renderSwapBadge();
           renderSwap();
           next(swapAuth);
@@ -2241,8 +2247,10 @@
       if (!res || !res.ok) { $('notify-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
       notifyPrefs = res.prefs || {};
       notifySuggest = res.suggestEmail || '';
+      setViewer(notifyName);
       rememberNotifyOn(notifyPrefs);
       showNotifyStep(true);
+      if (state) render(null);
     });
   });
   function applyScreen() {
