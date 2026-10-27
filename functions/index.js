@@ -182,6 +182,7 @@ async function apiHandler(req, res) {
     if (body.action === 'testReset') return res.json(await testReset(body));
     if (body.action === 'syncMembers') return res.json(await syncMembers(key, body));
     if (/^swap/.test(body.action || '')) return res.json(await swapAction(body));
+    if (body.action === 'gamesMail') return res.json(await gamesMail(key, body));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
     const before = await turnSnapshot(key);
     const out = await handle(key, body);
@@ -1367,6 +1368,254 @@ async function announceListing(id, x, board, prefsAll, link) {
       '<p style="font-size:12px;color:#5d6b82;margin:0">Private page for our season ticket group. <a href="' + settings + '" style="color:#5d6b82">Turn off Ticket Swap emails</a>.</p></div>',
   }).catch((e) => console.error('swap announce', e.message));
 }
+
+
+/* ------------------------------------------------------------------ */
+/* "Email members their games" (Commissioner tools, after a draft).    */
+/* Each member gets their own email listing the games they hold, with  */
+/* an optional calendar file (.ics) and PDF. Commissioner PIN only.    */
+/*                                                                      */
+/*   op 'info'    → members, addresses, game counts, last sent          */
+/*   op 'preview' → the email for one member (HTML), and its PDF        */
+/*   op 'send'    → sends to the chosen members                         */
+/* ------------------------------------------------------------------ */
+const MAIL_LOG = (key) => db.doc('notify/gamesmail-' + key);
+const BALLPARK = 'Progressive Field, 2401 Ontario St, Cleveland, OH 44115';
+const DOWS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const isoDate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? String(d) : '';
+const dateParts = (d) => { const m = isoDate(d); if (!m) return null; const [y, mo, da] = m.split('-').map(Number); return { y, mo, da, dow: new Date(Date.UTC(y, mo - 1, da)).getUTCDay() }; };
+const niceDate = (d) => { const p = dateParts(d); return p ? DOWS[p.dow].slice(0, 3) + ', ' + MONS[p.mo - 1] + ' ' + p.da : (String(d || '').trim() || 'Date TBD'); };
+const niceTime = (t) => (t && !/^tbd$/i.test(String(t).trim()) ? String(t).trim() + ' ET' : 'Time TBD');
+function parseTime(t) {
+  const m = String(t || '').trim().match(/^(\d{1,2}):(\d{2})\s*([AP])\.?M\.?$/i);
+  if (!m) return null;
+  let h = Number(m[1]) % 12; if (/p/i.test(m[3])) h += 12;
+  return { h, mi: Number(m[2]) };
+}
+
+function mailDefaults(key, pub) {
+  const s = pub.settings || {};
+  if (key === 'rs') {
+    const season = s.season || '';
+    return { subject: 'Your ' + (season ? season + ' ' : '') + 'Guardians games', message: 'Here are the games you have from our ' + (season ? season + ' ' : '') + 'regular season draft.' };
+  }
+  return { subject: 'Your Guardians postseason tickets', message: 'Here are the postseason games and seats you have from our draft.' };
+}
+
+/** Each member's games, in date order. */
+function heldGames(key, pub) {
+  const inv = {};
+  (pub.inventory || []).forEach((g) => { inv[g.id] = g; });
+  const by = {};
+  (pub.events || []).forEach((e) => {
+    if ((e.type === 'pick' || e.type === 'assign') && e.itemId && inv[e.itemId]) (by[lc(e.member)] = by[lc(e.member)] || []).push(inv[e.itemId]);
+  });
+  const order = (g) => (isoDate(g.date) || '9999') + ' ' + String(g.series || '') + ' ' + String(g.game || '') + ' ' + String(g.id);
+  Object.keys(by).forEach((k) => by[k].sort((a, b) => order(a).localeCompare(order(b))));
+  return by;
+}
+
+function gameRow(key, g) {
+  if (key === 'rs') return { date: niceDate(g.date), what: 'vs ' + (g.opponent || 'TBD'), time: niceTime(g.time), seats: '' };
+  return { date: niceDate(g.date), what: [g.series, g.game].filter(Boolean).join(' · ') + (g.opponent ? ' vs ' + g.opponent : ''), time: g.time ? niceTime(g.time) : '', seats: g.seats ? 'Seats ' + g.seats : '' };
+}
+
+function gamesEmail(key, pub, name, greet, message, games, attach) {
+  const s = pub.settings || {};
+  const rs = key === 'rs';
+  const title = rs ? 'Your ' + (s.season ? s.season + ' ' : '') + 'Guardians games' : 'Your Guardians postseason tickets';
+  const count = games.length + ' ' + (rs ? 'home game' : 'game') + (games.length === 1 ? '' : 's') + (rs ? ' · all four tickets for each' : '');
+  const rows = games.map((g) => gameRow(key, g));
+  const paras = String(message || '').trim().split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
+  const th = 'padding:8px 10px;text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5d6b82;border-bottom:2px solid #0C2340';
+  const td = (i) => 'padding:9px 10px;border-bottom:1px solid #e3e7ee;vertical-align:top;' + (i % 2 ? 'background:#f6f8fb;' : '');
+  const table = rows.length
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:100%;max-width:560px;margin:0 0 18px;font-size:14px">' +
+      '<tr><th style="' + th + '">Date</th><th style="' + th + '">' + (rs ? 'Opponent' : 'Game') + '</th>' + (rs || rows.some((r) => r.time) ? '<th style="' + th + '">Time</th>' : '') + (rs ? '' : '<th style="' + th + '">Seats</th>') + '</tr>' +
+      rows.map((r, i) => '<tr><td style="' + td(i) + 'white-space:nowrap;font-weight:bold">' + escHtml(r.date) + '</td><td style="' + td(i) + '">' + escHtml(r.what) + '</td>' +
+        (rs || rows.some((x) => x.time) ? '<td style="' + td(i) + 'white-space:nowrap;color:#5d6b82">' + escHtml(r.time) + '</td>' : '') + (rs ? '' : '<td style="' + td(i) + 'white-space:nowrap">' + escHtml(r.seats) + '</td>') + '</tr>').join('') +
+      '</table>'
+    : '<p style="margin:0 0 18px;color:#5d6b82">You don\'t have any games in this draft.</p>';
+  const files = [attach.ics && games.some((g) => dateParts(g.date)) ? 'a calendar file that adds every game to your phone or computer calendar' : '', attach.pdf && games.length ? 'a PDF you can print' : ''].filter(Boolean);
+  const filesLine = files.length ? 'Attached: ' + files.join(', and ') + '.' : '';
+  const link = siteLink(rs ? 'regular-season' : 'postseason');
+  const swapLink = siteLink('ticket-swap');
+  const swapLine = rs && games.length ? 'Can\'t make one of your games? Post it on Ticket Swap to trade with another member.' : '';
+  const html = '<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#13213a">' +
+    '<p style="font-size:18px;font-weight:bold;margin:0 0 4px">' + escHtml(title) + '</p>' +
+    '<p style="margin:0 0 16px;font-size:13px;color:#5d6b82">' + escHtml(count) + '</p>' +
+    '<p style="margin:0 0 12px">Hi, ' + escHtml(greet) + '.</p>' +
+    paras.map((x) => '<p style="margin:0 0 12px">' + escHtml(x).replace(/\n/g, '<br>') + '</p>').join('') +
+    table +
+    (filesLine ? '<p style="margin:0 0 12px;font-size:14px;color:#5d6b82">' + escHtml(filesLine) + '</p>' : '') +
+    (swapLine ? '<p style="margin:0 0 18px;font-size:14px">' + escHtml(swapLine).replace('Ticket Swap', '<a href="' + swapLink + '" style="color:#2b5d9b;font-weight:bold">Ticket Swap</a>') + '</p>' : '') +
+    '<p style="margin:0 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open the draft</a></p>' +
+    '<p style="font-size:14px;color:#13213a;margin:0 0 12px;padding-top:14px;border-top:1px solid #e3e7ee">Questions or something look wrong? Just reply to this email.</p>' +
+    '<p style="font-size:12px;color:#5d6b82;margin:0">Private draft page for our season ticket group.</p></div>';
+  const text = title + '\n' + count + '\n\nHi, ' + greet + '.\n\n' + (paras.length ? paras.join('\n\n') + '\n\n' : '') +
+    (rows.length ? rows.map((r) => '• ' + r.date + ' — ' + r.what + (r.time ? ' — ' + r.time : '') + (r.seats ? ' — ' + r.seats : '')).join('\n') : 'You don\'t have any games in this draft.') +
+    (filesLine ? '\n\n' + filesLine : '') + (swapLine ? '\n\n' + swapLine + ' ' + swapLink : '') + '\n\nOpen the draft: ' + link + '\n\nQuestions or something look wrong? Just reply to this email.';
+  return { title, html, text };
+}
+
+/** Calendar file: one event per game with a known date. Times are Cleveland time; TBD times are all-day. */
+function gamesIcs(key, pub, name, games) {
+  const esc = (t) => String(t || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+  const fold = (line) => { const out = []; let l = line; while (l.length > 74) { out.push(l.slice(0, 74)); l = ' ' + l.slice(74); } out.push(l); return out.join('\r\n'); };
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Guardians Ticket Draft//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Guardians games',
+    'BEGIN:VTIMEZONE', 'TZID:America/New_York',
+    'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT', 'DTSTART:19700308T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST', 'DTSTART:19701101T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD',
+    'END:VTIMEZONE'];
+  let n = 0;
+  games.forEach((g) => {
+    const p = dateParts(g.date);
+    if (!p) return;
+    n++;
+    const ymd = p.y + pad(p.mo) + pad(p.da);
+    const t = parseTime(g.time);
+    const what = key === 'rs' ? 'Guardians vs ' + (g.opponent || 'TBD') : 'Guardians ' + [g.series, g.game].filter(Boolean).join(' ') + (g.opponent ? ' vs ' + g.opponent : '');
+    const desc = (key === 'rs' ? 'Your game from the ticket draft (all four tickets).' : 'Your seats: ' + (g.seats || '')) + (t ? '' : ' Start time TBD.') + ' Times can change; check mlb.com/guardians.';
+    lines.push('BEGIN:VEVENT', 'UID:' + String(g.id).replace(/[^\w.-]/g, '') + '-' + key + '@guardians-ticket-draft', 'DTSTAMP:' + stamp);
+    if (t) {
+      const end = new Date(Date.UTC(p.y, p.mo - 1, p.da, t.h + 3, t.mi));
+      lines.push('DTSTART;TZID=America/New_York:' + ymd + 'T' + pad(t.h) + pad(t.mi) + '00',
+        'DTEND;TZID=America/New_York:' + end.getUTCFullYear() + pad(end.getUTCMonth() + 1) + pad(end.getUTCDate()) + 'T' + pad(end.getUTCHours()) + pad(end.getUTCMinutes()) + '00');
+    } else {
+      const nx = new Date(Date.UTC(p.y, p.mo - 1, p.da + 1));
+      lines.push('DTSTART;VALUE=DATE:' + ymd, 'DTEND;VALUE=DATE:' + nx.getUTCFullYear() + pad(nx.getUTCMonth() + 1) + pad(nx.getUTCDate()));
+    }
+    lines.push('SUMMARY:' + esc(what), 'LOCATION:' + esc(BALLPARK), 'DESCRIPTION:' + esc(desc), 'TRANSP:TRANSPARENT', 'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return n ? lines.map(fold).join('\r\n') + '\r\n' : '';
+}
+
+/** One-page (or more) PDF of a member's games, styled like the Season Ticket Manager statements. */
+function gamesPdf(key, pub, name, games) {
+  const PDFDocument = require('pdfkit');
+  const s = pub.settings || {};
+  const rs = key === 'rs';
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'LETTER', margin: 0, info: { Title: name + ' - Guardians games', Author: 'Guardians Ticket Draft' } });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
+    const W = 612, H = 792, M = 44, NAVY = '#0C2340', RED = '#D50032', INK = '#17202b', MUTED = '#646e7d', LINE = '#dee2e8', TINT = '#f5f7fa';
+    const clean = (t) => String(t == null ? '' : t).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[^\x20-\x7E\u00A0-\u00FF–—•·]/g, '');
+    const today = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date());
+    let page = 1;
+    const header = () => {
+      doc.rect(0, 0, W, 54).fill(NAVY); doc.rect(0, 54, W, 3).fill(RED);
+      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(16).text('Guardians Season Tickets', M, 18, { lineBreak: false });
+      doc.font('Helvetica').fontSize(8.5).text(clean(rs ? (s.season ? s.season + ' regular season' : 'Regular season') : 'Postseason'), M, 37, { lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(9).text(rs ? 'YOUR GAMES' : 'YOUR TICKETS', W - M - 200, 18, { width: 200, align: 'right' });
+      doc.font('Helvetica').fontSize(8.5).text(today, W - M - 200, 37, { width: 200, align: 'right' });
+    };
+    const footer = () => {
+      doc.moveTo(M, H - 34).lineTo(W - M, H - 34).lineWidth(0.5).strokeColor(LINE).stroke();
+      doc.fillColor(MUTED).font('Helvetica').fontSize(7.5).text('From our ticket draft. Game times can change; check mlb.com/guardians.', M, H - 26, { lineBreak: false });
+      doc.text('Page ' + page, W - M - 100, H - 26, { width: 100, align: 'right' });
+    };
+    header();
+    let y = 78;
+    doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(clean(name), M, y, { lineBreak: false });
+    y += 26;
+    doc.fillColor(MUTED).font('Helvetica').fontSize(9.5).text(clean(games.length + (rs ? ' home game' : ' game') + (games.length === 1 ? '' : 's') + (rs ? '  ·  all four tickets for each game' : '')), M, y, { lineBreak: false });
+    y += 26;
+    const cols = rs ? [{ t: 'Date', x: M + 10, w: 150 }, { t: 'Opponent', x: M + 170, w: 250 }, { t: 'Time', x: M + 430, w: 94 }]
+      : [{ t: 'Date', x: M + 10, w: 110 }, { t: 'Game', x: M + 130, w: 250 }, { t: 'Time', x: M + 390, w: 70 }, { t: 'Seats', x: M + 465, w: 59 }];
+    const head = () => {
+      cols.forEach((c) => doc.fillColor(MUTED).font('Helvetica-Bold').fontSize(7.5).text(c.t.toUpperCase(), c.x, y, { width: c.w, lineBreak: false }));
+      y += 13; doc.moveTo(M, y).lineTo(W - M, y).lineWidth(1.5).strokeColor(NAVY).stroke(); y += 1;
+    };
+    head();
+    const RH = 24;
+    games.forEach((g, i) => {
+      if (y + RH > H - 50) { footer(); doc.addPage(); page++; header(); y = 78; head(); }
+      const r = gameRow(key, g);
+      if (i % 2) doc.rect(M, y, W - 2 * M, RH).fill(TINT);
+      const vals = rs ? [r.date, r.what, r.time] : [r.date, r.what, r.time, (g.seats || '')];
+      cols.forEach((c, ci) => doc.fillColor(ci === 0 ? INK : ci === cols.length - 1 && rs ? MUTED : INK).font(ci === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(10)
+        .text(clean(vals[ci]), c.x, y + 7, { width: c.w, lineBreak: false, ellipsis: true }));
+      y += RH; doc.moveTo(M, y).lineTo(W - M, y).lineWidth(0.5).strokeColor(LINE).stroke();
+    });
+    if (!games.length) doc.fillColor(MUTED).font('Helvetica').fontSize(10).text('No games in this draft.', M + 10, y + 10);
+    footer();
+    doc.end();
+  });
+}
+
+async function gamesMail(key, body) {
+  if (!(await commishPinOk(body.pin))) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  const pub = (await db.doc('drafts/' + key).get()).data();
+  if (!pub) return { ok: false, error: 'This draft isn\'t set up yet.' };
+  const prefs = ((await PREFS().get()).data() || {}).prefs || {};
+  const log = (await MAIL_LOG(key).get()).data() || {};
+  const held = heldGames(key, pub);
+  const names = (pub.members || []).map((m) => m.name).filter(Boolean);
+  const emailsOf = (n) => { const p = prefs[lc(n)] || {}; return [p.email, p.email2].filter(Boolean); };
+  const first = (n) => String(n || '').trim().split(/\s+/)[0] || '';
+  const def = mailDefaults(key, pub);
+  const op = body.op || 'info';
+  if (op === 'info') {
+    return { ok: true, emailReady: !!mailer(), subject: log.subject || def.subject, message: log.message != null ? log.message : def.message,
+      members: names.map((n) => ({ name: n, emails: emailsOf(n), games: (held[lc(n)] || []).length, lastSent: (log.sent || {})[lc(n)] || '', greet: (log.greet || {})[lc(n)] || first(n) })) };
+  }
+  const subject = String(body.subject || def.subject).trim().slice(0, 200);
+  const message = String(body.message == null ? def.message : body.message).slice(0, 4000);
+  const attach = { ics: body.ics !== false, pdf: body.pdf !== false };
+  const greetOf = (n) => String((body.greet || {})[n] || first(n)).trim().slice(0, 60) || first(n);
+  if (op === 'preview') {
+    const n = names.find((x) => lc(x) === lc(body.name));
+    if (!n) return { ok: false, error: 'Choose a member.' };
+    const games = held[lc(n)] || [];
+    const e = gamesEmail(key, pub, n, greetOf(n), message, games, attach);
+    const out = { ok: true, name: n, to: emailsOf(n), subject: (isTest() ? '[TEST] ' : '') + subject, html: e.html, games: games.length,
+      files: [attach.ics && games.some((g) => dateParts(g.date)) ? fileBase(n, key) + '.ics' : '', attach.pdf && games.length ? fileBase(n, key) + '.pdf' : ''].filter(Boolean) };
+    if (body.withPdf) out.pdf = (await gamesPdf(key, pub, n, games)).toString('base64');
+    return out;
+  }
+  if (op === 'send') {
+    if (!mailer()) return { ok: false, error: 'Email isn\'t set up for the draft yet (GMAIL_USER and the app password).' };
+    const want = (Array.isArray(body.names) ? body.names : []).map((x) => names.find((n) => lc(n) === lc(x))).filter(Boolean);
+    if (!want.length) return { ok: false, error: 'Choose at least one member.' };
+    const results = [];
+    const sentAt = new Date().toISOString();
+    for (const n of want) {
+      const to = emailsOf(n);
+      if (!to.length) { results.push({ name: n, ok: false, error: 'No email address' }); continue; }
+      const games = held[lc(n)] || [];
+      const e = gamesEmail(key, pub, n, greetOf(n), message, games, attach);
+      const attachments = [];
+      try {
+        if (attach.ics && games.length) { const ics = gamesIcs(key, pub, n, games); if (ics) attachments.push({ filename: fileBase(n, key) + '.ics', content: ics, contentType: 'text/calendar; charset=utf-8; method=PUBLISH' }); }
+        if (attach.pdf && games.length) attachments.push({ filename: fileBase(n, key) + '.pdf', content: await gamesPdf(key, pub, n, games), contentType: 'application/pdf' });
+        await mailer().sendMail({
+          from: '"Guardians Ticket Draft" <' + GMAIL_USER.value() + '>',
+          to: to.join(', '),
+          subject: (isTest() ? '[TEST] ' : '') + subject,
+          text: e.text, html: e.html, attachments,
+        });
+        results.push({ name: n, ok: true, to });
+      } catch (err) {
+        console.error('gamesMail', n, err.message);
+        results.push({ name: n, ok: false, error: 'Couldn\'t send' });
+      }
+    }
+    const sentMap = Object.assign({}, log.sent || {});
+    const greetMap = Object.assign({}, log.greet || {});
+    results.filter((r) => r.ok).forEach((r) => { sentMap[lc(r.name)] = sentAt; });
+    want.forEach((n) => { if (greetOf(n) !== first(n)) greetMap[lc(n)] = greetOf(n); else delete greetMap[lc(n)]; });
+    await MAIL_LOG(key).set({ subject, message, sent: sentMap, greet: greetMap, lastAt: sentAt });
+    const okN = results.filter((r) => r.ok).length;
+    return { ok: true, results, message: 'Sent ' + okN + ' email' + (okN === 1 ? '' : 's') + (okN < results.length ? '; ' + (results.length - okN) + ' couldn\'t be sent.' : '.') };
+  }
+  return { ok: false, error: 'Unknown request.' };
+}
+const fileBase = (n, key) => (String(n).replace(/[^\w]+/g, '-').replace(/^-|-$/g, '') + (key === 'rs' ? '-Guardians-games' : '-Guardians-postseason'));
 
 
 /* ------------------------------------------------------------------ */

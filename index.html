@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610281100">
+  <link rel="stylesheet" href="style.css?v=202610281300">
 </head>
 <body>
   <div id="test-banner" class="test-banner" hidden title="Test data, separate from the real drafts. Test PINs: members 1234, commissioner 0000. Alerts are marked [TEST].">Test Mode</div>
@@ -251,6 +251,12 @@
       </div>
 
       <div class="tool">
+        <h4>Email members their games</h4>
+        <p class="hint">After the draft, send each member a list of the games they have, with a calendar file and a printable PDF. You'll see a preview before anything is sent.</p>
+        <button type="button" class="btn primary" id="gm-open">Email members their games…</button>
+      </div>
+
+      <div class="tool">
         <h4>Archive this draft</h4>
         <p class="hint">Saves every pick in <strong id="archive-title"></strong> and clears the board so it's ready for next time. Archived drafts are under <em>Setup → Past drafts</em> for that season type.</p>
         <button type="button" class="btn danger" id="archive-btn">Archive this draft…</button>
@@ -259,6 +265,42 @@
       <p class="form-error" id="commish-error" role="alert"></p>
       <div class="actions">
         <button type="button" class="btn ghost" id="commish-cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Email members their games (from Commissioner tools) -->
+  <dialog id="gm-dialog">
+    <form method="dialog" id="gm-form">
+      <div class="gm-head">
+        <div><h3>Email members their games <span class="dlg-sub" id="gm-draft"></span></h3>
+        <p class="hint">Each checked member gets their own email listing the games they have. It goes to the address(es) in their Notification &amp; PIN settings, even if they've turned turn alerts off.</p></div>
+      </div>
+      <div class="gm-grid">
+        <div class="gm-left">
+          <div class="gm-table-wrap"><table class="gm-table">
+            <thead><tr><th><input type="checkbox" id="gm-all" aria-label="Select everyone with an email"></th><th>Member</th><th class="gm-num">Games</th><th>Hi,</th><th></th></tr></thead>
+            <tbody id="gm-rows"></tbody>
+          </table></div>
+          <label>Subject<input id="gm-subject" autocomplete="off"></label>
+          <label>Message<textarea id="gm-message" rows="4"></textarea></label>
+          <p class="hint">Every email starts with "Hi, [name]." and then your message, followed by their list of games. A blank line starts a new paragraph.</p>
+          <div class="gm-attach">
+            <label class="check"><input type="checkbox" id="gm-ics" checked> <span>Attach a calendar file (.ics) that adds every game to their calendar</span></label>
+            <label class="check"><input type="checkbox" id="gm-pdf" checked> <span>Attach a printable PDF of their games</span></label>
+          </div>
+        </div>
+        <div class="gm-right">
+          <div class="gm-pv-head"><span id="gm-pv-to"></span><button type="button" class="link-btn" id="gm-pv-pdf" hidden>View PDF</button></div>
+          <iframe id="gm-preview" title="Email preview" sandbox=""></iframe>
+        </div>
+      </div>
+      <p class="form-error" id="gm-error" role="alert"></p>
+      <div class="gm-results" id="gm-results" hidden></div>
+      <div class="actions gm-actions">
+        <span class="gm-count" id="gm-count"></span>
+        <button type="button" class="btn ghost" id="gm-cancel">Close</button>
+        <button type="button" class="btn primary" id="gm-send" disabled>Send</button>
       </div>
     </form>
   </dialog>
@@ -433,9 +475,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610281100"></script>
-  <script src="engine.js?v=202610281100"></script>
-  <script type="module" src="live.js?v=202610281100"></script>
-  <script src="app.js?v=202610281100"></script>
+  <script src="config.js?v=202610281300"></script>
+  <script src="engine.js?v=202610281300"></script>
+  <script type="module" src="live.js?v=202610281300"></script>
+  <script src="app.js?v=202610281300"></script>
 </body>
 </html>

@@ -1110,6 +1110,160 @@
     commishAction({ action: 'archive' }, $('archive-btn'), (s) => s.picks.length === 0);
   });
 
+  /* Email members their games (Commissioner tools → after the draft). The server builds each email,
+     calendar file and PDF; this dialog picks who gets one, edits the wording and shows a live preview. */
+  const gm = { key: 'rs', pin: '', members: [], sel: {}, greet: {}, pv: '', armed: false, timer: 0, seq: 0 };
+  const gmBody = (extra) => Object.assign({ action: 'gamesMail', draft: gm.key, pin: gm.pin, subject: $('gm-subject').value, message: $('gm-message').value,
+    greet: gm.greet, ics: $('gm-ics').checked, pdf: $('gm-pdf').checked }, extra);
+  const gmSent = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : 'Sent ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+  async function openGm() {
+    const pin = $('commish-pin').value.trim();
+    if (!pin) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
+    if (DEMO) { $('commish-error').textContent = 'Emailing members only works on the live draft.'; return; }
+    $('gm-open').disabled = true;
+    $('commish-error').textContent = '';
+    try {
+      gm.key = isDraftView(view) ? view : 'rs';
+      gm.pin = pin;
+      const res = await apiPost({ action: 'gamesMail', op: 'info', draft: gm.key, pin });
+      if (!res || !res.ok) { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
+      rememberPin(pin);
+      gm.members = res.members || [];
+      gm.sel = {}; gm.greet = {};
+      gm.members.forEach((m) => { gm.sel[m.name] = m.emails.length > 0 && m.games > 0; gm.greet[m.name] = m.greet; });
+      gm.pv = (gm.members.find((m) => gm.sel[m.name]) || gm.members[0] || {}).name || '';
+      $('gm-draft').textContent = '· ' + (gm.key === 'rs' ? 'Regular Season' : 'Postseason');
+      $('gm-subject').value = res.subject || '';
+      $('gm-message').value = res.message || '';
+      $('gm-error').textContent = res.emailReady ? '' : 'Email isn\'t set up for the draft yet, so you can preview but not send.';
+      $('gm-results').hidden = true;
+      gmDisarm();
+      renderGm();
+      $('commish-dialog').close();
+      $('gm-dialog').showModal();
+      gmPreview(true);
+    } catch (e) { $('commish-error').textContent = "Couldn't reach the draft."; }
+    finally { $('gm-open').disabled = false; }
+  }
+  function renderGm() {
+    $('gm-rows').innerHTML = gm.members.map((m) => {
+      const ok = m.emails.length > 0;
+      const on = ok && gm.sel[m.name];
+      return '<tr class="' + (on ? '' : 'off') + (gm.pv === m.name ? ' on-pv' : '') + '">' +
+        '<td><input type="checkbox" data-gm-sel="' + esc(m.name) + '"' + (on ? ' checked' : '') + (ok ? '' : ' disabled') + ' aria-label="Email ' + esc(m.name) + '"></td>' +
+        '<td><span class="gm-name">' + esc(m.name) + '</span>' +
+          (ok ? '<span class="gm-mail">' + esc(m.emails.join(', ')) + '</span>' : '<span class="gm-mail none">No email. Add one in Setup → Members.</span>') +
+          (m.lastSent ? '<span class="gm-sent">' + esc(gmSent(m.lastSent)) + '</span>' : '') + '</td>' +
+        '<td class="gm-num">' + m.games + '</td>' +
+        '<td><input class="gm-greet" data-gm-greet="' + esc(m.name) + '" value="' + esc(gm.greet[m.name] || '') + '" aria-label="Greeting name for ' + esc(m.name) + '"></td>' +
+        '<td><button type="button" class="link-btn" data-gm-pv="' + esc(m.name) + '">Preview</button></td></tr>';
+    }).join('');
+    const withMail = gm.members.filter((m) => m.emails.length);
+    $('gm-all').checked = withMail.length > 0 && withMail.every((m) => gm.sel[m.name]);
+    gmCount();
+  }
+  const gmChosen = () => gm.members.filter((m) => m.emails.length && gm.sel[m.name]).map((m) => m.name);
+  function gmCount() {
+    const n = gmChosen().length;
+    $('gm-count').textContent = n + ' of ' + gm.members.length + ' members selected';
+    $('gm-send').disabled = !n;
+    if (!gm.armed) $('gm-send').textContent = 'Send ' + n + ' email' + (n === 1 ? '' : 's');
+  }
+  function gmDisarm() { gm.armed = false; $('gm-send').classList.remove('armed'); gmCount(); }
+  function gmPreview(now) {
+    clearTimeout(gm.timer);
+    gm.timer = setTimeout(async () => {
+      if (!gm.pv) { $('gm-preview').srcdoc = ''; $('gm-pv-to').textContent = ''; return; }
+      const seq = ++gm.seq;
+      try {
+        const res = await apiPost(gmBody({ op: 'preview', name: gm.pv }));
+        if (seq !== gm.seq) return;
+        if (!res || !res.ok) { $('gm-pv-to').textContent = (res && res.error) || 'Couldn\'t load the preview.'; return; }
+        $('gm-pv-to').innerHTML = '<strong>' + esc(res.name) + '</strong> · ' + (res.to.length ? esc(res.to.join(', ')) : 'no email') +
+          (res.files.length ? ' · ' + esc(res.files.join(', ')) : '');
+        $('gm-pv-pdf').hidden = !res.files.some((f) => /\.pdf$/.test(f));
+        $('gm-preview').srcdoc = '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:16px;background:#fff}</style></head><body>' +
+          '<div style="font:13px Arial,sans-serif;color:#5d6b82;border-bottom:1px solid #e3e7ee;padding-bottom:8px;margin-bottom:14px"><strong style="color:#13213a">Subject:</strong> ' + esc(res.subject) + '</div>' + res.html + '</body></html>';
+      } catch (e) { if (seq === gm.seq) $('gm-pv-to').textContent = "Couldn't reach the draft."; }
+    }, now ? 0 : 450);
+  }
+  $('gm-open').addEventListener('click', openGm);
+  $('gm-cancel').addEventListener('click', () => $('gm-dialog').close());
+  $('gm-form').addEventListener('submit', (e) => e.preventDefault());
+  $('gm-rows').addEventListener('change', (e) => {
+    const cb = e.target.closest('[data-gm-sel]');
+    if (!cb) return;
+    gm.sel[cb.dataset.gmSel] = cb.checked;
+    cb.closest('tr').classList.toggle('off', !cb.checked);
+    gmDisarm();
+    const withMail = gm.members.filter((m) => m.emails.length);
+    $('gm-all').checked = withMail.every((m) => gm.sel[m.name]);
+  });
+  $('gm-rows').addEventListener('input', (e) => {
+    const g = e.target.closest('[data-gm-greet]');
+    if (!g) return;
+    gm.greet[g.dataset.gmGreet] = g.value;
+    if (g.dataset.gmGreet === gm.pv) gmPreview();
+  });
+  $('gm-rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-gm-pv]');
+    if (!b) return;
+    gm.pv = b.dataset.gmPv;
+    document.querySelectorAll('#gm-rows tr').forEach((tr) => tr.classList.toggle('on-pv', !!tr.querySelector('[data-gm-pv="' + CSS.escape(gm.pv) + '"]')));
+    gmPreview(true);
+  });
+  $('gm-all').addEventListener('change', () => {
+    gm.members.forEach((m) => { if (m.emails.length) gm.sel[m.name] = $('gm-all').checked; });
+    gmDisarm();
+    renderGm();
+  });
+  ['gm-subject', 'gm-message'].forEach((id) => $(id).addEventListener('input', () => { gmDisarm(); gmPreview(); }));
+  ['gm-ics', 'gm-pdf'].forEach((id) => $(id).addEventListener('change', () => { gmDisarm(); gmPreview(true); }));
+  $('gm-pv-pdf').addEventListener('click', async () => {
+    const btn = $('gm-pv-pdf');
+    btn.disabled = true;
+    try {
+      const res = await apiPost(gmBody({ op: 'preview', name: gm.pv, withPdf: true }));
+      if (!res || !res.ok || !res.pdf) { toast((res && res.error) || 'Couldn\'t make the PDF.'); return; }
+      const bytes = Uint8Array.from(atob(res.pdf), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      a.download = (res.files.find((f) => /\.pdf$/.test(f)) || 'games.pdf');
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { toast("Couldn't reach the draft."); }
+    finally { btn.disabled = false; }
+  });
+  // Sending needs two clicks so it can't happen by accident.
+  $('gm-send').addEventListener('click', async () => {
+    const names = gmChosen();
+    if (!names.length) return;
+    if (!$('gm-subject').value.trim()) { $('gm-error').textContent = 'Add a subject.'; return; }
+    if (!gm.armed) {
+      gm.armed = true;
+      $('gm-send').classList.add('armed');
+      $('gm-send').textContent = 'Yes, send ' + names.length + ' email' + (names.length === 1 ? '' : 's');
+      $('gm-error').textContent = '';
+      return;
+    }
+    const btn = $('gm-send');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    $('gm-error').textContent = '';
+    try {
+      const res = await apiPost(gmBody({ op: 'send', names }));
+      if (!res || !res.ok) { $('gm-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
+      const box = $('gm-results');
+      box.innerHTML = '<div class="good">' + esc(res.message) + '</div>' + res.results.filter((r) => !r.ok).map((r) => '<div class="bad">' + esc(r.name) + ': ' + esc(r.error) + '</div>').join('');
+      box.hidden = false;
+      const info = await apiPost({ action: 'gamesMail', op: 'info', draft: gm.key, pin: gm.pin });
+      if (info && info.ok) { gm.members = info.members || gm.members; renderGm(); }
+      toast(res.message);
+    } catch (e) { $('gm-error').textContent = "Couldn't reach the draft. Check the results before trying again, since some emails may have gone out."; }
+    finally { gmDisarm(); }
+  });
+
   /* Drop out */
   // Same button at the bottom of the Games list on phones.
   $('drop-btn-m').addEventListener('click', () => $('drop-btn').click());
