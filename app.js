@@ -2475,7 +2475,8 @@
         renderWho();
         if (state) render(null);
         if (typeof renderSwap === 'function' && swapListings) { renderSwapBadge(); renderSwap(); }
-        if (wasWelcome && !notifyIsOn()) openWelcome2(name);
+        // Push is per device, so offer it whenever this browser doesn't have it, even if email alerts are already on.
+        if (wasWelcome && !store.get(PUSH_TOKEN_KEY)) openWelcome2(name);
         else toast('Thanks, ' + name.split(' ')[0] + '. This browser will remember you.');
       })
       .catch(() => { $('who-error').textContent = "Couldn't reach the draft. Try again."; })
@@ -2486,7 +2487,6 @@
   /* Welcome popup: on a first visit to a draft page, ask who you are (once per browser; after
      "Not now" it isn't shown again), then offer to set up notifications if none are on yet. */
   const WELCOME_KEY = 'guardians-welcome-shown';
-  const notifyIsOn = () => !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
   function maybeWelcome() {
     if (DEMO || viewer() || store.get(WELCOME_KEY) || !isDraftView(view) || document.querySelector('dialog[open]')) return;
     if (!notifyMembers()) { setTimeout(maybeWelcome, 1500); return; }
@@ -2496,7 +2496,10 @@
   function openWelcome2(name) {
     $('wm-thanks').textContent = 'Thanks, ' + name.split(' ')[0] + '. This browser will remember you.';
     const email = (notifyPrefs && (notifyPrefs.email || notifyPrefs.email2)) || notifySuggest || '';
-    $('wm-email').textContent = email ? ' to ' + email : ' to your inbox';
+    const emailOn = !!(notifyPrefs && notifyPrefs.emailOn && (notifyPrefs.email || notifyPrefs.email2));
+    $('wm-email-text').innerHTML = emailOn
+      ? '<b>Email</b> alerts are already on' + (email ? ' (to ' + esc(email) + ')' : '') + '. You can add push for this device too.'
+      : '<b>Email</b> to ' + (email ? esc(email) : 'your inbox') + ' (and a second address if you like).';
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
     $('wm-ios').hidden = !ios || standalone;
