@@ -307,7 +307,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 @media (max-width: 520px) {
   /* Phones: the Pick button, or who has the game, sits to the right of the game details. */
   .rsg { grid-template-columns: 52px minmax(0, 1fr) 112px; gap: 10px; }
-  .rsg.can-pick { grid-template-columns: 52px minmax(0, 1fr) auto; }
+  .rsg-act .seat.open { width: 100%; align-items: flex-end; text-align: right; }
+  .rsg-act .nm-rest { display: block; } /* last name always on its own line */
   .rsg-act .seat:not(.open) { min-height: 0; padding: 7px 9px; align-items: flex-end; text-align: right; }
   .rsg-act .seat:not(.open) .s-val { white-space: normal; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
   .rsg-act .seat.taken .s-val::before { content: "\2713\00a0"; }

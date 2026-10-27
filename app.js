@@ -626,11 +626,16 @@
     }).join('');
   }
 
+  // "First Last" as two parts, so phones can always put the last name on a second line.
+  function nameLines(n) {
+    const parts = String(n || '').trim().split(/\s+/);
+    return parts.length < 2 ? esc(n) : '<span class="nm-first">' + esc(parts[0]) + '</span> <span class="nm-rest">' + esc(parts.slice(1).join(' ')) + '</span>';
+  }
   function seatCell(it, p, canPick, prevIds, label, aria) {
     const fresh = prevIds && p && !prevIds.has(it.id) ? ' just' : '';
     const lab = label ? '<span class="s-label">' + esc(label) + '</span>' : '';
     if (p) {
-      return '<div class="seat taken' + (viewer() && p.member === viewer() ? ' mine' : '') + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '">' + lab + '<span class="s-val">' + esc(p.member) + '</span></div>';
+      return '<div class="seat taken' + (viewer() && p.member === viewer() ? ' mine' : '') + fresh + '" title="' + (p.assigned ? 'Assigned by commissioner' : 'Pick #' + p.number) + '">' + lab + '<span class="s-val">' + nameLines(p.member) + '</span></div>';
     }
     if (!canPick) return '<div class="seat">' + lab + '<span class="s-val">Available</span></div>';
     return '<button type="button" class="seat open" data-id="' + esc(it.id) + '" aria-label="Pick ' + esc(aria) + '">' + lab + '<span class="s-val">Pick</span></button>';
