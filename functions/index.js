@@ -1449,13 +1449,13 @@ function gamesEmail(key, pub, name, greet, message, games, attach) {
     paras.map((x) => '<p style="margin:0 0 12px">' + escHtml(x).replace(/\n/g, '<br>') + '</p>').join('') +
     table +
     (filesLine ? '<p style="margin:0 0 12px;font-size:14px;color:#5d6b82">' + escHtml(filesLine) + '</p>' : '') +
-    (swapLine ? '<p style="margin:0 0 18px;font-size:14px">' + escHtml(swapLine).replace('Ticket Swap', '<a href="' + swapLink + '" style="color:#2b5d9b;font-weight:bold">Ticket Swap</a>') + '</p>' : '') +
-    '<p style="margin:0 0 24px"><a href="' + link + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Open the draft</a></p>' +
+    (swapLine ? '<p style="margin:0 0 18px;font-size:14px">' + escHtml(swapLine).replace('Ticket Swap', '<b>Ticket Swap</b>') + '</p>' : '') +
+    '<p style="margin:0 0 24px"><a href="' + (rs ? swapLink : link) + '" style="background:#D50032;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">' + (rs ? 'Open the Ticket Swap' : 'Open the draft') + '</a></p>' +
     '<p style="font-size:14px;color:#13213a;margin:0 0 12px;padding-top:14px;border-top:1px solid #e3e7ee">Questions or something look wrong? Just reply to this email.</p>' +
     '<p style="font-size:12px;color:#5d6b82;margin:0">Private draft page for our season ticket group.</p></div>';
   const text = title + '\n' + count + '\n\nHi, ' + greet + '.\n\n' + (paras.length ? paras.join('\n\n') + '\n\n' : '') +
     (rows.length ? rows.map((r) => '• ' + r.date + ' — ' + r.what + (r.time ? ' — ' + r.time : '') + (r.seats ? ' — ' + r.seats : '')).join('\n') : 'You don\'t have any games in this draft.') +
-    (filesLine ? '\n\n' + filesLine : '') + (swapLine ? '\n\n' + swapLine + ' ' + swapLink : '') + '\n\nOpen the draft: ' + link + '\n\nQuestions or something look wrong? Just reply to this email.';
+    (filesLine ? '\n\n' + filesLine : '') + (swapLine ? '\n\n' + swapLine : '') + (rs ? '\n\nOpen the Ticket Swap: ' + swapLink : '\n\nOpen the draft: ' + link) + '\n\nQuestions or something look wrong? Just reply to this email.';
   return { title, html, text };
 }
 
