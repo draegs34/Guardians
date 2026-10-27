@@ -1446,6 +1446,8 @@
       '<label class="sf inline' + (rem ? '' : ' off') + '"><span>Up to</span>' + inp('settings.reminderCount', s.reminderCount || 2, 'inputmode="numeric" style="width:70px"' + (rem ? '' : ' disabled')) + '<span>times per turn</span></label>' +
       '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p></section>';
 
+    html += '<section class="card sc"><h3>Email members their games</h3><p class="hint">After the draft, send each member their own email listing the games they have, with a calendar file and a printable PDF. You\'ll see a preview before anything is sent.</p>' +
+      '<div class="row-btns"><button type="button" class="btn primary" data-gm-open="' + key + '">Email members their games…</button></div></section>';
     if (rs) {
       html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason draft too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
@@ -1505,8 +1507,6 @@
 
     html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
-    html += '<section class="card sc"><h3>Email members their games</h3><p class="hint">After the draft, send each member their own email listing the games they have, with a calendar file and a printable PDF. You\'ll see a preview before anything is sent.</p>' +
-      '<div class="row-btns"><button type="button" class="btn primary" data-gm-open="' + key + '">Email members their games…</button></div></section>';
     if (rs && TEST) html += '<section class="card sc test-card"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. The regular season draft starts open with 9 picks left: Sean, Lauren, Colleen, then Andrew, Steve, Bill, Matt, Marie and Mike. Notification settings made in test mode are kept.</p>' +
       '<div class="row-btns"><button type="button" class="btn danger" data-act="test-reset">Reset test data</button></div></section>';
     if (rs && !TEST) html += importCard;
