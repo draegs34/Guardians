@@ -223,7 +223,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 
 ## Test mode
 
-Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?test) to use a separate test copy of everything. A yellow banner shows you're in test mode, and the tab and Home Screen icon are a yellow ticket.
+Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?test) to use a separate test copy of everything. A thin yellow "Test Mode" stripe across the top shows you're in test mode, and the tab and Home Screen icon are a yellow ticket.
 
 - The test draft is loaded with the 2026 season games shifted to 2027 dates, each already assigned to its 2026 owner (Bill Thoburn in place of Marty Jones, Marie Thompson in place of Chris Koehler). Nine games are left open so you can try picking: the order starts Sean DeCrane, Lauren Falcone, Colleen Draeger (a test member with 5 games, PIN 1234, alerts to colleenedraeger@gmail.com), then Andrew Hanigosky, Steve Hanigosky, Bill Thoburn, Matt Jones, Marie Thompson and Mike Smith.
 - Test PINs: every member is 1234, commissioner is 0000.
@@ -232,7 +232,7 @@ Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?tes
 - To start over, open Setup → Regular Season and click **Reset test data** (twice to confirm).
 - Test mode remembers who you are separately from the real site, so testing as another member doesn't change the real site.
 - To open the site as a brand-new visitor (for example, a link to send someone else), add `&fresh`: https://draegs34.github.io/Guardians/?test&fresh. It forgets who you are and your alert settings in that browser, then drops `fresh` from the address. `?fresh` works on the real site too.
-- Click **Leave test mode** in the banner to go back to the real site.
+- To go back to the real site, open the link without `?test`.
 
 ## For developers
 - **Cache busting:** `index.html` loads `style.css`, `config.js`, `engine.js`, `live.js` and `app.js` with a `?v=` tag. Bump that number whenever you change any of those files, or phones may keep running an old cached copy.
