@@ -84,6 +84,11 @@
       th, td { padding: 8px 6px; }
     }
     @media (max-width: 480px) { .back span { display: none; } .back { padding: 9px 10px; } }
+    .to-top { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 20; width: 48px; height: 48px; border-radius: 24px; border: 0; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 14px rgba(12, 35, 64, .35); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .2s, transform .2s; }
+    .to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+    .to-top:hover { background: #173a63; }
+    .to-top:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+    :root[data-theme="dark"] .to-top { background: #2b4268; box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
   </style>
 </head>
 <body>
@@ -353,6 +358,21 @@
     </main>
   </div>
 
+  <button type="button" class="to-top" id="to-top" aria-label="Back to the top" title="Back to the top" tabindex="-1"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+
+  <script>
+    // Back to the top: appears once you've scrolled down a screen or so.
+    (function () {
+      var btn = document.getElementById('to-top');
+      var onScroll = function () { var on = window.scrollY > window.innerHeight * 0.8; btn.classList.toggle('show', on); btn.tabIndex = on ? 0 : -1; };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+      btn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (location.hash && history.replaceState) history.replaceState(null, '', location.pathname + location.search);
+      });
+    })();
+  </script>
   <script>
     (function () {
       var test = /[?&]test(=|&|$)/.test(location.search);
