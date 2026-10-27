@@ -729,7 +729,7 @@
           String(g.notes || '').split(';').map((x) => x.trim()).filter(Boolean).forEach((n) => tags.push('<span class="cond">' + esc(n) + '</span>'));
           const time = g.time && !/^tbd$/i.test(g.time) ? esc(g.time) + ' ET' : 'Time TBD';
           const hl = f.holiday ? ' hl-holiday' : f.dayGame ? ' hl-day' : '';
-          return '<div class="rsg' + (pick ? ' is-taken' : '') + (pick && viewer() && pick.member === viewer() ? ' is-mine' : '') + hl + '">' +
+          return '<div class="rsg' + (pick ? ' is-taken' : canPick ? ' can-pick' : '') + (pick && viewer() && pick.member === viewer() ? ' is-mine' : '') + hl + '">' +
             '<div class="rsg-date' + (f.weekend ? ' wknd' : '') + '"><span class="mon">' + (d ? MON[d[1] - 1] : '') + '</span><span class="dnum">' + (d ? d[2] : '?') + '</span><span class="dow">' + esc(f.dow) + '</span></div>' +
             '<div class="rsg-info"><div class="game-name">vs ' + esc(g.opponent) + '</div><div class="game-sub">' + time + '</div>' +
               (tags.length ? '<div class="badges">' + tags.join('') + '</div>' : '') + '</div>' +

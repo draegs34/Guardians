@@ -307,6 +307,9 @@ body.stale .seat:not(.taken) { opacity: .7; }
 @media (max-width: 520px) {
   .rsg { grid-template-columns: 52px minmax(0, 1fr); }
   .rsg-act { grid-column: 1 / -1; }
+  /* A Pick button fits beside the game details; names and "Available" still go underneath. */
+  .rsg.can-pick { grid-template-columns: 52px minmax(0, 1fr) auto; }
+  .rsg.can-pick .rsg-act { grid-column: auto; }
 }
 
 .notice-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; color: var(--muted); line-height: 1.55; }
