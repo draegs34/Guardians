@@ -305,11 +305,12 @@ body.stale .seat:not(.taken) { opacity: .7; }
 :root[data-theme="dark"] .cond.tag-promo { background: #1c3350; color: #b9d2f0; }
 :root[data-theme="dark"] .cond.tag-opener { background: #e8edf5; color: #0b1422; }
 @media (max-width: 520px) {
-  .rsg { grid-template-columns: 52px minmax(0, 1fr); }
-  .rsg-act { grid-column: 1 / -1; }
-  /* A Pick button fits beside the game details; names and "Available" still go underneath. */
+  /* Phones: the Pick button, or who has the game, sits to the right of the game details. */
+  .rsg { grid-template-columns: 52px minmax(0, 1fr) 112px; gap: 10px; }
   .rsg.can-pick { grid-template-columns: 52px minmax(0, 1fr) auto; }
-  .rsg.can-pick .rsg-act { grid-column: auto; }
+  .rsg-act .seat:not(.open) { min-height: 0; padding: 7px 9px; align-items: flex-end; text-align: right; }
+  .rsg-act .seat:not(.open) .s-val { white-space: normal; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+  .rsg-act .seat.taken .s-val::before { content: "\2713\00a0"; }
 }
 
 .notice-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px 20px; color: var(--muted); line-height: 1.55; }
