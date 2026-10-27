@@ -640,7 +640,7 @@
   const rsFilter = { avail: 'all', tag: 'all', month: '', opp: '' };
   // List or calendar (remembered in this browser).
   const RS_VIEW_KEY = 'guardians-rs-view';
-  let rsView = store.get(RS_VIEW_KEY) === 'cal' ? 'cal' : 'list';
+  let rsView = store.get(RS_VIEW_KEY) === 'list' ? 'list' : 'cal'; // calendar unless they chose the list
   // Short team codes like the printed schedule.
   const TEAM_ABBR = {
     'Arizona Diamondbacks': 'AZ', 'Athletics': 'ATH', 'Oakland Athletics': 'ATH', 'Atlanta Braves': 'ATL', 'Baltimore Orioles': 'BAL',
@@ -654,7 +654,9 @@
   const lastName = (n) => String(n || '').trim().split(/\s+/).pop();
   // Months fold up; they all start open (tap a month's bar to close it).
   const monthOpen = {};
-  const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : true);
+  // List view: months start folded up, except while a filter is narrowing the list.
+  const filtering = () => rsFilter.avail !== 'all' || rsFilter.tag !== 'all' || !!rsFilter.month || !!rsFilter.opp;
+  const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : filtering());
   function renderRsBoard(s, takenBy, canPick, prevIds) {
     const games = s.inventory.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const openerId = games.length ? games[0].id : null;
@@ -669,8 +671,8 @@
       const chip = (k, v, t) => '<button type="button" class="fchip" data-fk="' + k + '" data-fv="' + v + '">' + t + '</button>';
       fb.innerHTML =
         '<div class="vtoggle" role="group" aria-label="View">' +
-          '<button type="button" data-rsview="list"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>List</button>' +
-          '<button type="button" data-rsview="cal"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button></div>' +
+          '<button type="button" data-rsview="cal"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button>' +
+          '<button type="button" data-rsview="list"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>List</button></div>' +
         '<div class="frow" role="group" aria-label="Show">' + chip('avail', 'all', 'All games') + chip('avail', 'open', 'Available') + chip('avail', 'mine', 'My games') + '</div>' +
         '<div class="frow" role="group" aria-label="Highlights">' + chip('tag', 'all', 'Any') + chip('tag', 'weekend', 'Weekends') +
           chip('tag', 'weekday', 'Weekdays') + '</div>' +
@@ -2419,7 +2421,8 @@
   /* "Who are you?": pick your name (and PIN) without setting up notifications. */
   function renderWho() {
     const v = viewer();
-    $('who-label').textContent = v ? 'You: ' + v : 'Who are you?';
+    // Phones show just the first name so it fits beside the notifications button.
+    $('who-label').innerHTML = v ? 'You: <span class="wl-full">' + esc(v) + '</span><span class="wl-short">' + esc(v.split(' ')[0]) + '</span>' : 'Who are you?';
     $('who-btn').classList.toggle('is-set', !!v);
     $('legend-mine').hidden = !v;
   }

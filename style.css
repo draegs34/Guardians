@@ -654,3 +654,21 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .cl.mine { background: var(--open) !important; }
 .cal-d.taken.mine, :root[data-theme="dark"] .cal-d.taken.mine { background: var(--open); color: #fff; }
 :root[data-theme="dark"] .cal-d.taken.mine { color: #0b1422; }
+
+/* Notification button: shorter label on phones so it fits beside "Who are you?" */
+.nb-short, .wl-short { display: none; }
+@media (max-width: 560px) {
+  .me-bar { flex-wrap: wrap; gap: 8px; }
+  .me-bar #who-btn, .me-bar #notify-btn { flex: 1 1 0; min-width: 0; justify-content: center; font-size: 13px; padding-left: 8px; padding-right: 8px; }
+  #who-label, .me-bar #notify-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wl-full { display: none; }
+  .wl-short { display: inline; }
+  .me-bar .me-status { flex-basis: 100%; }
+  #notify-btn .nb-long { display: none; }
+  #notify-btn .nb-short { display: inline; }
+}
+
+/* Phones: dialogs sit at the top of the screen, so the keyboard doesn't cover what you're typing. */
+@media (max-width: 600px) {
+  dialog { margin: calc(12px + env(safe-area-inset-top, 0px)) auto auto; max-height: calc(100dvh - 24px); }
+}
