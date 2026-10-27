@@ -11,7 +11,7 @@ Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). Eve
 - **Help**: the member help page (`help.html`), based on the member guides.
 - **Commissioner**
   - **Setup** (asks for the commissioner PIN): a section for each draft plus past drafts. See *Commissioner setup* below.
-  - **Commissioner tools** for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
+  - **Tools** (commissioner tools) for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
 
 On phones, the draft page's **Games / Draft Order / Pick Log / Members** bar sits above the On the clock card.
 
@@ -94,13 +94,13 @@ Open the menu, tap **Setup** and enter the commissioner PIN. It's remembered unt
   - ✕ removes a member, but only if they have no picks in either draft (undo those first).
   - The list is alphabetical by last name. Anyone you add appears at the bottom while you type and moves into place when you save.
   - **New commissioner PIN** changes the one PIN used for both drafts.
-- **Postseason**: **Show Postseason in the menu** at the top (untick it to hide Postseason from members until you need a postseason draft; you can still open it with Commissioner tools while Setup is unlocked), settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
+- **Postseason**: **Show Postseason in the menu** at the top (untick it to hide Postseason from members until you need a postseason draft; you can still open it with Tools while Setup is unlocked), settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
 - **Email members their games** (bottom of the Regular Season and Postseason sections; Firebase only): after the draft, sends each checked member their own email listing the games they hold, with an optional calendar file (.ics, Cleveland times; TBD times become all-day events) and a printable PDF. You can edit the subject, message and each greeting, preview any member's email (and **View PDF**), then click **Send** twice to confirm. Emails go to the address(es) in each member's Notification & PIN settings even if their turn alerts are off; members with no address are listed but can't be selected. The subject and message are remembered, and each member shows when they were last sent their games. Test mode adds [TEST] to the subject and only uses test-mode addresses.
 - **Past Regular Season Drafts** and **Past Postseason Drafts**: archived drafts of each kind. Only the commissioner can see these.
 
 James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
 
-**Commissioner tools** (in the menu) opens the tools for the draft you're looking at (from Setup, the section you're in): assign, skip, undo, Season Ticket Manager prices and **Archive this draft**. Your PIN is filled in once you've unlocked Setup.
+**Tools** (in the menu's Commissioner section) opens the commissioner tools for the draft you're looking at (from Setup, the section you're in): assign, skip, undo, Season Ticket Manager prices and **Archive this draft**. Your PIN is filled in once you've unlocked Setup.
 
 ---
 
@@ -217,7 +217,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Updates**: the board refreshes every 10 seconds.
 - **Turn alerts**: under **Notification & PIN settings** (in the menu), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
 - **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
-- **Commissioner tools** (in the menu; enter your PIN if it isn't filled in):
+- **Commissioner tools** (**Tools** in the menu; enter your PIN if it isn't filled in):
   - **Assign** a game to any member. This doesn't use a turn.
   - **Skip to next member**.
   - **Undo last entry**: removes the most recent pick, assignment, skip or drop-out.

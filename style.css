@@ -785,3 +785,12 @@ body.stale .seat:not(.taken) { opacity: .7; }
 }
 .btn.primary.armed { box-shadow: 0 0 0 3px var(--red-soft); }
 #gm-dialog textarea { font: inherit; font-size: 15px; line-height: 1.45; padding: 10px 12px; }
+
+/* Commissioner tools: two columns on bigger screens instead of one long scroll. */
+@media (min-width: 900px) {
+  #commish-dialog { width: min(920px, calc(100vw - 48px)); }
+  #commish-form { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; padding: 24px 28px; }
+  #commish-form > h3, #commish-form > label, #commish-form > .form-error, #commish-form > .actions, #commish-form > #prices-tool { grid-column: 1 / -1; }
+  #commish-form > label { max-width: 300px; }
+  #commish-form > .tool { align-content: start; }
+}

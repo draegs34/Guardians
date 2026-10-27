@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610281400">
+  <link rel="stylesheet" href="style.css?v=202610281500">
 </head>
 <body>
   <div id="test-banner" class="test-banner" hidden title="Test data, separate from the real drafts. Test PINs: members 1234, commissioner 0000. Alerts are marked [TEST].">Test Mode</div>
@@ -68,7 +68,7 @@
     </div>
     <div class="sn-sec sn-comm"><div class="sn-lab">Commissioner</div>
       <button type="button" data-go="setup"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span class="sn-t">Setup</span></button>
-      <button type="button" data-go="cog"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="sn-t">Commissioner tools</span></button>
+      <button type="button" data-go="cog"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="sn-t">Tools</span></button>
     </div>
     <div class="sn-sec sn-bottom">
       <button type="button" data-go="theme" id="sn-theme"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span class="sn-t">Dark mode</span><span class="sn-sub" id="sn-theme-sub">Off</span></button>
@@ -263,7 +263,7 @@
     </form>
   </dialog>
 
-  <!-- Email members their games (from Commissioner tools) -->
+  <!-- Email members their games (from Setup) -->
   <dialog id="gm-dialog">
     <form method="dialog" id="gm-form">
       <div class="gm-head">
@@ -469,9 +469,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610281400"></script>
-  <script src="engine.js?v=202610281400"></script>
-  <script type="module" src="live.js?v=202610281400"></script>
-  <script src="app.js?v=202610281400"></script>
+  <script src="config.js?v=202610281500"></script>
+  <script src="engine.js?v=202610281500"></script>
+  <script type="module" src="live.js?v=202610281500"></script>
+  <script src="app.js?v=202610281500"></script>
 </body>
 </html>
