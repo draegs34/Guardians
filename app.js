@@ -2566,6 +2566,7 @@
     menuCloseTimer = setTimeout(() => { $('side-scrim').hidden = true; $('side-nav').hidden = true; }, 230);
     if (!keepFocus) $('hb-btn').focus({ preventScroll: true });
   }
+  if (TEST) $('sn-help').href = 'help.html?test';
   $('hb-btn').addEventListener('click', () => ($('side-nav').hidden ? openMenu() : closeMenu()));
   $('side-scrim').addEventListener('click', () => closeMenu());
   $('sn-close').addEventListener('click', () => closeMenu());

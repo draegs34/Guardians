@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Help · Guardians Ticket Draft</title>
+  <meta name="description" content="How to use the Guardians ticket draft and Ticket Swap.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>try { if (localStorage.getItem('guardians-draft-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
+  <script>
+    (function () {
+      var t = false;
+      try { t = /[?&]test(=|&|$)/.test(location.search); } catch (e) {}
+      document.write('<link rel="icon" href="' + (t ? 'icon-192-test.png' : 'icon-192.png') + '" type="image/png">');
+    })();
+  </script>
+  <meta name="theme-color" content="#0C2340">
+  <style>
+    :root {
+      --navy: #0C2340; --red: #D50032; --bg: #f4f6f9; --surface: #fff; --text: #13213a; --muted: #5d6b82;
+      --line: #dfe4ec; --blue: #2b5d9b; --blue-bg: #eaf1fb; --green: #1f7a4d; --green-bg: #e8f5ee;
+      --warn-bg: #fff6e0; --warn-line: #e8c46a; --taken: #eef1f5;
+    }
+    :root[data-theme="dark"] {
+      --bg: #0b1422; --surface: #132033; --text: #e8edf5; --muted: #97a4b8; --line: #26354c;
+      --blue: #8db8ef; --blue-bg: #1a2e4c; --green: #5fd39a; --green-bg: #133a2a; --warn-bg: #3a300f; --warn-line: #6b5a1c; --taken: #1a2839;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.55; -webkit-text-size-adjust: 100%; }
+    .test-banner { background: #ffc72c; color: #3a2c00; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 2px 8px; }
+    .top { background: var(--navy); color: #fff; border-bottom: 3px solid var(--red); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+    .top-inner { display: flex; align-items: center; gap: 14px; padding: 14px 20px; }
+    .back { flex: none; display: inline-flex; align-items: center; gap: 6px; color: #fff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 9px 14px 9px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; background: rgba(255,255,255,.06); }
+    .back:hover { background: rgba(255,255,255,.14); }
+    .eyebrow { margin: 0 0 1px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #aebdd2; }
+    .top h1 { margin: 0; font-size: clamp(20px, 3.4vw, 28px); font-weight: 800; line-height: 1.15; }
+    .layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 32px; padding-top: 28px; padding-bottom: 60px; }
+    .toc { position: sticky; top: 16px; align-self: start; font-size: 14px; }
+    .toc p { margin: 0 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .toc ol { list-style: none; margin: 0 0 18px; padding: 0; }
+    .toc a { display: block; padding: 5px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-weight: 600; }
+    .toc a:hover { background: var(--blue-bg); }
+    .toc a.on { background: var(--blue-bg); color: var(--blue); box-shadow: inset 3px 0 0 var(--red); }
+    main { min-width: 0; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 26px; margin-bottom: 18px; }
+    .part { margin: 30px 0 12px; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--red); }
+    .part:first-child { margin-top: 0; }
+    h2 { margin: 0 0 10px; font-size: 22px; font-weight: 800; color: var(--text); }
+    h3 { margin: 22px 0 6px; font-size: 16px; font-weight: 800; }
+    p { margin: 0 0 12px; }
+    ul, ol { margin: 0 0 12px; padding-left: 22px; }
+    li { margin-bottom: 6px; }
+    ol.steps { list-style: none; padding: 0; counter-reset: s; }
+    ol.steps > li { position: relative; padding-left: 38px; margin-bottom: 10px; counter-increment: s; }
+    ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 13px; background: var(--navy); color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    :root[data-theme="dark"] ol.steps > li::before { background: #2b4268; }
+    .note { border-left: 4px solid var(--blue); background: var(--blue-bg); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0; font-size: 15px; }
+    .note.warn { border-color: var(--warn-line); background: var(--warn-bg); }
+    .note.good { border-color: var(--green); background: var(--green-bg); }
+    .note b:first-child { display: block; margin-bottom: 2px; }
+    .kbd { display: inline-block; font-size: 13.5px; font-weight: 700; padding: 1px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); white-space: nowrap; }
+    main a { color: var(--blue); font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 15px; }
+    th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    th { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+    .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(128,140,160,.5); margin-right: 6px; vertical-align: -1px; }
+    figure { margin: 14px 0; }
+    figure img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); background: #fff; }
+    figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .foot { font-size: 13px; color: var(--muted); }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; gap: 0; padding-top: 16px; }
+      .toc { position: static; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px 4px; margin-bottom: 18px; }
+      .toc ol { columns: 2; column-gap: 8px; }
+      .toc a { padding: 4px 6px; font-size: 13.5px; }
+      .card { padding: 18px 16px; }
+      .wrap { padding: 0 16px; }
+      .top-inner { padding: 12px 16px; }
+      table, thead, tbody, tr, th, td { font-size: 14px; }
+      th, td { padding: 8px 6px; }
+    }
+    @media (max-width: 480px) { .back span { display: none; } .back { padding: 9px 10px; } }
+  </style>
+</head>
+<body>
+  <div class="test-banner" id="test-banner" hidden>Test Mode</div>
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="back" id="back" href="./"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span>Back to the draft</span></a>
+      <div>
+        <p class="eyebrow">Season ticket group</p>
+        <h1>Help</h1>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap layout">
+    <nav class="toc" aria-label="On this page">
+      <p>Ticket Draft</p>
+      <ol>
+        <li><a href="#start">Getting started</a></li>
+        <li><a href="#who">Who are you?</a></li>
+        <li><a href="#home-screen">Home Screen</a></li>
+        <li><a href="#alerts">Notifications</a></li>
+        <li><a href="#pin">Your PIN</a></li>
+        <li><a href="#games">Browse the games</a></li>
+        <li><a href="#pick">Make your pick</a></li>
+      </ol>
+      <p>Ticket Swap</p>
+      <ol>
+        <li><a href="#swap">How it works</a></li>
+        <li><a href="#post">Post a listing</a></li>
+        <li><a href="#offer">Make an offer</a></li>
+        <li><a href="#respond">Accept or reject</a></li>
+        <li><a href="#after">After the trade</a></li>
+      </ol>
+      <p>More</p>
+      <ol>
+        <li><a href="#faq">Questions</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <p class="part">Ticket Draft</p>
+
+      <section class="card" id="start">
+        <h2>Getting started</h2>
+        <p>Our season tickets are split up through an online draft: members take turns choosing games until everyone has their share. There's nothing to download and no account to create. You just need the site and the PIN the commissioner gave you. It works on a phone, tablet or computer.</p>
+        <h3>Before the first draft</h3>
+        <ol class="steps">
+          <li>Open the site and bookmark it.</li>
+          <li>Open the menu and tell the site <a href="#who">who you are</a>.</li>
+          <li>iPhone users who want push alerts: <a href="#home-screen">add the site to your Home Screen</a>.</li>
+          <li>Set up <a href="#alerts">notifications</a> and tap <b>Send me a test</b>.</li>
+          <li>Optional: <a href="#pin">change your PIN</a> to one you'll remember.</li>
+        </ol>
+        <h3>Finding your way around</h3>
+        <p>Tap the <span class="kbd">☰</span> menu button at the top left to open the menu:</p>
+        <ul>
+          <li><b>Drafts</b>: <b>Regular Season</b> (where you'll spend most of your time), <b>Postseason</b> (shown only when there's a playoff draft) and <b>Ticket Swap</b> (for trading games after the draft). A red dot on the menu button means you have new swap offers.</li>
+          <li><b>You</b>: your name, <b>Notification &amp; PIN settings</b> and <b>Dark mode</b>.</li>
+          <li><b>Help</b>: this page.</li>
+          <li><b>Commissioner</b>: Setup and tools for the commissioner only.</li>
+        </ul>
+        <p>On the draft page, the large card shows who is <b>on the clock</b> (whose turn it is), the round and pick, and how many games are left. <b>Live</b> at the top right means the page updates by itself, so you never need to refresh.</p>
+        <div class="note good">The site works best on a current version of Safari (iPhone), Chrome (Android) or any modern computer browser.</div>
+      </section>
+
+      <section class="card" id="who">
+        <h2>Tell the site who you are</h2>
+        <p>Do this first. The site will then highlight your games and turns, fill in your name, and skip asking for it elsewhere during that visit.</p>
+        <ol class="steps">
+          <li>Open the menu and tap <b>Who are you?</b> under <b>You</b>.</li>
+          <li>Choose your name from the list.</li>
+          <li>Enter your PIN and tap <b>Continue</b>.</li>
+        </ol>
+        <p>The menu now shows your name. Tap it any time to switch to someone else, or choose <b>Not me</b>.</p>
+        <h3>What changes once the site knows you</h3>
+        <ul>
+          <li>Your games show in <b style="color:var(--green)">green</b> in the calendar and list.</li>
+          <li>Your turns are highlighted in <b style="color:var(--blue)">blue</b> in the Draft Order and Pick Log.</li>
+          <li>The <b>My games</b> filter shows just your games.</li>
+        </ul>
+        <div class="note warn"><b>Shared device?</b> The browser only remembers your name, never your PIN. On someone else's phone or computer, open the menu, tap your name and choose <b>Not me</b> when you're done.</div>
+      </section>
+
+      <section class="card" id="home-screen">
+        <h2>Save the site to your Home Screen</h2>
+        <p>This puts a ticket icon with your apps so the draft opens with one tap. <b>It's optional</b>: you can always just use the link.</p>
+        <div class="note warn"><b>iPhone and iPad push notifications</b>Apple only allows website notifications for sites added to the Home Screen and opened from that icon (iOS 16.4 or newer). If you only want email alerts, you can skip this.</div>
+        <h3>iPhone and iPad (Safari)</h3>
+        <figure><img src="help-ios.jpg" alt="Safari's Share button, then Add to Home Screen, then Add" loading="lazy" width="1400" height="778"><figcaption>Your screen may look slightly different depending on your iOS version.</figcaption></figure>
+        <ol class="steps">
+          <li>Open the site in <b>Safari</b> and tap the <b>Share</b> button (a square with an arrow pointing up). If the toolbar is hidden, scroll up a little.</li>
+          <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+          <li>Leave <b>Open as Web App</b> on, keep the name <b>Ticket Draft</b>, and tap <b>Add</b>.</li>
+          <li>From now on, open the draft from the new <b>Ticket Draft</b> icon, especially when setting up push notifications.</li>
+        </ol>
+        <h3>Android (Chrome)</h3>
+        <ul>
+          <li>Tap the three-dot menu at the top right, then <b>Add to Home screen</b> (or <b>Install app</b>).</li>
+          <li>Push notifications work in Chrome on Android even without this step.</li>
+        </ul>
+        <h3>Computer</h3>
+        <p>Just bookmark the site. Chrome and Edge can also install it as an app, but it isn't needed.</p>
+      </section>
+
+      <section class="card" id="alerts">
+        <h2>Set up notifications</h2>
+        <p>The site can tell you when it's your turn, so you don't have to keep checking. Open the menu and tap <b>Notification &amp; PIN settings</b> (it's also a button on the Ticket Swap page). A green check mark next to it means at least one kind of alert is on.</p>
+        <h3>How to reach you</h3>
+        <ul>
+          <li><b>Push notifications</b> pop up like an app alert, even when the site is closed. Tap <b>Turn on for this device</b> and choose <b>Allow</b>. Do this on each phone or computer you want alerts on. (iPhone: only from the Home Screen icon.)</li>
+          <li><b>Email</b> is usually filled in already. You can add a second address, such as a spouse or work email.</li>
+          <li><b>Phone</b> (optional) is only shared in Ticket Swap with the person you trade with. <b>Text message notifications are not available.</b></li>
+        </ul>
+        <h3>Drafts: when it's my turn</h3>
+        <p>Choose any combination of <b>push</b>, <b>email</b> and <b>on-screen alerts in this browser</b> (a banner and flashing tab while the site is open). Tick <b>Also send a push or email when I'm up next</b> for a heads-up one pick before your turn.</p>
+        <h3>Ticket Swap</h3>
+        <p><b>Email me when someone posts a listing</b> sends an email whenever a member posts games to trade. Untick it if you don't want these.</p>
+        <h3>Save and test</h3>
+        <p>Tap <b>Save</b>. <b>Send me a test (5 sec)</b> sends a sample alert about 5 seconds later. On a phone, lock the screen right after tapping it, because phones often hide banners for the app you're looking at.</p>
+        <table>
+          <thead><tr><th>Alert</th><th>When</th></tr></thead>
+          <tbody>
+            <tr><td><b>On the clock</b></td><td>It becomes your turn. Emails list the next 5 picks with yours highlighted.</td></tr>
+            <tr><td><b>Up next</b></td><td>You're next after the current pick (if you ticked the heads-up).</td></tr>
+            <tr><td><b>Reminder</b></td><td>You haven't picked yet and the commissioner turned reminders on. Never sent 11 PM–8 AM ET.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" id="pin">
+        <h2>Your PIN</h2>
+        <p>Each member has a private PIN from the commissioner. It confirms it's really you when you pick, change settings or use Ticket Swap.</p>
+        <ol class="steps">
+          <li>Open <b>Notification &amp; PIN settings</b> and tap <b>Change my PIN</b> at the bottom.</li>
+          <li>Enter your current PIN, then your new PIN (4 to 8 digits) twice.</li>
+          <li>Tap <b>Save new PIN</b>. Your old PIN stops working right away.</li>
+        </ol>
+        <p>Forgot it? Ask the commissioner to reset it.</p>
+      </section>
+
+      <section class="card" id="games">
+        <h2>Browse the games</h2>
+        <p>On a phone, the bar at the top of the draft switches between <b>Games</b>, <b>Draft Order</b>, <b>Pick Log</b> and <b>Members</b>. On a computer they're all on one screen.</p>
+        <h3>Calendar or List</h3>
+        <p>Games open in the <b>Calendar</b>. Use the <b>Calendar / List</b> switch to change views; the site remembers your choice. In the List, months start folded: tap a month bar to open it, or use <b>Expand all</b>. A month turns gray when none of its games are left.</p>
+        <h3>Filters</h3>
+        <ul>
+          <li><b>All games</b> / <b>Available</b> / <b>My games</b>: everything, only open games, or only yours.</li>
+          <li><b>Opponent</b>: just the games against one team.</li>
+        </ul>
+        <h3>What the colors mean</h3>
+        <table>
+          <thead><tr><th>Color</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><span class="sw" style="background:#0C2340"></span><b>Navy</b></td><td>Open and can be picked now (a <b>Pick</b> button in the list).</td></tr>
+            <tr><td><span class="sw" style="background:#2b5d9b"></span><b>Light blue</b></td><td>"Available": open, but the draft isn't taking picks right now.</td></tr>
+            <tr><td><span class="sw" style="background:#c9d0da"></span><b>Gray</b></td><td>Taken, with the member's name.</td></tr>
+            <tr><td><span class="sw" style="background:#1f7a4d"></span><b>Green</b></td><td>Your game.</td></tr>
+          </tbody>
+        </table>
+        <p>A small star on the calendar marks the Home Opener and holidays.</p>
+      </section>
+
+      <section class="card" id="pick">
+        <h2>Make your pick</h2>
+        <p>Picks go in <b>snake order</b>: the order reverses each round, so whoever picks last in one round picks first in the next. <b>Up Next</b> shows who's picking now (in red) and who's coming up.</p>
+        <ol class="steps">
+          <li>When it's your turn, find the game you want in the Calendar or List.</li>
+          <li>Tap its navy <b>Pick</b> button (in the calendar, tap the navy day).</li>
+          <li>Check the game shown in <b>Confirm your pick</b>.</li>
+          <li>Enter your PIN (filled in if you used <b>Who are you?</b> this visit) and tap <b>Lock it in</b>.</li>
+        </ol>
+        <div class="note warn"><b>Picks can't be undone by members.</b>If you pick the wrong game, contact the commissioner.</div>
+        <h3>Good to know</h3>
+        <ul>
+          <li>You can only pick on your turn.</li>
+          <li>If there's a time limit and it runs out, your turn may be skipped. Keep alerts on.</li>
+          <li><b>Pick Log</b> lists every pick, newest first. <b>Members</b> shows how many games each person has and has left.</li>
+          <li>Can't pick (out of town, no signal)? The commissioner can pick for you.</li>
+        </ul>
+        <h3>Dropping out</h3>
+        <p>If you don't want any more games, tap the red <b>Drop out of the draft</b> button (on a phone it's on the Draft Order tab and at the bottom of Games). Choose your name, enter your PIN and confirm. You'll be skipped for the rest of the draft. Contact the commissioner if you change your mind.</p>
+      </section>
+
+      <p class="part">Ticket Swap</p>
+
+      <section class="card" id="swap">
+        <h2>How Ticket Swap works</h2>
+        <p>Can't make one of your games? Open the menu and tap <b>Ticket Swap</b>. Post the games you want to trade away, other members send offers, and you accept the one you like.</p>
+        <ul>
+          <li><b>Your listings</b> are at the top, highlighted in light blue.</li>
+          <li><b>Other members' listings</b> are below, each with a <b>Make an offer</b> button.</li>
+          <li>A red number next to Ticket Swap in the menu (and a red dot on the menu button) means you have new offers.</li>
+        </ul>
+        <p>Only <b>regular season</b> games you hold that haven't been played can be traded: all 4 tickets, or 2 of them. Played games drop off listings automatically.</p>
+        <div class="note warn"><b>Ticket Swap is a board, not a transfer.</b>It doesn't move tickets or change draft results by itself. Once you agree, you hand over tickets to each other and the commissioner updates the records.</div>
+      </section>
+
+      <section class="card" id="post">
+        <h2>Post a listing</h2>
+        <ol class="steps">
+          <li>On the Ticket Swap page, tap <b>Post a listing</b> (choose your name and PIN if asked).</li>
+          <li><b>Games to trade away</b>: tick one or more of your games, or <b>Select all</b>.</li>
+          <li><b>Tickets</b>: 4 or 2. With 4, tick <b>Open to trading just 2 of the 4</b> if you'd split them.</li>
+          <li><b>Looking for</b>: <b>Any game</b>, or <b>Specific games</b> and tick the ones you want.</li>
+          <li><b>Tell me about offers by</b>: push and/or email.</li>
+          <li>Tap <b>Post listing</b>. Members who get listing emails are told about it.</li>
+        </ol>
+        <div class="note">Only ask for specific games if you mean it: members can then only offer those games (or "Other" with a note).</div>
+        <p>To change it later, tap <b>Edit</b> on your listing: update it and <b>Save changes</b>, <b>Mark fulfilled</b> if you traded some other way, or <b>Remove listing</b>.</p>
+      </section>
+
+      <section class="card" id="offer">
+        <h2>Make an offer</h2>
+        <ol class="steps">
+          <li>Find the listing and tap <b>Make an offer</b>.</li>
+          <li>Tick the game(s) you want from that listing, and choose 4 tickets (or 2 if they'll split).</li>
+          <li><b>What you'd trade</b>: tick the game(s) you'll give. If they asked for specific games, only those you hold are listed. Choose <b>Other (see note)</b> to offer something else.</li>
+          <li>Add a <b>note</b> (required with Other), choose how to hear back, and tap <b>Send offer</b>.</li>
+        </ol>
+        <p>Offers are <b>private</b>: only that member and the commissioner can see them.</p>
+      </section>
+
+      <section class="card" id="respond">
+        <h2>Accept or reject an offer</h2>
+        <ol class="steps">
+          <li>On your listing, tap <b>Offers</b>.</li>
+          <li>Each offer shows who it's from, what they want and what they're offering. Use <b>Email</b> or <b>Text</b> to ask a question first.</li>
+          <li>Tap <b>Accept</b> or <b>Reject</b>, then confirm.</li>
+        </ol>
+        <ul>
+          <li><b>Accepting</b> tells the other member right away, with your contact details. The accepted games leave your listing, and other offers for the <b>same games</b> are rejected automatically.</li>
+          <li><b>Rejecting</b> tells the member, and your listing stays open.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="after">
+        <h2>After the trade</h2>
+        <ol class="steps">
+          <li>Contact each other using the email or phone in the acceptance message.</li>
+          <li>Hand over the tickets the way our group normally does.</li>
+          <li>Let the commissioner know if anything needs to change in the official records.</li>
+        </ol>
+        <div class="note good">Having trouble? Reply to any Ticket Swap email and it reaches the commissioner.</div>
+      </section>
+
+      <p class="part">More</p>
+
+      <section class="card" id="faq">
+        <h2>Questions</h2>
+        <table>
+          <tbody>
+            <tr><td><b>No push notifications on my iPhone.</b></td><td>Open the site from the <b>Home Screen icon</b> (not Safari) when you tap <b>Turn on for this device</b>, and tap <b>Allow</b>. Check Settings › Notifications › Ticket Draft, then send a test and lock your phone.</td></tr>
+            <tr><td><b>I tapped "Don't Allow".</b></td><td>iPhone: Settings › Notifications › Ticket Draft › Allow Notifications. Android or computer: allow notifications in the browser's site settings, then turn push on again.</td></tr>
+            <tr><td><b>I'm not getting emails.</b></td><td>Check spam or junk and add the sender to your contacts. Confirm your address in Notification &amp; PIN settings and tick <b>Email</b>.</td></tr>
+            <tr><td><b>I forgot my PIN.</b></td><td>Ask the commissioner to reset it, then change it yourself.</td></tr>
+            <tr><td><b>The site shows the wrong person.</b></td><td>Open the menu, tap the name under <b>You</b>, and choose yours or tap <b>Not me</b>.</td></tr>
+            <tr><td><b>I have a new phone.</b></td><td>Add the site to its Home Screen and turn on push there. Email settings carry over.</td></tr>
+            <tr><td><b>Why can't I tick a game to trade?</b></td><td>Only your upcoming regular season games can be traded.</td></tr>
+            <tr><td><b>Can I take back a swap offer?</b></td><td>Not on the site. Let the member (or the commissioner) know.</td></tr>
+            <tr><td><b>Does this cost anything?</b></td><td>No. It's a private web page for our group, with nothing to install or pay for.</td></tr>
+          </tbody>
+        </table>
+        <p class="foot">For anything else, including pick mistakes or how many games you get, contact the commissioner.</p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      var test = /[?&]test(=|&|$)/.test(location.search);
+      if (test) document.getElementById('test-banner').hidden = false;
+      var back = document.getElementById('back');
+      back.href = './' + (test ? '?test' : '');
+      // Highlight the section you're reading in the contents list.
+      var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+      if (!('IntersectionObserver' in window) || !matchMedia('(min-width: 861px)').matches) return; // phones: the list isn't pinned, so no highlight
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          links.forEach(function (a) { a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id); });
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      document.querySelectorAll('main section[id]').forEach(function (s) { io.observe(s); });
+    })();
+  </script>
+</body>
+</html>
