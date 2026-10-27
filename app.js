@@ -1110,24 +1110,22 @@
     commishAction({ action: 'archive' }, $('archive-btn'), (s) => s.picks.length === 0);
   });
 
-  /* Email members their games (Commissioner tools → after the draft). The server builds each email,
+  /* Email members their games (Setup → Regular Season or Postseason, after the draft). The server builds each email,
      calendar file and PDF; this dialog picks who gets one, edits the wording and shows a live preview. */
   const gm = { key: 'rs', pin: '', members: [], sel: {}, greet: {}, pv: '', armed: false, timer: 0, seq: 0 };
   const gmBody = (extra) => Object.assign({ action: 'gamesMail', draft: gm.key, pin: gm.pin, subject: $('gm-subject').value, message: $('gm-message').value,
     greet: gm.greet, ics: $('gm-ics').checked, pdf: $('gm-pdf').checked }, extra);
   const gmSent = (iso) => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : 'Sent ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
-  async function openGm() {
-    const pin = $('commish-pin').value.trim();
-    if (!pin) { $('commish-error').textContent = 'Enter your commissioner PIN.'; return; }
-    if (DEMO) { $('commish-error').textContent = 'Emailing members only works on the live draft.'; return; }
-    $('gm-open').disabled = true;
-    $('commish-error').textContent = '';
+  async function openGm(key, btn) {
+    const pin = commishPin;
+    if (!pin) { toast('Unlock Setup with your commissioner PIN first.'); return; }
+    if (DEMO) { toast('Emailing members only works on the live draft.'); return; }
+    btn.disabled = true;
     try {
-      gm.key = isDraftView(view) ? view : 'rs';
+      gm.key = key === 'post' ? 'post' : 'rs';
       gm.pin = pin;
       const res = await apiPost({ action: 'gamesMail', op: 'info', draft: gm.key, pin });
-      if (!res || !res.ok) { $('commish-error').textContent = (res && res.error) || 'Something went wrong.'; return; }
-      rememberPin(pin);
+      if (!res || !res.ok) { toast((res && res.error) || 'Something went wrong.'); return; }
       gm.members = res.members || [];
       gm.sel = {}; gm.greet = {};
       gm.members.forEach((m) => { gm.sel[m.name] = m.emails.length > 0 && m.games > 0; gm.greet[m.name] = m.greet; });
@@ -1139,11 +1137,10 @@
       $('gm-results').hidden = true;
       gmDisarm();
       renderGm();
-      $('commish-dialog').close();
       $('gm-dialog').showModal();
       gmPreview(true);
-    } catch (e) { $('commish-error').textContent = "Couldn't reach the draft."; }
-    finally { $('gm-open').disabled = false; }
+    } catch (e) { toast("Couldn't reach the draft."); }
+    finally { btn.disabled = false; }
   }
   function renderGm() {
     $('gm-rows').innerHTML = gm.members.map((m) => {
@@ -1187,7 +1184,7 @@
       } catch (e) { if (seq === gm.seq) $('gm-pv-to').textContent = "Couldn't reach the draft."; }
     }, now ? 0 : 450);
   }
-  $('gm-open').addEventListener('click', openGm);
+  $('setup-body').addEventListener('click', (e) => { const b = e.target.closest('[data-gm-open]'); if (b) openGm(b.dataset.gmOpen, b); });
   $('gm-cancel').addEventListener('click', () => $('gm-dialog').close());
   $('gm-form').addEventListener('submit', (e) => e.preventDefault());
   $('gm-rows').addEventListener('change', (e) => {
@@ -1508,6 +1505,8 @@
 
     html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
+    html += '<section class="card sc"><h3>Email members their games</h3><p class="hint">After the draft, send each member their own email listing the games they have, with a calendar file and a printable PDF. You\'ll see a preview before anything is sent.</p>' +
+      '<div class="row-btns"><button type="button" class="btn primary" data-gm-open="' + key + '">Email members their games…</button></div></section>';
     if (rs && TEST) html += '<section class="card sc test-card"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. The regular season draft starts open with 9 picks left: Sean, Lauren, Colleen, then Andrew, Steve, Bill, Matt, Marie and Mike. Notification settings made in test mode are kept.</p>' +
       '<div class="row-btns"><button type="button" class="btn danger" data-act="test-reset">Reset test data</button></div></section>';
     if (rs && !TEST) html += importCard;
