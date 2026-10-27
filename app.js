@@ -637,7 +637,7 @@
   }
 
   /* Regular season board: one row per home game, all four seats per pick. */
-  const rsFilter = { avail: 'all', tag: 'all', month: '', opp: '' };
+  const rsFilter = { avail: 'all', opp: '' };
   // List or calendar (remembered in this browser).
   const RS_VIEW_KEY = 'guardians-rs-view';
   let rsView = store.get(RS_VIEW_KEY) === 'list' ? 'list' : 'cal'; // calendar unless they chose the list
@@ -655,7 +655,7 @@
   // Months fold up; they all start open (tap a month's bar to close it).
   const monthOpen = {};
   // List view: months start folded up, except while a filter is narrowing the list.
-  const filtering = () => rsFilter.avail !== 'all' || rsFilter.tag !== 'all' || !!rsFilter.month || !!rsFilter.opp;
+  const filtering = () => rsFilter.avail !== 'all' || !!rsFilter.opp;
   const isMonthOpen = (key) => (key in monthOpen ? monthOpen[key] : filtering());
   function renderRsBoard(s, takenBy, canPick, prevIds) {
     const games = s.inventory.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -663,10 +663,9 @@
     const enriched = games.map((g) => ({ g, f: gameFlags(g, openerId), p: takenBy[g.id] }));
 
     // Filter bar (only rebuilt when its options change, so it keeps focus).
-    const months = [...new Set(games.map((g) => String(g.date).slice(0, 7)).filter(Boolean))];
     const opps = [...new Set(games.map((g) => g.opponent).filter(Boolean))].sort();
     const fb = $('rs-filters');
-    const sig = months.join(',') + '|' + opps.join(',');
+    const sig = opps.join(',');
     if (fb.dataset.sig !== sig) {
       const chip = (k, v, t) => '<button type="button" class="fchip" data-fk="' + k + '" data-fv="' + v + '">' + t + '</button>';
       fb.innerHTML =
@@ -674,11 +673,7 @@
           '<button type="button" data-rsview="cal"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</button>' +
           '<button type="button" data-rsview="list"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>List</button></div>' +
         '<div class="frow" role="group" aria-label="Show">' + chip('avail', 'all', 'All games') + chip('avail', 'open', 'Available') + chip('avail', 'mine', 'My games') + '</div>' +
-        '<div class="frow" role="group" aria-label="Highlights">' + chip('tag', 'all', 'Any') + chip('tag', 'weekend', 'Weekends') +
-          chip('tag', 'weekday', 'Weekdays') + '</div>' +
-        '<div class="frow selects"><label>Month <select data-fsel="month"><option value="">All</option>' +
-          months.map((m) => { const p = m.split('-'); return '<option value="' + m + '">' + MONTH_FULL[+p[1] - 1] + '</option>'; }).join('') +
-        '</select></label><label>Opponent <select data-fsel="opp"><option value="">All</option>' +
+        '<div class="frow selects"><label>Opponent <select data-fsel="opp"><option value="">All</option>' +
           opps.map((o) => '<option>' + esc(o) + '</option>').join('') + '</select></label>' +
         '<span class="fcount" id="fcount"></span><button type="button" class="link-btn month-all" id="month-all"></button></div>';
       fb.dataset.sig = sig;
@@ -691,9 +686,6 @@
     const shown = enriched.filter(({ g, f, p }) => {
       if (rsFilter.avail === 'open' && p) return false;
       if (rsFilter.avail === 'mine' && !(p && viewer() && p.member === viewer())) return false;
-      if (rsFilter.tag === 'weekend' && !f.weekend) return false;
-      if (rsFilter.tag === 'weekday' && f.weekend) return false;
-      if (rsFilter.month && String(g.date).slice(0, 7) !== rsFilter.month) return false;
       if (rsFilter.opp && g.opponent !== rsFilter.opp) return false;
       return true;
     });
@@ -708,7 +700,7 @@
     if (rsView === 'cal' && games.length) { renderRsCalendar(enriched, new Set(shown.map((x) => x.g.id)), canPick, prevIds); return; }
 
     if (!shown.length) {
-      $('board').innerHTML = '<div class="notice-card">' + (games.length && rsFilter.avail === 'mine' && !viewer() ? 'Tap <strong>Who are you?</strong> above so the page knows which games are yours.' : games.length && rsFilter.avail === 'mine' ? 'You don\'t have any games yet' + (rsFilter.month || rsFilter.opp || rsFilter.tag !== 'all' ? ' that match these filters.' : '.') : games.length ? 'No games match these filters.' : 'No games loaded yet. Commissioner: choose <em>Guardians Draft → Refresh regular season schedule from MLB</em> in the Google Sheet.') + '</div>';
+      $('board').innerHTML = '<div class="notice-card">' + (games.length && rsFilter.avail === 'mine' && !viewer() ? 'Tap <strong>Who are you?</strong> above so the page knows which games are yours.' : games.length && rsFilter.avail === 'mine' ? 'You don\'t have any games yet' + (rsFilter.opp ? ' that match these filters.' : '.') : games.length ? 'No games match these filters.' : 'No games loaded yet. Commissioner: choose <em>Guardians Draft → Refresh regular season schedule from MLB</em> in the Google Sheet.') + '</div>';
       return;
     }
     const groups = [];
@@ -751,7 +743,7 @@
   function renderRsCalendar(enriched, match, canPick, prevIds) {
     const byDate = {};
     enriched.forEach((x) => { byDate[x.g.date] = x; });
-    const months = [...new Set(enriched.map((x) => String(x.g.date).slice(0, 7)))].filter((m) => /^\d{4}-\d{2}$/.test(m) && (!rsFilter.month || m === rsFilter.month));
+    const months = [...new Set(enriched.map((x) => String(x.g.date).slice(0, 7)))].filter((m) => /^\d{4}-\d{2}$/.test(m));
     const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const pad = (n) => String(n).padStart(2, '0');
     $('board').innerHTML = '<div class="cal-legend"><span><i class="cl open"></i>Available</span><span><i class="cl taken"></i>Taken</span>' + (viewer() ? '<span><i class="cl mine"></i>Yours</span>' : '') + '</div>' +
@@ -814,7 +806,6 @@
     const sel = e.target.closest('select[data-fsel]');
     if (!sel) return;
     rsFilter[sel.dataset.fsel] = sel.value;
-    if (sel.dataset.fsel === 'month' && sel.value) monthOpen[sel.value] = true; // picking a month opens it
     if (state) render(null);
   });
 
