@@ -1,16 +1,22 @@
 # Guardians Ticket Drafts
 
-Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). The page has these tabs (the Regular Season tab takes its year from **Setup → Regular Season → Season**, e.g. "2027 Regular Season"):
+Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). Everything is reached from the **menu** (the ☰ button at the top left; a red dot on it means new Ticket Swap offers):
 
-- **Regular season**: members draft home games one at a time. Each pick is one game with all four seats.
-- **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10).
-- **Ticket Swap**: members trade regular season games with each other. See *Ticket Swap* below.
-- **Setup** (commissioner only, asks for the commissioner PIN): a section for each draft plus past drafts. See *Commissioner setup* below.
-- **⚙** (next to Setup): commissioner tools for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
+- **Drafts**
+  - **Regular Season**: members draft home games one at a time. Each pick is one game with all four seats. The menu label takes its year from **Setup → Regular Season → Season**, e.g. "2027 Regular Season".
+  - **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10). Shown only when **Show Postseason in the menu** is ticked in Setup.
+  - **Ticket Swap**: members trade regular season games with each other. See *Ticket Swap* below.
+- **You**: **Who are you?** (your name, so the page highlights your games and fills in your name), **Notification & PIN settings** and **Dark mode**.
+- **Help**: the member help page (`help.html`), based on the member guides.
+- **Commissioner**
+  - **Setup** (asks for the commissioner PIN): a section for each draft plus past drafts. See *Commissioner setup* below.
+  - **Commissioner tools** for the draft on screen: assign, skip, undo, Season Ticket Manager prices and archive.
+
+On phones, the draft page's **Games / Draft Order / Pick Log / Members** bar sits above the On the clock card.
 
 Both drafts run from one Google Sheet. A small Apps Script (`apps-script/Code.gs`) reads and writes it, and the page is hosted free on GitHub Pages at **https://draegs34.github.io/Guardians/**.
 
-- Link straight to a tab: `#regular-season`, `#postseason`, `#setup` or `#past-drafts` (Setup → Past Regular Season Drafts).
+- Link straight to a page: `#regular-season`, `#postseason`, `#setup` or `#past-drafts` (Setup → Past Regular Season Drafts).
 - Until `config.js` has a script URL, the page runs in **demo mode** with sample members and the real 2027 schedule.
 
 ---
@@ -32,7 +38,7 @@ Firebase replaces the Google Sheet as the backend:
 
 - **Instant updates:** picks show up for everyone immediately, with no 10-second refresh and no Google "wake-up" delay.
 - **Server-side rules:** Cloud Functions enforce PINs, turns, game limits and the time limit.
-- **Setup screens on the site:** the **Setup** tab covers members, PINs, draft order, games, the MLB schedule, settings, a CSV download of picks and past drafts.
+- **Setup screens on the site:** **Setup** covers members, PINs, draft order, games, the MLB schedule, settings, a CSV download of picks and past drafts.
 
 The site keeps working on the Google Sheet until you switch `config.js`.
 
@@ -80,19 +86,19 @@ The Google Sheet then becomes a backup; nothing reads from it anymore. To change
 
 ## Commissioner setup
 
-Click **Setup** at the top and enter the commissioner PIN. It's remembered until you close the browser tab or app; **Lock** forgets it right away. Inside are four sections:
+Open the menu, tap **Setup** and enter the commissioner PIN. It's remembered until you close the browser tab or app; **Lock** forgets it right away. Inside are four sections:
 
 - **Regular season**: settings, **members**, draft order (with **🎲 Randomize order**), home games, the MLB schedule, a CSV of picks and **Import data**.
   - **This member list is the source of truth for both drafts.** Names, PINs and emails changed here carry over to the Postseason, and new members are added to the Postseason too (active, at the end of its order). Renaming someone keeps their picks.
   - ✕ removes a member, but only if they have no picks in either draft (undo those first).
   - The list is alphabetical by last name. Anyone you add appears at the bottom while you type and moves into place when you save.
   - **New commissioner PIN** changes the one PIN used for both drafts.
-- **Postseason**: **Display Postseason tab** at the top (untick it to hide the Postseason tab from members until you need a postseason draft; you can still open it with ⚙ while Setup is unlocked), settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
+- **Postseason**: **Show Postseason in the menu** at the top (untick it to hide Postseason from members until you need a postseason draft; you can still open it with Commissioner tools while Setup is unlocked), settings (now including a **pick time limit**), games & seat pairs, and the member list in draft order. Names, PINs and emails are read-only here. Use ↑ ↓ to set the order (new members start at the end), **✕** to mark someone **inactive** for the postseason (they keep any picks but get no more turns; ↺ brings them back), and **🎲 Randomize order** (active members only; inactive ones move to the end).
 - **Past Regular Season Drafts** and **Past Postseason Drafts**: archived drafts of each kind. Only the commissioner can see these.
 
 James Draeger always lands in one of the first 3 picks when either draft order is randomized. Nothing changes until you click **Save regular season** or **Save postseason**. **Hours per pick** (and the reminder fields) can only be edited when their checkbox is ticked.
 
-The **⚙** button opens the commissioner tools for the draft you're looking at (from Setup, the section you're in): assign, skip, undo, Season Ticket Manager prices and **Archive this draft**. Your PIN is filled in once you've unlocked Setup.
+**Commissioner tools** (in the menu) opens the tools for the draft you're looking at (from Setup, the section you're in): assign, skip, undo, Season Ticket Manager prices and **Archive this draft**. Your PIN is filled in once you've unlocked Setup.
 
 ---
 
@@ -104,12 +110,12 @@ A board for trading regular season games between members. It doesn't change the 
   - **Games to trade away**: only your own upcoming games (ones you drafted or were assigned). You can choose more than one.
   - **Tickets**: 4 or 2. With 4, tick **Open to trading just 2 of the 4** if you'd split them.
   - **Looking for**: any game, or specific games.
-  - **Tell me about offers by**: push notification and/or email. These need push turned on, or an email address saved, in Notification settings first. The icons on the listing show which you chose.
-- **Every member with an email address gets an email** when a new listing is posted, with the details and a link. Members can turn these off in Notification settings (**Email me when someone posts a Ticket Swap listing**).
+  - **Tell me about offers by**: push notification and/or email. These need push turned on, or an email address saved, in Notification & PIN settings first. The icons on the listing show which you chose.
+- **Every member with an email address gets an email** when a new listing is posted, with the details and a link. Members can turn these off in Notification & PIN settings (**Email me when someone posts a listing**).
 - **Make an offer** on someone else's listing: choose which of their games you want, how many tickets (4, or 2 if they'll split), what you'd trade, a note, and how you want to hear back (push and/or email). If the lister named specific games, you can only offer those (the ones you hold); otherwise any of your games. **Other (see note)** is always there, and needs a note. The lister is alerted the way they chose.
 - **Accept or Reject** each offer from **Offers** (click twice to confirm). The person who made the offer hears back the way they chose; an acceptance includes the lister's email so they can arrange the swap. Accepted games come off the listing, and when none are left it's marked fulfilled.
 - **Offers are private**: only the lister (and the commissioner) can see them; everyone else sees just a count. The lister sees each offer with an **Email** button to reply.
-- **A red number on the Ticket Swap tab** shows new offers on your listings (in the browser you posted from). It clears when you open **Offers**.
+- **New offers** on your listings show as a red dot on the menu button and a red number next to Ticket Swap in the menu (in the browser you posted from). They clear when you open **Offers**.
 - **Edit** (your own listings) changes any detail, and has **Mark fulfilled** and **Remove listing**. With Setup unlocked, the commissioner can edit or remove anyone's listing.
 - Games that have been played drop off listings automatically, and a listing disappears once all its games have passed.
 
@@ -117,7 +123,7 @@ A board for trading regular season games between members. It doesn't change the 
 
 ## Notification settings (Firebase only)
 
-Members can get a message when it's their turn, even with the page closed. Each member taps **Notification settings** (bell button), enters their name and PIN, and chooses:
+Members can get a message when it's their turn, even with the page closed. Each member opens the menu and taps **Notification & PIN settings** (also a button on the Ticket Swap page), enters their name and PIN, and chooses:
 
 - **In this browser**: on-screen alerts while the page is open (a banner, a flashing browser tab and the icon badge). This replaces the old *Turn alerts on this device for* dropdown, covers both drafts, and is on by default.
 
@@ -183,9 +189,9 @@ Choose **Guardians Draft → Refresh regular season schedule from MLB** any time
 - **Holidays**: Mother's Day, Memorial Day, Father's Day, the Fourth of July and Labor Day. These are highlighted with a red edge.
 - **Weekday day game**: a Monday–Friday game starting before 5 PM ET, highlighted with a gold edge. These only show once MLB posts a start time.
 - **Promotions** from the Promotions column, and any **Notes** (separate several with `;`).
-- **Filters**: All or Available; Any, Weekends or Weekdays (Monday–Friday); Month; Opponent.
-- **Phones and small tablets**: the draft page has tabs for **Games**, **Draft Order** (Up next and the drop-out button), **Pick Log** and **Members**. It jumps to Games when it becomes your turn (if on-screen alerts are on). Computers show everything side by side.
-- **Months fold up**: tap a month's bar to open or close it. Every month starts open. **Expand all / Collapse all** is next to the game count, and choosing a month in the Month filter opens it.
+- **Filters**: All games, Available or My games; Opponent.
+- **Phones and small tablets**: the draft page has a bar (above the On the clock card) for **Games**, **Draft Order** (Up next and the drop-out button), **Pick Log** and **Members**. It jumps to Games when it becomes your turn (if on-screen alerts are on). Computers show everything side by side.
+- **Months fold up** (List view): tap a month's bar to open or close it. Months start folded unless a filter is on. **Expand all / Collapse all** is next to the game count.
 
 ### Pick time limit (off for now)
 Set **Pick time limit on** to `TRUE` and enter the hours in **Pick time limit (hours)**. The page then shows a countdown, and a member whose time runs out is skipped automatically. The log says "turn skipped (time ran out)".
@@ -196,7 +202,7 @@ Set **Pick time limit on** to `TRUE` and enter the hours in **Pick time limit (h
 
 ---
 
-**List or Calendar:** above the filters on the regular season board, members can switch between the list and a calendar laid out like the printed schedule (available home games in navy blue, taken games gray with the holder's last name, your own games red). Tap a blue game to pick it. The filters still apply: games that don't match fade out, and choosing a month shows just that month. Each browser remembers the choice.
+**List or Calendar:** above the filters on the regular season board, members can switch between the Calendar (the default, laid out like the printed schedule) and the List. In the calendar, open games are navy with the start time, taken games gray with the holder's last name, and your own games green. Tap a navy game to pick it. On phones, the List puts the **Pick** button beside each open game. The filters apply to both views (games that don't match fade out in the calendar). Each browser remembers the choice.
 
 ## Postseason draft
 This works the same as before, using the **Draft Settings**, **Draft Members**, **Draft Inventory** and **Draft Picks** tabs. For a brand-new sheet, choose **Guardians Draft → Set up postseason tabs**.
@@ -207,15 +213,15 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Picking**: whoever is **On the clock** taps an open game or seat pair, enters their PIN and taps **Lock it in**.
 - **Picks texted to you**: make the pick for that member by entering your **Commissioner PIN** instead of theirs.
 - **Updates**: the board refreshes every 10 seconds.
-- **Turn alerts**: under **Notification settings** (bell button), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound. The line next to the button shows whose alerts this browser is set for.
+- **Turn alerts**: under **Notification & PIN settings** (in the menu), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
 - **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
-- **⚙ Commissioner tools** (the gear next to Setup; enter your PIN if it isn't filled in):
+- **Commissioner tools** (in the menu; enter your PIN if it isn't filled in):
   - **Assign** a game to any member. This doesn't use a turn.
   - **Skip to next member**.
   - **Undo last entry**: removes the most recent pick, assignment, skip or drop-out.
   - **Archive this draft**: click twice to confirm. This saves the picks, clears the board so it's ready for next time, and adds the draft to **Setup → Past drafts**. Settings, members and games are left as they are.
 - **Pausing**: set **Draft open** to `FALSE`.
-- **Prices from the Season Ticket Manager** (postseason): opening the draft link the Manager sends (`…#prices=ALDS:432,ALCS:646,WS:1090`) shows a green banner. **Review & apply** opens ⚙ with **Update prices from Season Ticket Manager**, which applies the new prices to Draft Inventory. Picks already made keep the price they were drafted at.
+- **Prices from the Season Ticket Manager** (postseason): opening the draft link the Manager sends (`…#prices=ALDS:432,ALCS:646,WS:1090`) shows a green banner. **Review & apply** opens Commissioner tools with **Update prices from Season Ticket Manager**, which applies the new prices to Draft Inventory. Picks already made keep the price they were drafted at.
 
 > **Season Ticket Manager:** its draft-feed pull reads the **postseason** draft, the same as before. Once you archive the postseason draft, the feed shows no picks. Pull the final picks into the Manager **before** archiving.
 
