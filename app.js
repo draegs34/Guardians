@@ -49,7 +49,7 @@
   const VIEW_KEY = 'guardians-draft-view';
   const isDraftView = (v) => v === 'rs' || v === 'post';
   let setupKey = 'rs'; // which Setup section: 'rs', 'post', 'archive-rs' or 'archive-post'
-  // Whether members see the Postseason tab (Setup → Postseason → Display Postseason tab). Last known value, until the draft loads.
+  // Whether members see the Postseason tab (Setup → Postseason → Show Postseason in the menu). Last known value, until the draft loads.
   const SHOW_POST_KEY = 'guardians-show-post';
   let showPost = store.get(SHOW_POST_KEY) !== '0';
   function initialView() {
@@ -411,7 +411,7 @@
     if (on !== showPost) store.set(SHOW_POST_KEY, on ? '1' : '0');
     showPost = on;
     $('post-tab').hidden = !on;
-    // Members get moved off a hidden Postseason tab; the commissioner (Setup unlocked) can still look at it.
+    // Members get moved off a hidden Postseason draft; the commissioner (Setup unlocked) can still look at it.
     if (!on && view === 'post' && !commishPin && !sentPrices) switchView('rs');
   }
   function apply(s) {
@@ -463,7 +463,7 @@
     $('clock-meta').textContent = 'The ' + label + ' draft hasn\'t been set up yet.';
     $('board').removeAttribute('aria-busy');
     $('board').innerHTML = window.FIREBASE_CONFIG
-      ? '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: open <em>Setup</em> at the top of the page to import your data or start it empty.</div>'
+      ? '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: open <em>Setup</em> from the menu to import your data or start it empty.</div>'
       : '<div class="notice-card"><strong>The ' + label + ' draft isn\'t set up yet.</strong><br>Commissioner: in the Google Sheet, choose <em>Guardians Draft → Set up ' + label + (view === 'rs' ? ' draft' : ' tabs') + '</em>.</div>';
     $('rs-filters').hidden = true;
     $('upcoming').innerHTML = '<li class="empty">Nothing yet.</li>';
@@ -1271,7 +1271,7 @@
     const rem = !!s.reminderOn;
 
     let html = '';
-    if (!rs) html += '<section class="card sc show-post"><label class="check big-check"><input type="checkbox" data-bind="settings.showTab"' + (s.showTab !== false ? ' checked' : '') + '> <span><strong>Display Postseason tab</strong><small>When unchecked, members don\'t see the Postseason tab at the top of the page. Turn it on when it\'s time for a postseason draft. Save to apply.</small></span></label></section>';
+    if (!rs) html += '<section class="card sc show-post"><label class="check big-check"><input type="checkbox" data-bind="settings.showTab"' + (s.showTab !== false ? ' checked' : '') + '> <span><strong>Show Postseason in the menu</strong><small>When unchecked, members don\'t see Postseason in the menu. Turn it on when it\'s time for a postseason draft. Save to apply.</small></span></label></section>';
     if (rs && sentEmails) html += '<section class="card sc sync-card"><h3>Members from Season Ticket Manager</h3><div id="sync-body"></div></section>';
 
     html += '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
@@ -1291,7 +1291,7 @@
       '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p></section>';
 
     if (rs) {
-      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason tab too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>.</p>' +
+      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason draft too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => {
           const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
