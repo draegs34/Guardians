@@ -726,3 +726,22 @@ body.stale .seat:not(.taken) { opacity: .7; }
 
 .sn-item .sn-sub svg { display: block; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Welcome popup (first visit): "Who are you?" in welcome mode, then the notifications offer. */
+.welcome-only { display: none; }
+#who-dialog.is-welcome .welcome-only { display: block; }
+#who-dialog.is-welcome .wm-steps { display: flex; }
+.wm-steps { display: flex; gap: 6px; margin: 0 0 14px; }
+.wm-steps i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+.wm-steps i.on { background: var(--red); }
+.wm-eyebrow { margin: 0 0 2px; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--red); }
+.wm-foot { font-size: 12.5px; color: var(--muted); margin: 12px 0 0; }
+.wm-ok { display: flex; align-items: center; gap: 8px; background: var(--open-bg); color: var(--open); font-weight: 700; border-radius: 10px; padding: 9px 12px; margin: 0 0 14px; font-size: 14.5px; }
+.wm-ok svg { flex: none; }
+.wm-list { margin: 6px 0 12px; padding: 0; list-style: none; }
+.wm-list li { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; font-size: 14.5px; line-height: 1.4; }
+.wm-list svg { flex: none; margin-top: 1px; color: var(--navy); }
+:root[data-theme="dark"] .wm-list svg { color: var(--text); }
+.wm-ios { background: var(--avail-bg); border-radius: 10px; padding: 9px 12px; font-size: 13px; line-height: 1.45; margin: 2px 0 4px; }
+.wm-ios[hidden] { display: none; }
+.wm-ios a { color: var(--avail); font-weight: 700; }

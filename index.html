@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610272100">
+  <link rel="stylesheet" href="style.css?v=202610272200">
 </head>
 <body>
   <div id="test-banner" class="test-banner" hidden title="Test data, separate from the real drafts. Test PINs: members 1234, commissioner 0000. Alerts are marked [TEST].">Test Mode</div>
@@ -284,6 +284,8 @@
   <!-- Notifications dialog -->
   <dialog id="who-dialog">
     <form method="dialog" id="who-form">
+      <div class="wm-steps welcome-only" aria-hidden="true"><i class="on"></i><i></i></div>
+      <p class="wm-eyebrow welcome-only">Welcome</p>
       <h3>Who are you?</h3>
       <p class="hint">Choose your name so the page can highlight your picks and fill in your name for you. Your PIN just confirms it's you; this browser only remembers your name.</p>
       <label>Your name
@@ -298,6 +300,26 @@
         <button type="button" class="btn ghost" id="who-cancel">Cancel</button>
         <button type="submit" class="btn primary" id="who-go">Continue</button>
       </div>
+      <p class="wm-foot welcome-only">Just looking? Tap <b>Not now</b>. You can do this later from the menu.</p>
+    </form>
+  </dialog>
+
+  <!-- Welcome, step 2 (after "Who are you?" on a first visit): offer to set up notifications -->
+  <dialog id="welcome2-dialog">
+    <form method="dialog">
+      <div class="wm-steps" aria-hidden="true"><i class="on"></i><i class="on"></i></div>
+      <div class="wm-ok"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span id="wm-thanks">Thanks. This browser will remember you.</span></div>
+      <h3>Get a heads-up when it's your turn</h3>
+      <ul class="wm-list">
+        <li><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span><b>Push notifications</b> pop up on this phone or computer, even when the site is closed.</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span><b>Email</b><span id="wm-email"></span> (and a second address if you like).</span></li>
+      </ul>
+      <div class="wm-ios" id="wm-ios" hidden>On an iPhone? Push needs the site on your Home Screen first. <a id="wm-ios-link" href="help.html#home-screen">How to add it</a></div>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="wm-later">Maybe later</button>
+        <button type="button" class="btn primary" id="wm-setup">Set up notifications</button>
+      </div>
+      <p class="wm-foot">You can always change this in the menu under <b>Notification &amp; PIN settings</b>.</p>
     </form>
   </dialog>
 
@@ -409,9 +431,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610272100"></script>
-  <script src="engine.js?v=202610272100"></script>
-  <script type="module" src="live.js?v=202610272100"></script>
-  <script src="app.js?v=202610272100"></script>
+  <script src="config.js?v=202610272200"></script>
+  <script src="engine.js?v=202610272200"></script>
+  <script type="module" src="live.js?v=202610272200"></script>
+  <script src="app.js?v=202610272200"></script>
 </body>
 </html>

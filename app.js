@@ -21,7 +21,7 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // Who-you-are and alert keys are kept separately in test mode, so testing as another member
   // doesn't change who the real site thinks you are.
-  const ID_KEY = /^guardians-(draft-me|draft-push-token|notify-on|screen-chosen|swap-me|viewer)/;
+  const ID_KEY = /^guardians-(draft-me|draft-push-token|notify-on|screen-chosen|swap-me|viewer|welcome)/;
   const nsKey = (k) => (TEST && ID_KEY.test(k) ? 'test:' + k : k);
   const store = {
     get(k) { try { return localStorage.getItem(nsKey(k)); } catch (e) { return null; } },
@@ -2410,6 +2410,7 @@
 
   // On-screen alerts follow the member chosen in Notification settings (both drafts).
   /* "Who are you?": pick your name (and PIN) without setting up notifications. */
+  let welcomeMode = false; // opened by the first-visit welcome popup
   function renderWho() {
     const v = viewer();
     // Phones show just the first name so it fits beside the notifications button.
@@ -2417,7 +2418,10 @@
     $('who-btn').classList.toggle('is-set', !!v);
     $('legend-mine').hidden = !v;
   }
-  async function openWho() {
+  async function openWho(welcome) {
+    welcomeMode = welcome === true;
+    $('who-dialog').classList.toggle('is-welcome', welcomeMode);
+    $('who-cancel').textContent = welcomeMode ? 'Not now' : 'Cancel';
     if (!notifyMembers()) await ensureRs();
     const members = notifyMembers() || [];
     const names = sortedNames(members);
@@ -2433,7 +2437,7 @@
     const m = (notifyMembers() || []).find((x) => x.name === $('who-name').value);
     $('who-pin-wrap').hidden = !!m && !m.needsPin;
   }
-  $('who-btn').addEventListener('click', openWho);
+  $('who-btn').addEventListener('click', () => openWho());
   $('who-name').addEventListener('change', syncWhoPin);
   $('who-cancel').addEventListener('click', () => $('who-dialog').close());
   $('who-forget').addEventListener('click', () => {
@@ -2454,6 +2458,7 @@
     const name = $('who-name').value;
     if (!name) { $('who-error').textContent = 'Choose your name.'; return; }
     const pin = $('who-pin').value.trim();
+    const wasWelcome = welcomeMode;
     $('who-go').disabled = true;
     $('who-error').textContent = '';
     apiPost({ draft: 'rs', action: 'notifyGet', name, pin, token: store.get(PUSH_TOKEN_KEY) || '' })
@@ -2470,12 +2475,36 @@
         renderWho();
         if (state) render(null);
         if (typeof renderSwap === 'function' && swapListings) { renderSwapBadge(); renderSwap(); }
-        toast('Thanks, ' + name.split(' ')[0] + '. This browser will remember you.');
+        if (wasWelcome && !notifyIsOn()) openWelcome2(name);
+        else toast('Thanks, ' + name.split(' ')[0] + '. This browser will remember you.');
       })
       .catch(() => { $('who-error').textContent = "Couldn't reach the draft. Try again."; })
       .finally(() => { $('who-go').disabled = false; });
   });
   renderWho();
+
+  /* Welcome popup: on a first visit to a draft page, ask who you are (once per browser; after
+     "Not now" it isn't shown again), then offer to set up notifications if none are on yet. */
+  const WELCOME_KEY = 'guardians-welcome-shown';
+  const notifyIsOn = () => !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
+  function maybeWelcome() {
+    if (DEMO || viewer() || store.get(WELCOME_KEY) || !isDraftView(view) || document.querySelector('dialog[open]')) return;
+    if (!notifyMembers()) { setTimeout(maybeWelcome, 1500); return; }
+    store.set(WELCOME_KEY, '1');
+    openWho(true);
+  }
+  function openWelcome2(name) {
+    $('wm-thanks').textContent = 'Thanks, ' + name.split(' ')[0] + '. This browser will remember you.';
+    const email = (notifyPrefs && (notifyPrefs.email || notifyPrefs.email2)) || notifySuggest || '';
+    $('wm-email').textContent = email ? ' to ' + email : ' to your inbox';
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    $('wm-ios').hidden = !ios || standalone;
+    $('wm-ios-link').href = 'help.html' + (TEST ? '?test' : '') + '#home-screen';
+    $('welcome2-dialog').showModal();
+  }
+  $('wm-later').addEventListener('click', () => $('welcome2-dialog').close());
+  $('wm-setup').addEventListener('click', () => { $('welcome2-dialog').close(); openNotify(); });
 
   function setMe(name) {
     me = name || '';
@@ -2659,6 +2688,7 @@
 
   $('post-tab').hidden = !showPost;
   $('test-banner').hidden = !TEST;
+  setTimeout(maybeWelcome, 1200);
   if (!DEMO && view !== 'swap') setTimeout(loadSwap, 1500); // for the new-offer badge on the Ticket Swap tab
   renderNotifyCheck();
   setRsSeason(store.get(RS_SEASON_KEY) || '');
