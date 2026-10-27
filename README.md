@@ -230,6 +230,8 @@ Open the site with `?test` on the end (https://draegs34.github.io/Guardians/?tes
 - Test mode has its own drafts, notification settings, Ticket Swap listings and past drafts. Nothing you do there touches the real site.
 - Emails and push alerts only go to addresses and devices that were set up while in test mode, and are marked [TEST].
 - To start over, open Setup → Regular Season and click **Reset test data** (twice to confirm).
+- Test mode remembers who you are separately from the real site, so testing as another member doesn't change the real site.
+- To open the site as a brand-new visitor (for example, a link to send someone else), add `&fresh`: https://draegs34.github.io/Guardians/?test&fresh. It forgets who you are and your alert settings in that browser, then drops `fresh` from the address. `?fresh` works on the real site too.
 - Click **Leave test mode** in the banner to go back to the real site.
 
 ## For developers

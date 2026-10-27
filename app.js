@@ -19,10 +19,23 @@
   const sortedNames = (members) => members.map((m) => m.name).filter(Boolean).sort(byLast);
   const money = (n) => '$' + Number(n || 0).toLocaleString('en-US');
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Who-you-are and alert keys are kept separately in test mode, so testing as another member
+  // doesn't change who the real site thinks you are.
+  const ID_KEY = /^guardians-(draft-me|draft-push-token|notify-on|screen-chosen|swap-me|viewer)/;
+  const nsKey = (k) => (TEST && ID_KEY.test(k) ? 'test:' + k : k);
   const store = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { if (v == null || v === '') localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
+    get(k) { try { return localStorage.getItem(nsKey(k)); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null || v === '') localStorage.removeItem(nsKey(k)); else localStorage.setItem(nsKey(k), v); } catch (e) { /* ignore */ } },
   };
+  // A link ending in &fresh (or ?fresh) opens the site as a first-time visitor: it forgets who you are
+  // and your alert settings in this browser, then removes "fresh" from the address.
+  if (/[?&]fresh(=|&|$)/.test(location.search)) {
+    try {
+      Object.keys(localStorage).forEach((k) => { const base = k.replace(/^test:/, ''); if (ID_KEY.test(base) && (k.startsWith('test:') === TEST)) localStorage.removeItem(k); });
+      const q = location.search.replace(/([?&])fresh(=[^&]*)?(&|$)/, (m, a, b, c) => (c ? a : '')).replace(/[?&]$/, '');
+      history.replaceState(null, '', location.pathname + q + location.hash);
+    } catch (e) { /* ignore */ }
+  }
 
   // Calendar names (used by the demo data below, so defined first)
   const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
