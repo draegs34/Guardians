@@ -1343,7 +1343,7 @@
 
     html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
-    if (rs && TEST) html += '<section class="card sc test-card"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. The regular season draft starts open with 9 picks left: Sean, Lauren, James, then Andrew, Steve, Bill, Matt, Marie and Mike. Notification settings made in test mode are kept.</p>' +
+    if (rs && TEST) html += '<section class="card sc test-card"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. The regular season draft starts open with 9 picks left: Sean, Lauren, Colleen, then Andrew, Steve, Bill, Matt, Marie and Mike. Notification settings made in test mode are kept.</p>' +
       '<div class="row-btns"><button type="button" class="btn danger" data-act="test-reset">Reset test data</button></div></section>';
     if (rs && !TEST) html += importCard;
     html += '<div class="save-bar"><span class="hint" id="setup-msg"></span><button type="button" class="btn primary" data-act="save">Save ' + (rs ? 'regular season' : 'postseason') + '</button></div>';

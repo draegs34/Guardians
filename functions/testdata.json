@@ -16,7 +16,12 @@
    {
     "name": "James Draeger",
     "pin": "1234",
-    "cap": 6
+    "cap": 5
+   },
+   {
+    "name": "Colleen Draeger",
+    "pin": "1234",
+    "cap": 5
    },
    {
     "name": "Lauren Falcone",
@@ -31,7 +36,7 @@
    {
     "name": "Steve Hanigosky",
     "pin": "1234",
-    "cap": 15
+    "cap": 11
    },
    {
     "name": "Bill Thoburn",
@@ -82,7 +87,7 @@
   "order": [
    "Sean DeCrane",
    "Lauren Falcone",
-   "James Draeger",
+   "Colleen Draeger",
    "Andrew Hanigosky",
    "Steve Hanigosky",
    "Bill Thoburn",
@@ -795,7 +800,7 @@
    },
    {
     "type": "assign",
-    "member": "Steve Hanigosky",
+    "member": "Colleen Draeger",
     "itemId": "test-2027-04-20",
     "time": "2026-10-01T15:10:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
@@ -893,7 +898,7 @@
    },
    {
     "type": "assign",
-    "member": "Steve Hanigosky",
+    "member": "Colleen Draeger",
     "itemId": "test-2027-05-29",
     "time": "2026-10-01T15:28:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
@@ -977,7 +982,7 @@
    },
    {
     "type": "assign",
-    "member": "Steve Hanigosky",
+    "member": "Colleen Draeger",
     "itemId": "test-2027-06-30",
     "time": "2026-10-01T15:41:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
@@ -1096,7 +1101,7 @@
    },
    {
     "type": "assign",
-    "member": "Steve Hanigosky",
+    "member": "Colleen Draeger",
     "itemId": "test-2027-08-06",
     "time": "2026-10-01T15:59:00.000Z",
     "note": "Test data (from the 2026 ticket holder list)"
@@ -1265,6 +1270,10 @@
    },
    {
     "name": "James Draeger",
+    "pin": "1234"
+   },
+   {
+    "name": "Colleen Draeger",
     "pin": "1234"
    },
    {
