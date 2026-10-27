@@ -721,7 +721,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .sn-ok { color: var(--open); font-weight: 800; }
 .sn-sub[hidden], .sn-badge[hidden] { display: none; }
 .sn-badge { flex: none; background: var(--red); color: #fff; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 1px 7px; }
-.side-nav .sn-bottom { margin-top: auto; border-top: 1px solid var(--line); border-bottom: 0; }
+.side-nav .sn-comm { margin-top: auto; border-top: 1px solid var(--line); } /* Commissioner and Dark mode sit at the bottom */
+.side-nav .sn-bottom { border-bottom: 0; }
 .sn-foot { margin: 0; padding: 4px 20px 18px; font-size: 11px; color: var(--muted); }
 :root[data-theme="dark"] .side-nav .sn-sec button[aria-current="page"] { background: #1c3256; color: #fff; }
 
