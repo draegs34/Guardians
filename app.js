@@ -2520,6 +2520,70 @@
   });
   syncThemeBtn();
 
+  /* Side menu (hamburger): drafts, Ticket Swap, You, Dark mode and commissioner links.
+     Each item clicks the original (now hidden) control, so all the existing behavior is reused. */
+  let menuCloseTimer;
+  function syncMenu() {
+    const cur = (v) => (v === view ? 'page' : 'false');
+    document.querySelectorAll('#side-nav [data-go]').forEach((b) => {
+      if (['rs', 'post', 'swap', 'setup'].includes(b.dataset.go)) b.setAttribute('aria-current', cur(b.dataset.go));
+    });
+    $('sn-rs').textContent = $('rs-tab').textContent;
+    $('sn-post').hidden = $('post-tab').hidden;
+    const v = viewer();
+    $('sn-who').textContent = v || 'Who are you?';
+    $('sn-who-sub').textContent = v ? 'Change' : '';
+    $('sn-who-sub').hidden = !v;
+    $('sn-notify-ok').hidden = !$('notify-btn').classList.contains('is-on');
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    $('sn-theme-sub').textContent = dark ? 'On' : 'Off';
+    $('sn-theme').setAttribute('aria-pressed', String(dark));
+  }
+  function syncMenuBadge() {
+    const n = $('swap-badge').hidden ? '' : $('swap-badge').textContent;
+    $('sn-badge').textContent = n;
+    $('sn-badge').hidden = !n;
+    $('hb-dot').hidden = !n;
+    $('hb-btn').setAttribute('aria-label', 'Menu' + (n ? ' (' + n + ' new swap offer' + (n === '1' ? '' : 's') + ')' : ''));
+  }
+  function openMenu() {
+    clearTimeout(menuCloseTimer);
+    syncMenu();
+    $('side-scrim').hidden = false;
+    $('side-nav').hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => { $('side-scrim').classList.add('show'); $('side-nav').classList.add('show'); }));
+    $('hb-btn').setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+    const first = document.querySelector('#side-nav [aria-current="page"]') || document.querySelector('#side-nav [data-go]');
+    if (first) first.focus({ preventScroll: true });
+  }
+  function closeMenu(keepFocus) {
+    if ($('side-nav').hidden) return;
+    $('side-scrim').classList.remove('show');
+    $('side-nav').classList.remove('show');
+    $('hb-btn').setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+    menuCloseTimer = setTimeout(() => { $('side-scrim').hidden = true; $('side-nav').hidden = true; }, 230);
+    if (!keepFocus) $('hb-btn').focus({ preventScroll: true });
+  }
+  $('hb-btn').addEventListener('click', () => ($('side-nav').hidden ? openMenu() : closeMenu()));
+  $('side-scrim').addEventListener('click', () => closeMenu());
+  $('sn-close').addEventListener('click', () => closeMenu());
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('side-nav').hidden && !document.querySelector('dialog[open]')) closeMenu(); });
+  $('side-nav').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-go]');
+    if (!b) return;
+    const go = b.dataset.go;
+    if (go === 'theme') { $('theme-btn').click(); syncMenu(); return; } // stay open so the change is visible
+    closeMenu(true);
+    if (go === 'who') $('who-btn').click();
+    else if (go === 'notify') (view === 'swap' ? $('swap-notify-btn') : $('notify-btn')).click();
+    else if (go === 'cog') $('cog-btn').click();
+    else { switchView(go); window.scrollTo(0, 0); }
+  });
+  new MutationObserver(syncMenuBadge).observe($('swap-badge'), { attributes: true, childList: true, characterData: true, subtree: true });
+  syncMenuBadge();
+
   let toastTimer;
   function toast(msg) {
     const t = $('toast');
