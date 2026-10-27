@@ -721,14 +721,15 @@ body.stale .seat:not(.taken) { opacity: .7; }
 .sn-ok { color: var(--open); font-weight: 800; }
 .sn-sub[hidden], .sn-badge[hidden] { display: none; }
 .sn-badge { flex: none; background: var(--red); color: #fff; font-size: 11px; font-weight: 800; border-radius: 10px; padding: 1px 7px; }
-.sn-foot { margin: auto 0 0; padding: 14px 20px 18px; font-size: 11px; color: var(--muted); }
+.side-nav .sn-bottom { margin-top: auto; border-top: 1px solid var(--line); border-bottom: 0; }
+.sn-foot { margin: 0; padding: 4px 20px 18px; font-size: 11px; color: var(--muted); }
 :root[data-theme="dark"] .side-nav .sn-sec button[aria-current="page"] { background: #1c3256; color: #fff; }
 
 .sn-item .sn-sub svg { display: block; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* Welcome popup (first visit): "Who are you?" in welcome mode, then the notifications offer. */
-.welcome-only { display: none; }
+.welcome-only, .wm-steps.welcome-only { display: none; }
 #who-dialog.is-welcome .welcome-only { display: block; }
 #who-dialog.is-welcome .wm-steps { display: flex; }
 .wm-steps { display: flex; gap: 6px; margin: 0 0 14px; }

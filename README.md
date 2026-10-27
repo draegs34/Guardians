@@ -6,7 +6,8 @@ Pick-by-pick drafts for our season ticket group (Section 146, Seats 7–10). Eve
   - **Regular Season**: members draft home games one at a time. Each pick is one game with all four seats. The menu label takes its year from **Setup → Regular Season → Season**, e.g. "2027 Regular Season".
   - **Postseason**: members draft postseason home games by seat pair (7 & 8 or 9 & 10). Shown only when **Show Postseason in the menu** is ticked in Setup.
   - **Ticket Swap**: members trade regular season games with each other. See *Ticket Swap* below.
-- **You**: **Who are you?** (your name, so the page highlights your games and fills in your name), **Notification & PIN settings** and **Dark mode**.
+- **You**: **Who are you?** (your name, so the page highlights your games and fills in your name), and **Notification & PIN settings**.
+- **Dark mode** at the bottom of the menu.
 - **Help**: the member help page (`help.html`), based on the member guides.
 - **Commissioner**
   - **Setup** (asks for the commissioner PIN): a section for each draft plus past drafts. See *Commissioner setup* below.
