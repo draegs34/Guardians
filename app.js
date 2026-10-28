@@ -2881,4 +2881,44 @@
     if (me && Date.now() - lastBg >= 30000) { lastBg = Date.now(); refresh(); }
   }, REFRESH_MS);
   document.addEventListener('visibilitychange', () => { if (!document.hidden && isDraftView(view)) refresh(); });
+
+  /* Site updates. A Home Screen app (especially on iPhone) keeps the old page in memory and can go days
+     without reloading it. Whenever the app comes back to the front, and every 30 minutes, check whether a
+     newer version has been published (the ?v= stamp on app.js changes with every update). If so, reload,
+     unless a popup is open or someone is typing, in which case offer a Refresh button instead. */
+  const SITE_VERSION = ((document.querySelector('script[src*="app.js?v="]') || {}).src || '').replace(/^.*[?&]v=/, '');
+  let lastVersionCheck = 0;
+  let updateWaiting = false;
+  function busyForUpdate() {
+    const a = document.activeElement;
+    return !!document.querySelector('dialog[open]') || !$('side-nav').hidden || !!(a && a.matches && a.matches('input, textarea, select'));
+  }
+  function applyUpdate() { try { location.reload(); } catch (e) { /* ignore */ } }
+  function offerUpdate() {
+    if (document.querySelector('dialog[open]')) { setTimeout(offerUpdate, 15000); return; } // wait until popups are closed
+    const t = $('toast');
+    clearTimeout(toastTimer);
+    t.innerHTML = 'A new version of the site is ready. <button type="button" class="link-btn" id="update-now" style="color:#fff;font-weight:700;text-decoration:underline;margin-left:6px">Refresh</button>';
+    t.hidden = false;
+    $('update-now').addEventListener('click', applyUpdate);
+  }
+  // reopened: true when the app has just come back to the front, so a reload is expected and unnoticed.
+  async function checkForUpdate(reopened) {
+    if (!SITE_VERSION || DEMO || updateWaiting) return;
+    if (Date.now() - lastVersionCheck < 30000) return;
+    lastVersionCheck = Date.now();
+    try {
+      const r = await fetch(location.pathname + '?versioncheck=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const m = (await r.text()).match(/app\.js\?v=(\d+)/);
+      if (!m || m[1] === SITE_VERSION) return;
+      if (reopened && !busyForUpdate()) { applyUpdate(); return; }
+      updateWaiting = true;
+      offerUpdate();
+    } catch (e) { /* offline: try again later */ }
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(true); });
+  window.addEventListener('pageshow', (e) => { if (e.persisted) checkForUpdate(true); });
+  setInterval(() => { if (!document.hidden) checkForUpdate(false); }, 30 * 60 * 1000);
+  setTimeout(() => checkForUpdate(false), 5000);
 })();
