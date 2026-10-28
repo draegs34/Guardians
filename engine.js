@@ -67,7 +67,7 @@ var DraftEngine = (function () {
   function juniorsOf(data) {
     var s = data.settings || {};
     var out = {};
-    if (!s.juniorOn) return out;
+    if (!s.juniorOn || s.kind !== 'rs') return out; // regular season only
     var rounds = s.juniorRounds || {};
     var full = {};
     data.members.forEach(function (m) { if (!m.juniorOf) full[m.name] = true; });
@@ -375,9 +375,9 @@ var DraftEngine = (function () {
       }
 
       case 'drop': {
+        if (s.kind === 'rs') return { ok: false, error: 'Dropping out is only for the postseason draft. Contact the commissioner.' };
         var dm = findMember(data, body.name);
         if (!dm) return { ok: false, error: 'Choose your name.' };
-        if (dm.juniorOf) return { ok: false, error: 'Junior members draft for ' + dm.juniorOf + ', so only ' + dm.juniorOf + ' can drop out.' };
         if (dropped[dm.name]) return { ok: false, error: dm.name + ' has already dropped out.' };
         if (dm.inactive) return { ok: false, error: dm.name + ' isn\'t in this draft.' };
         if (dm.pin && pin !== dm.pin && !isCommish) return { ok: false, error: pin ? 'That PIN doesn\'t match.' : 'Enter your PIN.' };

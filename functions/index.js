@@ -77,8 +77,8 @@ function toEngineData(key, pub, sec) {
       showTab: s.showTab !== false,
       timeLimitOn: !!s.timeLimitOn,
       timeLimitHours: Number(s.timeLimitHours) || 0,
-      juniorOn: !!s.juniorOn,
-      juniorRounds: s.juniorRounds || {},
+      juniorOn: key === 'rs' && !!s.juniorOn,
+      juniorRounds: key === 'rs' ? s.juniorRounds || {} : {},
       commissionerPin: String(sec.commissionerPin || ''),
     },
     members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: String(pins[m.name] || ''), inactive: !!m.inactive, juniorOf: m.juniorOf || '' })),
@@ -356,7 +356,7 @@ async function handleTx(key, body) {
           ok: true,
           admin: {
             settings: pub.settings || {},
-            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '', inactive: !!m.inactive, notInRs: !!m.notInRs, juniorOf: m.juniorOf || '' })),
+            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '', inactive: !!m.inactive, notInRs: !!m.notInRs, juniorOf: key === 'rs' ? m.juniorOf || '' : '' })),
             order: pub.order || [],
             inventory: pub.inventory || [],
           },
@@ -374,8 +374,8 @@ async function handleTx(key, body) {
           const byLc = new Map(cur.map((m) => [lc(m.name), m]));
           const seen = new Set();
           const list = [];
-          v.members.forEach((m) => { const c = byLc.get(lc(m.name)); if (c && !seen.has(lc(c.name))) { seen.add(lc(c.name)); list.push({ name: c.name, cap: 0, inactive: !!m.inactive, notInRs: !!c.notInRs, juniorOf: c.juniorOf || '' }); } });
-          cur.forEach((c) => { if (!seen.has(lc(c.name))) list.push({ name: c.name, cap: 0, inactive: !!c.inactive, notInRs: !!c.notInRs, juniorOf: c.juniorOf || '' }); });
+          v.members.forEach((m) => { const c = byLc.get(lc(m.name)); if (c && !seen.has(lc(c.name))) { seen.add(lc(c.name)); list.push({ name: c.name, cap: 0, inactive: !!m.inactive, notInRs: !!c.notInRs }); } });
+          cur.forEach((c) => { if (!seen.has(lc(c.name))) list.push({ name: c.name, cap: 0, inactive: !!c.inactive, notInRs: !!c.notInRs }); });
           v.members = list.map((m, i) => Object.assign(m, { order: i + 1 }));
           v.pins = Object.assign({}, sec.pins || {});
         } else {
@@ -512,17 +512,19 @@ async function syncPostFromRs(renames, removed) {
     const oldPins = (postSec.data() || {}).pins || {};
     const events = (pub.events || []).map((e) => (renames[e.member] ? Object.assign({}, e, { member: renames[e.member] }) : e));
     const inRs = new Map(rsMembers.map((m) => [lc(m.name), m.name]));
-    const rsJr = new Map(rsMembers.map((m) => [lc(m.name), m.juniorOf || '']));
+    // Junior members are regular season only: they're left off the postseason list (unless they already have postseason picks).
+    const juniors = new Set(rsMembers.filter((m) => m.juniorOf).map((m) => lc(m.name)));
     const out = [];
     const pins = {};
     const seen = new Set();
     (pub.members || []).forEach((m) => {
       const name = renames[m.name] || m.name;
       if (seen.has(lc(name))) return;
+      if (juniors.has(lc(name)) && !events.some((e) => lc(e.member) === lc(name))) return;
       if (inRs.has(lc(name))) {
         const real = inRs.get(lc(name));
         seen.add(lc(real));
-        out.push({ name: real, inactive: !!m.inactive, juniorOf: rsJr.get(lc(real)) || '' });
+        out.push({ name: real, inactive: !!m.inactive });
         if (rsPins[real]) pins[real] = rsPins[real];
       } else if (!gone.has(lc(name)) || events.some((e) => lc(e.member) === lc(name))) {
         // Not on the regular season list: kept (inactive) unless just removed there with no postseason picks.
@@ -532,9 +534,9 @@ async function syncPostFromRs(renames, removed) {
       }
     });
     rsMembers.forEach((m) => {
-      if (seen.has(lc(m.name))) return;
+      if (seen.has(lc(m.name)) || juniors.has(lc(m.name))) return;
       seen.add(lc(m.name));
-      out.push({ name: m.name, inactive: false, juniorOf: m.juniorOf || '' });
+      out.push({ name: m.name, inactive: false });
       if (rsPins[m.name]) pins[m.name] = rsPins[m.name];
     });
     tx.update(postRef, { members: publicMembers(out.map((m, i) => Object.assign(m, { order: i + 1, cap: 0 })), pins), events, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -560,7 +562,7 @@ function validateAdmin(key, a) {
     reminderHours: Math.min(168, Math.max(0.5, Number(s.reminderHours) || 12)),
     reminderCount: Math.min(10, Math.max(1, Math.round(Number(s.reminderCount) || 2))),
     // Junior members draft some rounds in place of their full member
-    juniorOn: !!s.juniorOn,
+    juniorOn: key === 'rs' && !!s.juniorOn,
     juniorRounds: {},
   };
   const members = [];
@@ -571,7 +573,7 @@ function validateAdmin(key, a) {
     if (!name) continue;
     if (seen[name.toLowerCase()]) return { error: 'Two members are both named "' + name + '". Names must be unique.' };
     seen[name.toLowerCase()] = true;
-    members.push({ name, order: members.length + 1, cap: Math.max(0, Number(m.cap) || 0), inactive: key === 'post' && !!m.inactive, juniorOf: str(m.juniorOf) });
+    members.push({ name, order: members.length + 1, cap: Math.max(0, Number(m.cap) || 0), inactive: key === 'post' && !!m.inactive, juniorOf: key === 'rs' ? str(m.juniorOf) : '' });
     if (str(m.pin)) pins[name] = str(m.pin);
   }
   if (!members.length) return { error: 'Add at least one member.' };

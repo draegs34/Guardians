@@ -149,7 +149,7 @@ Click **Apply changes** to save.
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
 
 ### Junior members
-In **Setup → Regular season → Members**, set **Junior of** to the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots; anything they pick counts toward that full member. Then in **Settings**, tick **Junior member rounds** and tap the rounds each junior drafts (each draft has its own rounds). In those rounds the junior is on the clock in place of their full member, gets the turn alerts, and shows as *Junior JR (Full member)* in Up Next and *Junior JR for Full member* in the pick log. The junior's PIN or the full member's PIN works for those picks. Rounds after a full member's last pick are skipped. Only the full member can drop out.
+Regular season only (juniors aren't on the Postseason list). In **Setup → Regular season → Members**, set **Junior of** to the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots; anything they pick counts toward that full member. Then in **Settings**, tick **Junior member rounds** and tap the rounds each junior drafts. In those rounds the junior is on the clock in place of their full member, gets the turn alerts, and shows as *Junior JR (Full member)* in Up Next and *Junior JR for Full member* in the pick log. The junior's PIN or the full member's PIN works for those picks. Rounds after a full member's last pick are skipped.
 
 ### Follow-up reminders
 In **Setup → Regular season** (or **Postseason**) **→ Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), are never sent to anyone who has dropped out, pause while the draft is paused, and start over for each new turn. **Quiet hours:** no reminders from 11 PM to 8 AM Eastern; one that comes due overnight goes out at 8 AM (change `QUIET_START` / `QUIET_END` in `functions/index.js`). The server checks every 10 minutes.
@@ -195,7 +195,7 @@ Choose **Guardians Draft → Refresh regular season schedule from MLB** any time
 - **Weekday day game**: a Monday–Friday game starting before 5 PM ET, highlighted with a gold edge. These only show once MLB posts a start time.
 - **Promotions** from the Promotions column, and any **Notes** (separate several with `;`).
 - **Filters**: All games, Available or My games; Opponent.
-- **Phones and small tablets**: the draft page has a bar (above the On the clock card) for **Games**, **Draft Order** (Up next and the drop-out button), **Pick Log** and **Members**. It jumps to Games when it becomes your turn (if on-screen alerts are on). Computers show everything side by side.
+- **Phones and small tablets**: the draft page has a bar (above the On the clock card) for **Games**, **Draft Order** (Up next and, in the postseason, the drop-out button), **Pick Log** and **Members**. It jumps to Games when it becomes your turn (if on-screen alerts are on). Computers show everything side by side.
 - **Months fold up** (List view): tap a month's bar to open or close it. Months start folded unless a filter is on. **Expand all / Collapse all** is next to the game count.
 
 ### Pick time limit (off for now)
@@ -219,7 +219,7 @@ This works the same as before, using the **Draft Settings**, **Draft Members**, 
 - **Picks texted to you**: make the pick for that member by entering your **Commissioner PIN** instead of theirs.
 - **Updates**: the board refreshes every 10 seconds.
 - **Turn alerts**: under **Notification & PIN settings** (in the menu), each member can turn on on-screen alerts for this device. When it's their turn, a red banner appears, the On-the-clock card pulses and the browser tab title flashes. A blue banner shows when they're up next. There's no sound.
-- **Dropping out**: the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
+- **Dropping out** (postseason only): the **Drop out of the draft** button. The member keeps what they've already picked and gets no more turns. If they're on the clock, it uses their turn.
 - **Commissioner tools** (**Draft Tools** in the menu; enter your PIN if it isn't filled in):
   - **Assign** a game to any member. This doesn't use a turn.
   - **Skip to next member**.

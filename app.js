@@ -593,6 +593,10 @@
         }).join('')
       : '<li class="empty">No picks yet.</li>';
 
+    // Dropping out is for the postseason draft only.
+    $('drop-btn').hidden = rs;
+    $('drop-btn-m').hidden = rs;
+
     renderMe(s, done);
     $('skip-who').textContent = s.current ? (s.current.by ? s.current.by + ' (for ' + s.current.name + ')' : s.current.name) : 'nobody';
     $('skip-btn').disabled = !s.current;
@@ -1412,36 +1416,32 @@
   const hasPicks = (k, name) => !!name && ((setupBoards[k] && setupBoards[k].picks) || []).some((p) => p.member === name);
 
   /* Settings → Junior member rounds: a checkbox that opens a row of round buttons for each junior. */
-  function juniorRoundCount(a, key) {
-    const fulls = a.members.filter((m) => m.name && !m.juniorOf && !m.inactive);
-    if (key === 'rs') {
-      let most = 0;
-      fulls.forEach((m) => {
-        const slots = a.order.filter((n) => n === m.name).length;
-        if (slots && Number(m.cap) > 0) most = Math.max(most, Math.ceil(Number(m.cap) / slots));
-      });
-      if (!most && a.order.length) most = Math.ceil(a.inventory.length / a.order.length);
-      return Math.min(30, Math.max(5, most || 10));
-    }
-    const per = Number(a.settings.maxPicks) || (fulls.length ? Math.ceil(a.inventory.length / fulls.length) : 0);
-    return Math.min(30, Math.max(3, per || 5));
+  function juniorRoundCount(a) {
+    let most = 0;
+    a.members.filter((m) => m.name && !m.juniorOf).forEach((m) => {
+      const slots = a.order.filter((n) => n === m.name).length;
+      if (slots && Number(m.cap) > 0) most = Math.max(most, Math.ceil(Number(m.cap) / slots));
+    });
+    if (!most && a.order.length) most = Math.ceil(a.inventory.length / a.order.length);
+    return Math.min(30, Math.max(5, most || 10));
   }
-  function juniorSettings(a, s, key) {
-    const jrs = a.members.filter((m) => m.name && m.juniorOf && !(key === 'post' && m.inactive));
+  // Regular season only: the postseason has no junior members.
+  function juniorSettings(a, s) {
+    const jrs = a.members.filter((m) => m.name && m.juniorOf);
     const on = !!s.juniorOn;
     let html = '<div class="checks jr-check">' + chk('settings.juniorOn', on, '<strong>Junior member rounds</strong> (juniors draft some rounds in place of their full member)') + '</div>';
     if (!on) return html;
     html += '<div class="jr-panel"><p class="hint">Tap the rounds each junior drafts. In those rounds the junior is on the clock in place of their full member, picks with their own PIN (the full member\'s PIN works too), and gets the turn alerts. The game still counts toward the full member.</p>';
-    if (!jrs.length) return html + '<p class="hint"><strong>No junior members yet.</strong> ' + (key === 'rs' ? 'Set <em>Junior of</em> for someone in the Members list below, save, and their rounds show up here.' : 'Set <em>Junior of</em> in the Regular Season tab\'s Members list.') + '</p></div>';
-    const n = juniorRoundCount(a, key);
+    if (!jrs.length) return html + '<p class="hint"><strong>No junior members yet.</strong> Set <em>Junior of</em> for someone in the Members list below and their rounds show up here.</p></div>';
+    const n = juniorRoundCount(a);
     const rounds = s.juniorRounds || {};
     const summary = [];
     jrs.forEach((m) => {
       const mine = (rounds[m.name] || []).map(Number);
-      const slots = key === 'rs' ? a.order.filter((x) => x === m.juniorOf).length : 1;
+      const slots = a.order.filter((x) => x === m.juniorOf).length;
       const clash = {};
       jrs.forEach((o) => { if (o !== m && o.juniorOf === m.juniorOf) (rounds[o.name] || []).forEach((r) => { clash[r] = o.name; }); });
-      html += '<div class="jr-row-set"><div class="jr-who"><strong>' + esc(m.name) + '</strong> ' + JR + '<small>for ' + esc(m.juniorOf) + (key === 'rs' ? ' · ' + (slots ? slots + ' pick' + (slots === 1 ? '' : 's') + ' per round' : 'not in the draft order yet') : '') + '</small></div><div class="jr-chips">';
+      html += '<div class="jr-row-set"><div class="jr-who"><strong>' + esc(m.name) + '</strong> ' + JR + '<small>for ' + esc(m.juniorOf) + ' · ' + (slots ? slots + ' pick' + (slots === 1 ? '' : 's') + ' per round' : 'not in the draft order yet') + '</small></div><div class="jr-chips">';
       for (let r = 1; r <= n; r++) {
         const sel = mine.includes(r);
         html += '<button type="button" class="jr-chip' + (sel ? ' on' : '') + (clash[r] ? ' clash' : '') + '" data-act="jr-round" data-j="' + esc(m.name) + '" data-r="' + r + '" aria-pressed="' + sel + '"' + (clash[r] ? ' title="' + esc(clash[r]) + ' drafts round ' + r + '"' : '') + '>' + r + '</button>';
@@ -1504,12 +1504,12 @@
       chk('settings.reminderOn', rem, '<strong>Follow-up reminders</strong> to whoever is on the clock') +
       '<label class="sf inline' + (rem ? '' : ' off') + '"><span>Every</span>' + inp('settings.reminderHours', s.reminderHours || 12, 'inputmode="decimal" style="width:80px"' + (rem ? '' : ' disabled')) + '<span>hours</span></label>' +
       '<label class="sf inline' + (rem ? '' : ' off') + '"><span>Up to</span>' + inp('settings.reminderCount', s.reminderCount || 2, 'inputmode="numeric" style="width:70px"' + (rem ? '' : ' disabled')) + '<span>times per turn</span></label>' +
-      '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p>' + juniorSettings(a, s, key) + '</section>';
+      '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p>' + (rs ? juniorSettings(a, s) : '') + '</section>';
 
     html += '<section class="card sc"><h3>Email members their games</h3><p class="hint">After the draft, send each member their own email listing the games they have, with a calendar file and a printable PDF. You\'ll see a preview before anything is sent.</p>' +
       '<div class="row-btns"><button type="button" class="btn primary" data-gm-open="' + key + '">Email members their games…</button></div></section>';
     if (rs) {
-      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason draft too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>. <strong>Junior of</strong>: pick the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots of their own; anything they pick counts toward that full member. Choose their rounds under <em>Junior member rounds</em> in Settings.</p>' +
+      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason draft too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>. <strong>Junior of</strong>: pick the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots of their own; anything they pick counts toward that full member. Choose their rounds under <em>Junior member rounds</em> in Settings. Juniors are regular season only; they aren\'t on the Postseason list.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Junior of</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => {
           const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
@@ -1547,9 +1547,9 @@
       const rsMembers = (admin.rs && admin.rs.members) || [];
       const emailOf = (n) => { const m = rsMembers.find((x) => x.name === n); return m ? m.email : ''; };
       html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular Season</strong> tab; change names, PINs and emails there. ' +
-        'Here the list order is the postseason draft order (new members start at the end; junior members don\'t get a spot of their own — they draft the rounds chosen under Settings). ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
+        'Here the list order is the postseason draft order (new members start at the end; junior members are regular season only). ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
-        a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + (m.juniorOf ? ' ' + JR + ' <span class="tag">Drafts for ' + esc(m.juniorOf) + '</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
+        a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
           '<td class="acts">' + iconBtn('up-member', i, 'Move up', '↑', i === 0 ? 'Already first' : '') + iconBtn('down-member', i, 'Move down', '↓', i === a.members.length - 1 ? 'Already last' : '') +
           (m.inactive ? iconBtn('toggle-member', i, 'Make ' + m.name + ' active again', '↺') : iconBtn('toggle-member', i, 'Mark ' + m.name + ' inactive', '✕')) + '</td></tr>').join('') +
         '</tbody></table></div><div class="row-btns"><button type="button" class="btn ghost" data-act="shuffle-post">🎲 Randomize order</button></div>' +
