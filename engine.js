@@ -15,7 +15,9 @@
  *
  * data = {
  *   settings:  { title, snake, maxPicks, open, commissionerPin, timeLimitOn, timeLimitHours, kind },
- *   members:   [{ name, pin, cap? }]   — people (cap = most picks they can get, 0/blank = no cap)
+ *   members:   [{ name, pin, cap?, juniorOf? }] — people (cap = most picks they can get, 0/blank = no cap;
+ *                                        juniorOf = the full member a junior drafts for: juniors get no
+ *                                        slots of their own and draft some of that member's rounds)
  *   order?:    ['Name', 'Name', ...]   — draft slots for one round; a name can appear more than once.
  *                                        Without it, members is the order (one slot each).
  *   inventory: [{ id, ... }],
@@ -33,7 +35,7 @@ var DraftEngine = (function () {
     var up = item.toUpperCase();
     var type = round.toLowerCase() === 'assigned' ? 'assign' : up === SKIP ? 'skip' : up === DROP ? 'drop' : 'pick';
     var t = v[9];
-    return {
+    var ev = {
       row: rowNum,
       type: type,
       number: Number(v[0]) || null,
@@ -43,6 +45,9 @@ var DraftEngine = (function () {
       note: type === 'skip' || type === 'drop' ? String(v[5] == null ? '' : v[5]) : '',
       time: t && typeof t.toISOString === 'function' ? t.toISOString() : String(t || ''),
     };
+    var by = type === 'pick' ? String(v[10] == null ? '' : v[10]).trim() : '';
+    if (by) ev.by = by; // a junior member made this pick for the full member
+    return ev;
   }
 
   function droppedSet(events) {
@@ -53,7 +58,34 @@ var DraftEngine = (function () {
 
   function slotsOf(data) {
     if (data.order && data.order.length) return data.order.map(function (n) { return { name: n }; });
-    return data.members;
+    return data.members.filter(function (m) { return !m.juniorOf; }); // juniors draft in their full member's slots
+  }
+  /**
+   * Junior member rounds (Setup → Junior member rounds): { fullName: { round: juniorName } }.
+   * In those rounds the junior is on the clock in place of the full member; picks still count for the full member.
+   */
+  function juniorsOf(data) {
+    var s = data.settings || {};
+    var out = {};
+    if (!s.juniorOn) return out;
+    var rounds = s.juniorRounds || {};
+    var full = {};
+    data.members.forEach(function (m) { if (!m.juniorOf) full[m.name] = true; });
+    data.members.forEach(function (m) {
+      if (!m.juniorOf || m.inactive || !full[m.juniorOf]) return;
+      (rounds[m.name] || []).forEach(function (r) {
+        r = Number(r);
+        if (!(r > 0)) return;
+        if (!out[m.juniorOf]) out[m.juniorOf] = {};
+        if (!out[m.juniorOf][r]) out[m.juniorOf][r] = m.name;
+      });
+    });
+    return out;
+  }
+  function withJunior(t, juniors) {
+    var j = juniors && juniors[t.name];
+    if (j && j[t.round]) t.by = j[t.round];
+    return t;
   }
   /** Members the commissioner marked inactive (postseason): they keep their picks but get no more turns. */
   function inactiveOf(data) {
@@ -76,7 +108,7 @@ var DraftEngine = (function () {
    * maxPicks: limit for everyone (0 = none). caps: { name: limit } per member;
    * per-member caps also count commissioner assignments.
    */
-  function computeTurn(slots, events, maxPicks, snake, upcomingCount, caps, inactive) {
+  function computeTurn(slots, events, maxPicks, snake, upcomingCount, caps, inactive, juniors) {
     var n = slots.length;
     var res = { current: null, upcoming: [] };
     if (!n) return res;
@@ -127,7 +159,7 @@ var DraftEngine = (function () {
     var cur = next(slot, cnt);
     if (cur < 0) return res;
     var t = at(cur);
-    res.current = { name: t.name, round: t.round, pick: turns + 1 };
+    res.current = withJunior({ name: t.name, round: t.round, pick: turns + 1 }, juniors);
 
     var sim = {};
     Object.keys(cnt).forEach(function (k) { sim[k] = cnt[k]; });
@@ -141,7 +173,7 @@ var DraftEngine = (function () {
       sim[u.name]++;
       pickNo++;
       shown++;
-      res.upcoming.push({ name: u.name, round: u.round, pick: pickNo });
+      res.upcoming.push(withJunior({ name: u.name, round: u.round, pick: pickNo }, juniors));
     }
     return res;
   }
@@ -184,7 +216,7 @@ var DraftEngine = (function () {
     var events = data.events.slice();
     for (var guard = 0; guard < 200; guard++) {
       if (leftCount(data, events) <= 0) break;
-      var t = computeTurn(slotsOf(data), events, s.maxPicks, s.snake, 1, capsOf(data), inactiveOf(data)).current;
+      var t = computeTurn(slotsOf(data), events, s.maxPicks, s.snake, 1, capsOf(data), inactiveOf(data), juniorsOf(data)).current;
       if (!t) break;
       var start = turnStart(events);
       if (start == null || nowMs < start + ms) break;
@@ -207,7 +239,7 @@ var DraftEngine = (function () {
     var left = leftCount(data, data.events);
     var dropped = droppedSet(data.events);
     var turn = left > 0
-      ? computeTurn(slots, data.events, s.maxPicks, s.snake, slots.length, caps, inactiveOf(data))
+      ? computeTurn(slots, data.events, s.maxPicks, s.snake, slots.length, caps, inactiveOf(data), juniorsOf(data))
       : { current: null, upcoming: [] };
 
     // Don't promise more upcoming turns than there are items left.
@@ -239,13 +271,18 @@ var DraftEngine = (function () {
       deadline: deadline,
       members: data.members.map(function (m) {
         // PINs never leave the backend
-        return { order: m.order, name: m.name, needsPin: !!m.pin, out: !!dropped[m.name] || !!m.inactive, inactive: !!m.inactive, cap: Number(m.cap) > 0 ? Number(m.cap) : null };
+        var o = { order: m.order, name: m.name, needsPin: !!m.pin, out: !!dropped[m.name] || !!m.inactive, inactive: !!m.inactive, cap: Number(m.cap) > 0 ? Number(m.cap) : null };
+        if (m.juniorOf) o.juniorOf = m.juniorOf;
+        return o;
       }),
       order: slots.map(function (m) { return m.name; }),
       caps: caps,
+      juniors: juniorsOf(data),
       inventory: data.inventory,
       picks: data.events.map(function (e) {
-        return { number: e.number, type: e.type, assigned: e.type === 'assign', round: e.round, member: e.member, itemId: e.itemId, note: e.note, time: e.time };
+        var p = { number: e.number, type: e.type, assigned: e.type === 'assign', round: e.round, member: e.member, itemId: e.itemId, note: e.note, time: e.time };
+        if (e.by) p.by = e.by;
+        return p;
       }),
       left: left,
       current: turn.current,
@@ -260,8 +297,10 @@ var DraftEngine = (function () {
   function findItem(data, id) {
     return data.inventory.filter(function (i) { return i.id === id; })[0];
   }
-  function itemRow(pickNo, round, member, item) {
-    return [pickNo, round, member, item.id, item.series, item.game, item.date, item.seats, item.price === '' || item.price == null ? '' : item.price, new Date()];
+  function itemRow(pickNo, round, member, item, by) {
+    var row = [pickNo, round, member, item.id, item.series, item.game, item.date, item.seats, item.price === '' || item.price == null ? '' : item.price, new Date()];
+    if (by) row.push(by);
+    return row;
   }
   function noteRow(pickNo, round, member, code, note) {
     return [pickNo, round, member, code, '', note, '', '', '', new Date()];
@@ -277,7 +316,7 @@ var DraftEngine = (function () {
     var isCommish = !!s.commissionerPin && pin === s.commissionerPin;
     var taken = takenMap(data.events);
     var left = leftCount(data, data.events);
-    var turn = left > 0 ? computeTurn(slotsOf(data), data.events, s.maxPicks, s.snake, 1, capsOf(data), inactiveOf(data)) : { current: null };
+    var turn = left > 0 ? computeTurn(slotsOf(data), data.events, s.maxPicks, s.snake, 1, capsOf(data), inactiveOf(data), juniorsOf(data)) : { current: null };
     var cur = turn.current;
     var dropped = droppedSet(data.events);
 
@@ -285,19 +324,25 @@ var DraftEngine = (function () {
       case 'pick': {
         if (!s.open) return { ok: false, error: 'The draft is paused right now.' };
         if (!cur) return { ok: false, error: 'The draft is complete.' };
-        if (body.name !== cur.name) {
-          return { ok: false, error: 'The board changed — ' + cur.name + ' is on the clock now. Take another look and try again.' };
+        var picker = cur.by || cur.name;
+        if (body.name !== cur.name && body.name !== picker) {
+          return { ok: false, error: 'The board changed — ' + picker + ' is on the clock now. Take another look and try again.' };
         }
         var m = findMember(data, cur.name);
+        var jm = cur.by ? findMember(data, cur.by) : null;
         if (!m && !isCommish) return { ok: false, error: cur.name + ' isn\'t on the member list. Ask the commissioner to make this pick.' };
-        if (m && m.pin && pin !== m.pin && !isCommish) return { ok: false, error: pin ? 'That PIN doesn\'t match.' : 'Enter your PIN.' };
+        // In a junior's round the junior's PIN works, and so does the full member's.
+        var fullPin = !!(m && m.pin && pin === m.pin);
+        var pinOk = isCommish || (jm ? (!jm.pin || pin === jm.pin || fullPin) : (!m || !m.pin || fullPin));
+        if (!pinOk) return { ok: false, error: pin ? 'That PIN doesn\'t match.' : 'Enter your PIN.' };
+        var by = jm && !(fullPin && pin !== jm.pin) ? jm.name : '';
         var item = findItem(data, body.itemId);
         if (!item) return { ok: false, error: 'That game wasn\'t found.' };
         if (taken[item.id]) return { ok: false, error: 'Sorry — that one was just taken.' };
         return {
           ok: true,
-          message: cur.name + ' took ' + labelOf(item) + '.',
-          append: itemRow(cur.pick, cur.round, cur.name, item),
+          message: (by ? by + ' (for ' + cur.name + ')' : cur.name) + ' took ' + labelOf(item) + '.',
+          append: itemRow(cur.pick, cur.round, cur.name, item, by),
         };
       }
 
@@ -305,6 +350,7 @@ var DraftEngine = (function () {
         if (!isCommish) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
         var am = findMember(data, body.name);
         if (!am) return { ok: false, error: 'Choose a member.' };
+        if (am.juniorOf) return { ok: false, error: am.name + ' is a junior member. Assign the game to ' + am.juniorOf + ' instead.' };
         var ai = findItem(data, body.itemId);
         if (!ai) return { ok: false, error: 'Choose a game.' };
         if (taken[ai.id]) return { ok: false, error: 'That one is already taken.' };
@@ -331,6 +377,7 @@ var DraftEngine = (function () {
       case 'drop': {
         var dm = findMember(data, body.name);
         if (!dm) return { ok: false, error: 'Choose your name.' };
+        if (dm.juniorOf) return { ok: false, error: 'Junior members draft for ' + dm.juniorOf + ', so only ' + dm.juniorOf + ' can drop out.' };
         if (dropped[dm.name]) return { ok: false, error: dm.name + ' has already dropped out.' };
         if (dm.inactive) return { ok: false, error: dm.name + ' isn\'t in this draft.' };
         if (dm.pin && pin !== dm.pin && !isCommish) return { ok: false, error: pin ? 'That PIN doesn\'t match.' : 'Enter your PIN.' };

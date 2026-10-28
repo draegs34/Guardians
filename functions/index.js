@@ -77,9 +77,11 @@ function toEngineData(key, pub, sec) {
       showTab: s.showTab !== false,
       timeLimitOn: !!s.timeLimitOn,
       timeLimitHours: Number(s.timeLimitHours) || 0,
+      juniorOn: !!s.juniorOn,
+      juniorRounds: s.juniorRounds || {},
       commissionerPin: String(sec.commissionerPin || ''),
     },
-    members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: String(pins[m.name] || ''), inactive: !!m.inactive })),
+    members: (pub.members || []).map((m) => ({ name: m.name, order: m.order, cap: Number(m.cap) || 0, pin: String(pins[m.name] || ''), inactive: !!m.inactive, juniorOf: m.juniorOf || '' })),
     inventory: pub.inventory || [],
     events: (pub.events || []).map((e, i) => Object.assign({}, e, { row: i + 2 })),
   };
@@ -103,6 +105,7 @@ function publicMembers(members, pins) {
     const o = { name: m.name, order: m.order || i + 1, cap: Number(m.cap) || 0, needsPin: !!pins[m.name] };
     if (m.inactive) o.inactive = true;
     if (m.notInRs) o.notInRs = true;
+    if (m.juniorOf) { o.juniorOf = m.juniorOf; o.cap = 0; }
     return o;
   });
 }
@@ -267,7 +270,8 @@ async function remindSweep(key) {
   const cur = st.current;
   // Never remind someone who has dropped out.
   if ((st.members || []).some((m) => lc(m.name) === lc(cur.name) && m.out)) return;
-  const turnId = cur.pick + '|' + cur.name;
+  const picker = cur.by || cur.name; // a junior member drafts some rounds for their full member
+  const turnId = cur.pick + '|' + picker;
   const logRef = db.doc('notify/log-' + key);
   const due = await db.runTransaction(async (tx) => {
     const log = (await tx.get(logRef)).data() || {};
@@ -284,19 +288,19 @@ async function remindSweep(key) {
   // Re-check right before sending, in case they dropped out or picked in the meantime.
   const fresh = (await db.doc('drafts/' + key).get()).data();
   const now = fresh && Engine.publicState(toEngineData(key, fresh, {}));
-  if (!now || !now.open || !now.current || now.current.pick + '|' + now.current.name !== turnId) return;
+  if (!now || !now.open || !now.current || now.current.pick + '|' + (now.current.by || now.current.name) !== turnId) return;
   if ((now.members || []).some((m) => lc(m.name) === lc(cur.name) && m.out)) return;
-  const p = (((await PREFS().get()).data() || {}).prefs || {})[lc(cur.name)];
+  const p = (((await PREFS().get()).data() || {}).prefs || {})[lc(picker)];
   if (!p) return;
   const et = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) + ' ET';
   const title = st.title || 'Ticket draft';
   await deliver(p, {
     subject: "Reminder: you're still on the clock — " + title,
-    title: 'Reminder: it\'s still your pick, ' + firstName(cur.name),
+    title: 'Reminder: it\'s still your pick, ' + firstName(picker),
     body: 'You\'ve been on the clock in the ' + title + ' since ' + (due.since ? et(due.since) : 'earlier') + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (st.deadline ? ' Please pick by ' + et(st.deadline) + '.' : ''),
     link: siteLink(key === 'rs' ? 'regular-season' : 'postseason'),
     badge: 1,
-    extra: draftOrderBlock(now, cur.name),
+    extra: draftOrderBlock(now, picker),
   });
 }
 
@@ -352,7 +356,7 @@ async function handleTx(key, body) {
           ok: true,
           admin: {
             settings: pub.settings || {},
-            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '', inactive: !!m.inactive, notInRs: !!m.notInRs })),
+            members: (pub.members || []).map((m) => ({ name: m.name, pin: String((sec.pins || {})[m.name] || ''), cap: Number(m.cap) || 0, email: (body._prefs[lc(m.name)] || {}).email || '', inactive: !!m.inactive, notInRs: !!m.notInRs, juniorOf: m.juniorOf || '' })),
             order: pub.order || [],
             inventory: pub.inventory || [],
           },
@@ -370,8 +374,8 @@ async function handleTx(key, body) {
           const byLc = new Map(cur.map((m) => [lc(m.name), m]));
           const seen = new Set();
           const list = [];
-          v.members.forEach((m) => { const c = byLc.get(lc(m.name)); if (c && !seen.has(lc(c.name))) { seen.add(lc(c.name)); list.push({ name: c.name, cap: 0, inactive: !!m.inactive, notInRs: !!c.notInRs }); } });
-          cur.forEach((c) => { if (!seen.has(lc(c.name))) list.push({ name: c.name, cap: 0, inactive: !!c.inactive, notInRs: !!c.notInRs }); });
+          v.members.forEach((m) => { const c = byLc.get(lc(m.name)); if (c && !seen.has(lc(c.name))) { seen.add(lc(c.name)); list.push({ name: c.name, cap: 0, inactive: !!m.inactive, notInRs: !!c.notInRs, juniorOf: c.juniorOf || '' }); } });
+          cur.forEach((c) => { if (!seen.has(lc(c.name))) list.push({ name: c.name, cap: 0, inactive: !!c.inactive, notInRs: !!c.notInRs, juniorOf: c.juniorOf || '' }); });
           v.members = list.map((m, i) => Object.assign(m, { order: i + 1 }));
           v.pins = Object.assign({}, sec.pins || {});
         } else {
@@ -508,6 +512,7 @@ async function syncPostFromRs(renames, removed) {
     const oldPins = (postSec.data() || {}).pins || {};
     const events = (pub.events || []).map((e) => (renames[e.member] ? Object.assign({}, e, { member: renames[e.member] }) : e));
     const inRs = new Map(rsMembers.map((m) => [lc(m.name), m.name]));
+    const rsJr = new Map(rsMembers.map((m) => [lc(m.name), m.juniorOf || '']));
     const out = [];
     const pins = {};
     const seen = new Set();
@@ -517,7 +522,7 @@ async function syncPostFromRs(renames, removed) {
       if (inRs.has(lc(name))) {
         const real = inRs.get(lc(name));
         seen.add(lc(real));
-        out.push({ name: real, inactive: !!m.inactive });
+        out.push({ name: real, inactive: !!m.inactive, juniorOf: rsJr.get(lc(real)) || '' });
         if (rsPins[real]) pins[real] = rsPins[real];
       } else if (!gone.has(lc(name)) || events.some((e) => lc(e.member) === lc(name))) {
         // Not on the regular season list: kept (inactive) unless just removed there with no postseason picks.
@@ -529,7 +534,7 @@ async function syncPostFromRs(renames, removed) {
     rsMembers.forEach((m) => {
       if (seen.has(lc(m.name))) return;
       seen.add(lc(m.name));
-      out.push({ name: m.name, inactive: false });
+      out.push({ name: m.name, inactive: false, juniorOf: m.juniorOf || '' });
       if (rsPins[m.name]) pins[m.name] = rsPins[m.name];
     });
     tx.update(postRef, { members: publicMembers(out.map((m, i) => Object.assign(m, { order: i + 1, cap: 0 })), pins), events, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
@@ -554,6 +559,9 @@ function validateAdmin(key, a) {
     reminderOn: !!s.reminderOn,
     reminderHours: Math.min(168, Math.max(0.5, Number(s.reminderHours) || 12)),
     reminderCount: Math.min(10, Math.max(1, Math.round(Number(s.reminderCount) || 2))),
+    // Junior members draft some rounds in place of their full member
+    juniorOn: !!s.juniorOn,
+    juniorRounds: {},
   };
   const members = [];
   const pins = {};
@@ -563,15 +571,41 @@ function validateAdmin(key, a) {
     if (!name) continue;
     if (seen[name.toLowerCase()]) return { error: 'Two members are both named "' + name + '". Names must be unique.' };
     seen[name.toLowerCase()] = true;
-    members.push({ name, order: members.length + 1, cap: Math.max(0, Number(m.cap) || 0), inactive: key === 'post' && !!m.inactive });
+    members.push({ name, order: members.length + 1, cap: Math.max(0, Number(m.cap) || 0), inactive: key === 'post' && !!m.inactive, juniorOf: str(m.juniorOf) });
     if (str(m.pin)) pins[name] = str(m.pin);
   }
   if (!members.length) return { error: 'Add at least one member.' };
+  // Junior members: each one is with a full member (not another junior), has no games of their own,
+  // and drafts the rounds chosen for them (two juniors of the same member can't share a round).
+  const byLcName = new Map(members.map((m) => [lc(m.name), m]));
+  for (const m of members) {
+    if (!m.juniorOf) continue;
+    const f = byLcName.get(lc(m.juniorOf));
+    if (!f || f === m) return { error: m.name + ' is set as a junior of "' + m.juniorOf + '", who isn\'t a full member on the list.' };
+    if (str(f.juniorOf)) return { error: m.name + ' is set as a junior of ' + f.name + ', who is a junior member too. Choose a full member.' };
+    m.juniorOf = f.name;
+    m.cap = 0;
+  }
+  const taken = {};
+  const jrIn = s.juniorRounds || {};
+  for (const k of Object.keys(jrIn)) {
+    const j = byLcName.get(lc(k));
+    if (!j || !j.juniorOf) continue; // no longer a junior
+    const rounds = Array.from(new Set((Array.isArray(jrIn[k]) ? jrIn[k] : []).map((r) => Math.round(Number(r))).filter((r) => r >= 1 && r <= 99))).sort((x, y) => x - y);
+    for (const r of rounds) {
+      const t = lc(j.juniorOf) + '|' + r;
+      if (settings.juniorOn && taken[t]) return { error: taken[t] + ' and ' + j.name + ' both draft round ' + r + ' for ' + j.juniorOf + '. Choose different rounds.' };
+      taken[t] = j.name;
+    }
+    if (rounds.length) settings.juniorRounds[j.name] = rounds;
+  }
   let order = [];
   if (key === 'rs') {
     order = (a.order || []).map(str).filter(Boolean);
     const bad = order.filter((n) => !seen[n.toLowerCase()]);
     if (bad.length) return { error: 'The draft order includes "' + bad[0] + '", who isn\'t on the member list.' };
+    const jr = order.find((n) => (byLcName.get(n.toLowerCase()) || {}).juniorOf);
+    if (jr) return { error: 'The draft order includes ' + jr + ', a junior member. Juniors draft in their full member\'s slots; take them out of the order.' };
     // normalize capitalization to the member list
     const byLower = {};
     members.forEach((m) => { byLower[m.name.toLowerCase()] = m.name; });
@@ -721,6 +755,7 @@ function cleanEvent(e) {
     itemId: t === 'pick' || t === 'assign' ? String(e.itemId || '') : '', note: String(e.note || ''), time: String(e.time || ''),
     series: String(e.series || ''), game: String(e.game || ''), date: String(e.date || ''), seats: String(e.seats || ''),
     price: e.price === '' || e.price == null ? '' : Number(e.price) || 0,
+    ...(t === 'pick' && e.by ? { by: String(e.by) } : {}),
   };
 }
 
@@ -950,18 +985,19 @@ async function maybeNotify(key, before, after) {
   try {
     if (!after || !after.open || !after.current) return;
     const cur = after.current;
-    const turnId = cur.pick + '|' + cur.name;
-    const beforeId = before && before.open && before.current ? before.current.pick + '|' + before.current.name : '';
+    const who = (t) => t.by || t.name; // a junior member drafts some rounds for their full member
+    const turnId = cur.pick + '|' + who(cur);
+    const beforeId = before && before.open && before.current ? before.current.pick + '|' + who(before.current) : '';
     if (turnId === beforeId) return;
-    const next = (after.upcoming || []).find((u) => !u.out && u.name !== cur.name);
-    const nextId = next ? next.pick + '|' + next.name : '';
+    const next = (after.upcoming || []).find((u) => !u.out && who(u) !== who(cur));
+    const nextId = next ? next.pick + '|' + who(next) : '';
 
     const logRef = db.doc('notify/log-' + key);
     const todo = await db.runTransaction(async (tx) => {
       const log = (await tx.get(logRef)).data() || {};
       const out = [];
-      if (log.turn !== turnId) out.push({ type: 'turn', name: cur.name });
-      if (next && log.next !== nextId && log.turn !== turnId) out.push({ type: 'next', name: next.name });
+      if (log.turn !== turnId) out.push({ type: 'turn', name: who(cur), full: cur.name });
+      if (next && log.next !== nextId && log.turn !== turnId) out.push({ type: 'next', name: who(next), full: next.name });
       const now = new Date().toISOString();
       // A new turn starts the reminder clock over.
       tx.set(logRef, log.turn !== turnId ? { turn: turnId, next: nextId, at: now, lastAt: now, reminders: 0 } : { next: nextId }, { merge: true });
@@ -976,13 +1012,14 @@ async function maybeNotify(key, before, after) {
     const outNames = new Set((after.members || []).filter((m) => m.out).map((m) => lc(m.name)));
     await Promise.allSettled(todo.map((t) => {
       const p = prefs[lc(t.name)];
-      if (!p || outNames.has(lc(t.name))) return null;
+      if (!p || outNames.has(lc(t.full))) return null;
+      const forWhom = t.name !== t.full ? ' for ' + t.full : '';
       if (t.type === 'next' && !p.nextUp) return null;
       const msg = t.type === 'turn'
         ? { subject: "You're on the clock — " + title, title: "You're on the clock, " + firstName(t.name) + '!',
-            body: 'It\'s your pick in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link, badge: 1, extra: draftOrderBlock(after, t.name) }
+            body: 'It\'s your pick' + forWhom + ' in the ' + title + ' (round ' + cur.round + ', pick ' + cur.pick + ').' + (deadline ? ' Please pick by ' + deadline + '.' : ''), link, badge: 1, extra: draftOrderBlock(after, t.name) }
         : { subject: "You're up next — " + title, title: "You're up next, " + firstName(t.name),
-            body: cur.name + ' is picking now in the ' + title + '. You\'re next.', link, extra: draftOrderBlock(after, t.name) };
+            body: who(cur) + ' is picking now in the ' + title + '. You\'re next' + (forWhom ? ', picking' + forWhom : '') + '.', link, extra: draftOrderBlock(after, t.name) };
       return deliver(p, msg);
     }));
   } catch (e) {
@@ -1009,8 +1046,9 @@ const swapHelpHtml = () => '<p style="font-size:14px;color:#13213a;margin:0 0 12
 function draftOrderBlock(st, me) {
   if (!st || !st.current) return { html: '', text: '' };
   const rows = [Object.assign({ now: true }, st.current)].concat((st.upcoming || []).filter((u) => !u.out)).slice(0, 5);
-  const isMe = (r) => lc(r.name) === lc(me || '');
-  const text = 'UP NEXT\n' + rows.map((r) => (r.now ? '> ' : '  ') + r.name + (isMe(r) ? ' (you)' : '') + ' — Rd ' + r.round + ' · #' + r.pick + (r.now ? ' (on the clock)' : '')).join('\n');
+  const isMe = (r) => lc(r.by || r.name) === lc(me || '');
+  const label = (r) => (r.by ? r.by + ' (' + r.name + ')' : r.name);
+  const text = 'UP NEXT\n' + rows.map((r) => (r.now ? '> ' : '  ') + label(r) + (isMe(r) ? ' (you)' : '') + ' — Rd ' + r.round + ' · #' + r.pick + (r.now ? ' (on the clock)' : '')).join('\n');
   const html = '<p style="margin:0 0 6px;font-size:12px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#5d6b82">Up next</p>' +
     '<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 20px;width:100%;max-width:420px">' +
     rows.map((r, i) => {
@@ -1018,7 +1056,7 @@ function draftOrderBlock(st, me) {
       const weight = r.now || isMe(r) ? 'bold' : 'normal';
       const bg = isMe(r) ? 'background:#eaf1fb;' : '';
       const edge = isMe(r) ? 'border-left:4px solid ' + (r.now ? '#D50032' : '#2b5d9b') + ';' : 'border-left:4px solid transparent;';
-      return '<tr><td style="' + bg + edge + 'padding:8px 10px;' + (i ? 'border-top:1px solid #e3e7ee;' : '') + 'color:' + color + ';font-weight:' + weight + '">' + escHtml(r.name) + (isMe(r) ? ' <span style="font-weight:normal;color:#5d6b82">(you)</span>' : '') + '</td>' +
+      return '<tr><td style="' + bg + edge + 'padding:8px 10px;' + (i ? 'border-top:1px solid #e3e7ee;' : '') + 'color:' + color + ';font-weight:' + weight + '">' + escHtml(label(r)) + (isMe(r) ? ' <span style="font-weight:normal;color:#5d6b82">(you)</span>' : '') + '</td>' +
         '<td style="' + bg + 'padding:8px 10px;' + (i ? 'border-top:1px solid #e3e7ee;' : '') + 'text-align:right;white-space:nowrap;font-size:13px;color:#5d6b82;font-weight:' + (r.now ? 'bold' : 'normal') + '">Rd ' + r.round + ' · #' + r.pick + '</td></tr>';
     }).join('') + '</table>';
   return { html, text };
@@ -1561,7 +1599,7 @@ async function gamesMail(key, body) {
   const prefs = ((await PREFS().get()).data() || {}).prefs || {};
   const log = (await MAIL_LOG(key).get()).data() || {};
   const held = heldGames(key, pub);
-  const names = (pub.members || []).map((m) => m.name).filter(Boolean);
+  const names = (pub.members || []).filter((m) => !m.juniorOf).map((m) => m.name).filter(Boolean); // juniors' games are their full member's
   const emailsOf = (n) => { const p = prefs[lc(n)] || {}; return [p.email, p.email2].filter(Boolean); };
   const first = (n) => String(n || '').trim().split(/\s+/)[0] || '';
   const def = mailDefaults(key, pub);

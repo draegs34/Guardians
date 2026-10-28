@@ -148,6 +148,9 @@ Click **Apply changes** to save.
 
 Alerts go out when a new person is on the clock (after a pick, assignment, skip, drop-out, undo or an automatic time-limit skip), and only while the draft is open. Each turn is announced once.
 
+### Junior members
+In **Setup → Regular season → Members**, set **Junior of** to the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots; anything they pick counts toward that full member. Then in **Settings**, tick **Junior member rounds** and tap the rounds each junior drafts (each draft has its own rounds). In those rounds the junior is on the clock in place of their full member, gets the turn alerts, and shows as *Junior JR (Full member)* in Up Next and *Junior JR for Full member* in the pick log. The junior's PIN or the full member's PIN works for those picks. Rounds after a full member's last pick are skipped. Only the full member can drop out.
+
 ### Follow-up reminders
 In **Setup → Regular season** (or **Postseason**) **→ Settings**, tick **Follow-up reminders**, then set **Every … hours** and **Up to … times per turn**. Each draft has its own setting. If someone is still on the clock that many hours after their last alert, they get a reminder, using the email and/or push choices they made. Reminders stop once they pick (or their turn is skipped), are never sent to anyone who has dropped out, pause while the draft is paused, and start over for each new turn. **Quiet hours:** no reminders from 11 PM to 8 AM Eastern; one that comes due overnight goes out at 8 AM (change `QUIET_START` / `QUIET_END` in `functions/index.js`). The server checks every 10 minutes.
 
