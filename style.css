@@ -795,3 +795,8 @@ body.stale .seat:not(.taken) { opacity: .7; }
   #commish-form > .tool { align-content: start; }
 }
 
+
+/* Setup → Home games: when the schedule was last checked with MLB */
+.mlb-row { align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.mlb-checked { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.mlb-checked strong { color: var(--text); font-weight: 600; }

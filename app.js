@@ -415,6 +415,7 @@
     if (!on && view === 'post' && !commishPin && !sentPrices) switchView('rs');
   }
   function apply(s) {
+    if (s && s.mlbCheck && view === 'rs') noteMlbCheck(s.mlbCheck);
     loadTimers.forEach(clearTimeout);
     if (view === 'post' && s && !s.notSetUp) setShowPost(s.showTab);
     if (view === 'rs' && s && !s.notSetUp && 'season' in s) setRsSeason(s.season);
@@ -1361,6 +1362,7 @@
     if (!$('setup-main').hidden) $('setup-body').innerHTML = '<p class="empty">Loading setup…</p>';
     return Promise.all(['rs', 'post'].map((k) => apiPost({ action: 'adminGet', pin, draft: k }).catch(() => null))).then(([r, p]) => {
       const res = { rs: r, post: p };
+      if (r && r.mlbCheck) noteMlbCheck(r.mlbCheck);
       const okAny = (r && r.ok) || (p && p.ok);
       const bothEmpty = r && r.notSetUp && p && p.notSetUp;
       if (!okAny && !bothEmpty) {
@@ -1492,7 +1494,7 @@
 
     html += '<section class="card sc"><h3>' + (rs ? 'Home games' : 'Games & seat pairs') + '</h3>' +
       (rs ? '<p class="hint">Load or refresh from MLB any time: dates, opponents and start times update, promotions fill in when MLB lists them, and your notes are kept. Save your other changes first.</p>' +
-        '<div class="row-btns"><button type="button" class="btn primary" data-act="load-mlb">Load / refresh schedule from MLB</button></div>'
+        '<div class="row-btns mlb-row"><button type="button" class="btn primary" data-act="load-mlb">Load / refresh schedule from MLB</button><span class="mlb-checked" id="mlb-checked">' + mlbCheckText() + '</span></div>'
         : '<p class="hint">Notes show as badges; separate several with ";". Item IDs starting ALDS-, ALCS-, WS- get prices from the Season Ticket Manager.</p>') +
       '<div class="tbl"><table class="stable games"><thead><tr>' +
       (rs ? '<th>Date</th><th>Opponent</th><th>Time (ET)</th><th>Promotions</th><th>Notes</th>' : '<th>Item ID</th><th>Series</th><th>Game</th><th>Date</th><th>Seats</th><th>Price</th><th>Notes</th>') + '<th></th></tr></thead><tbody>' +
@@ -1647,6 +1649,24 @@
     }
   });
 
+  /* When the regular season schedule was last checked against MLB (saved with the draft by the server). */
+  let mlbCheck = null;
+  function noteMlbCheck(c) {
+    if (!c || !c.at || (mlbCheck && mlbCheck.at >= c.at)) return;
+    mlbCheck = c;
+    const el = $('mlb-checked'); if (el) el.innerHTML = mlbCheckText();
+  }
+  function mlbCheckText() {
+    if (!mlbCheck) return 'Not checked with MLB yet.';
+    let when = '';
+    try { when = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(mlbCheck.at)) + ' ET'; } catch (e) { when = mlbCheck.at; }
+    const bits = [];
+    if (mlbCheck.games) bits.push(mlbCheck.games + ' games');
+    bits.push((mlbCheck.added || 0) + ' new, ' + (mlbCheck.updated || 0) + ' updated');
+    if (mlbCheck.tbd) bits.push(mlbCheck.tbd + ' start time' + (mlbCheck.tbd === 1 ? '' : 's') + ' TBD');
+    return 'Last checked with MLB <strong>' + esc(when) + '</strong><br><span>' + esc(bits.join(' · ')) + '</span>';
+  }
+
   function setupCall(btn, body, reload) {
     setupBusy = true;
     btn.disabled = true;
@@ -1654,6 +1674,7 @@
     btn.textContent = 'Working…';
     return apiPost(body).then((res) => {
       if (res && res.inventory && body.draft && body.action !== 'import') { states[body.draft] = res; }
+      if (res && res.mlbCheck) noteMlbCheck(res.mlbCheck);
       if (res && res.ok) {
         toast(res.message || 'Saved.');
         if (reload) return loadAdmin(body.newPin || commishPin).then(() => res);

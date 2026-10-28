@@ -60,7 +60,9 @@ function toState(key, pub) {
     events: (pub.events || []).map((e, i) => Object.assign({}, e, { row: i + 2 })),
   };
   if (key === 'rs') data.order = pub.order || [];
-  return window.DraftEngine.publicState(data);
+  const st = window.DraftEngine.publicState(data);
+  if (pub.mlbCheck) st.mlbCheck = pub.mlbCheck;
+  return st;
 }
 
 /* ------------------------------------------------------------------ */

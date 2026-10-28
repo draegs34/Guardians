@@ -201,7 +201,9 @@ async function readState(key) {
   const sec = (await db.doc('secrets/' + key).get()).data() || {};
   let data = toEngineData(key, snap.data(), sec);
   if (Engine.autoSkips(data, Date.now()).length) data = await sweep(key) || data;
-  return Engine.publicState(data);
+  const st = Engine.publicState(data);
+  if (snap.data().mlbCheck) st.mlbCheck = snap.data().mlbCheck;
+  return st;
 }
 
 async function readArchives() {
@@ -450,6 +452,7 @@ async function handleTx(key, body) {
     }
     data.events = data.events.map((e, i) => Object.assign(e, { row: i + 2 }));
     const out = Object.assign(Engine.publicState(data), { ok: result.ok });
+    if (snap.data().mlbCheck) out.mlbCheck = snap.data().mlbCheck;
     if (result.error) out.error = result.error;
     if (result.message) out.message = result.message;
     if (result.admin) out.admin = result.admin;
@@ -658,11 +661,14 @@ async function loadSchedule(key, body) {
       }
     }
     inv.sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
-    tx.update(ref, { inventory: inv, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     const tbd = inv.filter((x) => /^tbd$/i.test(x.time)).length;
+    // When the schedule was last checked against MLB, shown under the button in Setup.
+    const mlbCheck = { at: new Date().toISOString(), season, games: games.length, added, updated, tbd };
+    tx.update(ref, { inventory: inv, mlbCheck, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     const data = toEngineData('rs', Object.assign({}, pub, { inventory: inv }), sec);
     return Object.assign(Engine.publicState(data), {
       ok: true,
+      mlbCheck,
       message: 'Loaded the ' + season + ' schedule from MLB: ' + games.length + ' home games (' + added + ' new, ' + updated + ' updated)' + (tbd ? '. ' + tbd + ' start times are still TBD.' : '.'),
     });
   });
