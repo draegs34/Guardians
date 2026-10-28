@@ -5,3 +5,6 @@ functions/engine.js
 *.log
 functions/.env*
 .firebaserc.local
+
+# Files Claude saves for you (mockups, guides, statements) — never publish these
+Claude outputs/
