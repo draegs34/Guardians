@@ -106,7 +106,7 @@
   if (store.get('guardians-draft-me') && !store.get(meKey('post'))) store.set(meKey('post'), store.get('guardians-draft-me'));
   let me = store.get(meKey(view)) || '';
   // Who's using this browser, for highlighting "you" (Up Next, Pick Log, calendar). Remembered from
-  // on-screen alerts, Notification settings, or Ticket Swap, whichever they've used.
+  // on-screen alerts, Notification & PIN settings, or Ticket Swap, whichever they've used.
   const VIEWER_KEY = 'guardians-viewer';
   const viewer = () => store.get(VIEWER_KEY) || me || store.get('guardians-swap-me') || '';
   let whoPin = ''; // PIN from "Who are you?", kept only while the page is open
@@ -1261,6 +1261,74 @@
     finally { gmDisarm(); }
   });
 
+  /* Statement emails from the Season Ticket Manager arrive as #statements=<base64url gzip JSON>
+     { batch, emails: [{ name, to, subject, html, text, filename, stmt }] }. The commissioner checks them
+     here and sends with their PIN; the server builds each PDF and sends from the draft's Gmail. */
+  const stm = { emails: [], status: {}, pv: 0, armed: false, busy: false };
+  async function readStatementHash() {
+    const m = location.hash.match(/statements=([A-Za-z0-9_-]+)/);
+    if (!m) return null;
+    try { history.replaceState(null, '', location.pathname + location.search + '#' + VIEWS[view]); } catch (e) { /* ignore */ }
+    try {
+      const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      const bin = atob(b64 + '==='.slice((b64.length + 3) % 4));
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      const data = JSON.parse(await new Response(stream).text());
+      return data && Array.isArray(data.emails) && data.emails.length ? data : null;
+    } catch (e) { console.warn('statements link', e); return null; }
+  }
+  function renderStm() {
+    $('st-rows').innerHTML = stm.emails.map((e, i) => {
+      const st = stm.status[i] || {};
+      return '<tr class="' + (stm.pv === i ? 'on-pv' : '') + '"><td><span class="gm-name">' + esc(e.name || '') + '</span><span class="gm-mail">' + esc(e.to || '') + '</span></td>' +
+        '<td><span class="gm-mail">' + esc(e.filename || '') + '</span></td>' +
+        '<td>' + (st.ok ? '<span class="st-ok">Sent</span>' : st.error ? '<span class="st-bad">' + esc(st.error) + '</span>' : st.sending ? 'Sending…' : '<span class="gm-mail">Ready</span>') + '</td>' +
+        '<td><button type="button" class="link-btn" data-st-pv="' + i + '">Preview</button></td></tr>';
+    }).join('');
+    const left = stm.emails.filter((e, i) => !(stm.status[i] || {}).ok).length;
+    $('st-count').textContent = stm.emails.length + ' email' + (stm.emails.length === 1 ? '' : 's') + (left < stm.emails.length ? ' · ' + (stm.emails.length - left) + ' sent' : '');
+    $('st-send').disabled = stm.busy || !left;
+    if (!stm.armed) $('st-send').textContent = left ? 'Send ' + left + ' email' + (left === 1 ? '' : 's') : 'All sent';
+    const e = stm.emails[stm.pv];
+    $('st-pv-to').innerHTML = e ? '<strong>' + esc(e.name || '') + '</strong> · ' + esc(e.to || '') + (e.stmt ? ' · ' + esc(e.filename || '') : '') : '';
+    $('st-preview').srcdoc = e ? '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:16px;background:#fff;font:14px/1.5 Arial,sans-serif;color:#202124}p{margin:0 0 12px}</style></head><body>' +
+      '<div style="font:13px Arial,sans-serif;color:#5d6b82;border-bottom:1px solid #e3e7ee;padding-bottom:8px;margin-bottom:14px"><strong style="color:#13213a">Subject:</strong> ' + esc((TEST ? '[TEST] ' : '') + (e.subject || '')) + '</div>' + String(e.html || '') + '</body></html>' : '';
+  }
+  async function openStm(data) {
+    stm.emails = data.emails; stm.status = {}; stm.pv = 0; stm.armed = false;
+    $('st-subject').innerHTML = 'Subject: <strong>' + esc(data.emails[0].subject || '') + '</strong>';
+    $('st-pin').value = commishPin || '';
+    $('st-error').textContent = '';
+    renderStm();
+    $('st-dialog').showModal();
+  }
+  $('st-cancel').addEventListener('click', () => $('st-dialog').close());
+  $('st-form').addEventListener('submit', (e) => e.preventDefault());
+  $('st-rows').addEventListener('click', (e) => { const b = e.target.closest('[data-st-pv]'); if (!b) return; stm.pv = Number(b.dataset.stPv); renderStm(); });
+  $('st-send').addEventListener('click', async () => {
+    const pin = $('st-pin').value.trim();
+    if (!pin) { $('st-error').textContent = 'Enter your commissioner PIN.'; return; }
+    const left = stm.emails.map((e, i) => i).filter((i) => !(stm.status[i] || {}).ok);
+    if (!stm.armed) { stm.armed = true; $('st-send').classList.add('armed'); $('st-send').textContent = 'Yes, send ' + left.length + ' email' + (left.length === 1 ? '' : 's'); return; }
+    stm.armed = false; $('st-send').classList.remove('armed');
+    stm.busy = true; $('st-error').textContent = '';
+    for (const i of left) {
+      stm.status[i] = { sending: true }; renderStm();
+      try {
+        const res = await apiPost({ action: 'statementMail', draft: 'rs', pin, email: stm.emails[i] });
+        stm.status[i] = res && res.ok ? { ok: true } : { error: (res && res.error) || 'Couldn\'t send' };
+        if (res && /PIN/.test(res.error || '')) { $('st-error').textContent = res.error; stm.status[i] = {}; break; }
+        if (res && res.ok) rememberPin(pin);
+      } catch (e) { stm.status[i] = { error: 'Couldn\'t reach the draft' }; }
+      renderStm();
+    }
+    stm.busy = false; renderStm();
+    const sent = Object.values(stm.status).filter((x) => x.ok).length;
+    if (sent) toast('Sent ' + sent + ' statement email' + (sent === 1 ? '' : 's') + '.');
+  });
+  readStatementHash().then((d) => { if (d) setTimeout(() => openStm(d), 600); });
+
   /* Drop out */
   // Same button at the bottom of the Games list on phones.
   $('drop-btn-m').addEventListener('click', () => $('drop-btn').click());
@@ -1997,7 +2065,7 @@
     const link = (txt) => own ? ' <button type="button" class="link-btn sw-notify-link">' + txt + '</button>' : ' <small class="hint">(not set up)</small>';
     return '<label class="check"><input type="checkbox" id="sw-n-push"' + (n.push && a.push ? ' checked' : '') + (a.push ? '' : ' disabled') + '> <span>Push notification</span></label>' + (a.push ? '' : link('Set up push')) +
       '<label class="check"><input type="checkbox" id="sw-n-email"' + (n.email && a.email ? ' checked' : '') + (a.email ? '' : ' disabled') + '> <span>Email</span></label>' + (a.email ? '' : link('Add your email')) +
-      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification settings</button></p>' : '');
+      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification &amp; PIN settings</button></p>' : '');
   }
   function wireOfferAlerts(a) {
     const box = $('sw-notify');
@@ -2267,6 +2335,7 @@
   }
   function fillNotify() {
     const p = notifyPrefs || {};
+    showPinFields(false);
     $('notify-for').textContent = notifyName;
     // On-screen alerts: on if this device already follows this member, or if nobody is set yet.
     // (ticked to start, until this browser has saved a choice)
@@ -2328,7 +2397,7 @@
     const on = !!me || !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
     ['notify-btn', 'swap-notify-btn'].forEach((id) => {
       $(id).classList.toggle('is-on', on);
-      $(id).setAttribute('aria-label', 'Notification settings' + (on ? ' (on)' : ''));
+      $(id).setAttribute('aria-label', 'Notification & PIN settings' + (on ? ' (on)' : ''));
     });
   }
   function notifyDone(res) {
@@ -2368,46 +2437,36 @@
   }
   ['notify-push-on', 'notify-email-on'].forEach((id) => $(id).addEventListener('change', syncNextUp));
 
-  /* Change my PIN: its own dialog, opened from the side menu (saved to the member list the commissioner sees in Setup). */
-  let pinBusy = false;
-  async function openPin() {
-    if (!notifyMembers()) {
-      if (view !== 'rs' && view !== 'post') await ensureRs();
-      if (!notifyMembers()) { toast('One moment, the draft is still loading.'); return; }
-    }
-    const names = sortedNames(notifyMembers());
-    const pick = [notifyName, viewer(), me].find((n) => n && names.includes(n)) || '';
-    $('pin-name').innerHTML = '<option value="">Choose your name…</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
-    $('pin-name').value = pick;
+  /* Change your own PIN (saved to the member list the commissioner sees in Setup). */
+  function showPinFields(on) {
+    $('pin-fields').hidden = !on;
+    $('pin-open').hidden = on;
     ['pin-old', 'pin-new', 'pin-new2'].forEach((id) => { $(id).value = ''; });
     $('pin-error').textContent = '';
-    $('pin-dialog').showModal();
-    (pick ? $('pin-old') : $('pin-name')).focus();
+    if (on) $('pin-old').focus();
   }
-  $('pin-cancel').addEventListener('click', () => $('pin-dialog').close());
-  $('pin-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = $('pin-name').value;
+  $('pin-open').addEventListener('click', () => showPinFields(true));
+  $('pin-cancel').addEventListener('click', () => showPinFields(false));
+  $('pin-save').addEventListener('click', () => {
     const oldPin = $('pin-old').value.trim(), n1 = $('pin-new').value.trim(), n2 = $('pin-new2').value.trim();
     const err = (t) => { $('pin-error').textContent = t; };
-    if (!name) return err('Choose your name.');
     if (!/^\d{4,8}$/.test(n1)) return err('Your new PIN must be 4 to 8 digits.');
     if (n1 !== n2) return err('The new PINs don\'t match. Type it the same way twice.');
-    if (pinBusy) return;
-    pinBusy = true;
+    if (notifyBusy) return;
+    notifyBusy = true;
     $('pin-save').disabled = true;
     err('');
-    apiPost({ draft: 'rs', action: 'notifyPin', name, oldPin, newPin: n1 })
+    apiPost({ draft: 'rs', action: 'notifyPin', name: notifyName, oldPin, newPin: n1 })
       .then((r) => {
         if (!r || !r.ok) return err((r && r.error) || 'Something went wrong.');
         // Keep using the new PIN for this visit.
-        if (notifyName === name) notifyPin = n1;
-        if (swapAuth && swapAuth.name === name) swapAuth.pin = n1;
-        $('pin-dialog').close();
+        notifyPin = n1;
+        if (swapAuth && swapAuth.name === notifyName) swapAuth.pin = n1;
+        showPinFields(false);
         toast(r.message || 'PIN changed.');
       })
       .catch(() => err("Couldn't reach the draft. Try again."))
-      .finally(() => { pinBusy = false; $('pin-save').disabled = false; });
+      .finally(() => { notifyBusy = false; $('pin-save').disabled = false; });
   });
   $('notify-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2634,7 +2693,7 @@
         setViewer(name);
         store.set('guardians-swap-me', name);
         whoPin = pin;
-        // Signed in for this visit: Notification settings and Ticket Swap won't ask again.
+        // Signed in for this visit: Notification & PIN settings and Ticket Swap won't ask again.
         notifyName = name; notifyPin = pin; notifyPrefs = res.prefs || {}; notifySuggest = res.suggestEmail || '';
         rememberNotifyOn(notifyPrefs);
         if (!swapAuth || swapAuth.name !== name) swapAuth = { name, pin, mine: [], email: !!(notifyPrefs.email || notifyPrefs.email2), push: (notifyPrefs.devices || 0) > 0 };
@@ -2778,7 +2837,6 @@
     closeMenu(true);
     if (go === 'who') $('who-btn').click();
     else if (go === 'notify') (view === 'swap' ? $('swap-notify-btn') : $('notify-btn')).click();
-    else if (go === 'pin') openPin();
     else if (go === 'cog') $('cog-btn').click();
     else { switchView(go); window.scrollTo(0, 0); }
   });

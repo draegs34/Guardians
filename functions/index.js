@@ -183,6 +183,7 @@ async function apiHandler(req, res) {
     if (body.action === 'syncMembers') return res.json(await syncMembers(key, body));
     if (/^swap/.test(body.action || '')) return res.json(await swapAction(body));
     if (body.action === 'gamesMail') return res.json(await gamesMail(key, body));
+    if (body.action === 'statementMail') return res.json(await statementMail(body).catch((err) => { console.error('statementMail', err); return { ok: false, error: 'Couldn\'t send: ' + String(err.message || err).slice(0, 160) }; }));
     if (/^notify/.test(body.action || '')) return res.json(await notifyAction(key, body));
     const before = await turnSnapshot(key);
     const out = await handle(key, body);
@@ -1615,6 +1616,131 @@ async function gamesMail(key, body) {
   }
   return { ok: false, error: 'Unknown request.' };
 }
+
+/* ------------------------------------------------------------------ */
+/* Statement emails from the Season Ticket Manager. The Manager opens   */
+/* the draft site with #statements=<gzip JSON>; the commissioner checks */
+/* the batch there and sends it with their PIN, one email per request.  */
+/* The email body comes from the Manager; the PDF is built here from    */
+/* the statement lines it sends.                                        */
+/* ------------------------------------------------------------------ */
+function statementPdf(st) {
+  const PDFDocument = require('pdfkit');
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'LETTER', margin: 0, info: { Title: String(st.name || '') + ' - Guardians statement', Author: 'Guardians Season Tickets' } });
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject);
+    const W = 612, H = 792, M = 44, BOT = H - 46, NAVY = '#0C2340', RED = '#E50022', INK = '#17202b', MUTED = '#646e7d', LINE = '#dee2e8', GOOD = '#167846', TINT = '#f5f7fa';
+    const t = (v) => String(v == null ? '' : v).replace(/−/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[^\x20-\x7E -ÿ–—•·]/g, '');
+    let page = 1;
+    const header = () => {
+      doc.rect(0, 0, W, 54).fill(NAVY); doc.rect(0, 54, W, 3).fill(RED);
+      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(16).text('Guardians Season Tickets', M, 18, { lineBreak: false });
+      doc.font('Helvetica').fontSize(8.5).text(t(st.seats || 'Section 146 · Seats 7-10'), M, 37, { lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(9).text('STATEMENT', W - M - 200, 18, { width: 200, align: 'right' });
+      doc.font('Helvetica').fontSize(8.5).text(t(st.asOf || ''), W - M - 200, 37, { width: 200, align: 'right' });
+    };
+    const footer = () => {
+      doc.moveTo(M, H - 34).lineTo(W - M, H - 34).lineWidth(0.5).strokeColor(LINE).stroke();
+      doc.fillColor(MUTED).font('Helvetica').fontSize(7.5).text('Questions about this statement? Contact James Draeger.', M, H - 26, { lineBreak: false });
+      doc.text('Page ' + page, W - M - 100, H - 26, { width: 100, align: 'right' });
+    };
+    const brk = (need) => { if (y + need > BOT) { footer(); doc.addPage(); page++; header(); y = 78; return true; } return false; };
+    header();
+    let y = 72;
+    doc.fillColor(INK).font('Helvetica-Bold').fontSize(15).text(t(st.name), M, y, { lineBreak: false });
+    const nw = doc.widthOfString(t(st.name));
+    doc.fillColor(MUTED).font('Helvetica').fontSize(8.5).text(t(st.sub || ''), M + nw + 12, y + 5, { lineBreak: false });
+    y += 26;
+    const boxes = (st.boxes || []).slice(0, 4);
+    if (boxes.length) {
+      const gap = 8, bw = (W - 2 * M - gap * (boxes.length - 1)) / boxes.length, bh = 44;
+      boxes.forEach((b, i) => {
+        const x = M + i * (bw + gap);
+        doc.roundedRect(x, y, bw, bh, 4).lineWidth(0.5).fillAndStroke(TINT, LINE);
+        doc.fillColor(MUTED).font('Helvetica-Bold').fontSize(6.5).text(t(b.k).toUpperCase(), x + 8, y + 7, { width: bw - 16, lineBreak: false });
+        doc.fillColor(b.good ? GOOD : INK).font('Helvetica-Bold').fontSize(13).text(t(b.v), x + 8, y + 17, { width: bw - 16, lineBreak: false });
+        doc.fillColor(MUTED).font('Helvetica').fontSize(7).text(t(b.n || ''), x + 8, y + 33, { width: bw - 16, lineBreak: false, ellipsis: true });
+      });
+      y += bh + 20;
+    }
+    const cx = { date: M + 6, desc: M + 50, amtR: W - M - 78, balR: W - M - 6 };
+    const descW = cx.amtR - 70 - cx.desc;
+    const th = (col) => {
+      doc.rect(M, y, W - 2 * M, 15).fill(col);
+      doc.fillColor('#fff').font('Helvetica-Bold').fontSize(6.8);
+      doc.text('DATE', cx.date, y + 4.5, { lineBreak: false }); doc.text('DESCRIPTION', cx.desc, y + 4.5, { lineBreak: false });
+      doc.text('AMOUNT', cx.amtR - 80, y + 4.5, { width: 80, align: 'right' }); doc.text('BALANCE', cx.balR - 80, y + 4.5, { width: 80, align: 'right' });
+      y += 17;
+    };
+    (st.secs || []).forEach((sec, si) => {
+      brk(60);
+      const col = sec.key === 'post' ? RED : NAVY;
+      doc.rect(M, y, 3, 14).fill(col);
+      doc.fillColor(INK).font('Helvetica-Bold').fontSize(10.5).text(t(sec.title).toUpperCase(), M + 9, y + 2, { lineBreak: false });
+      doc.fillColor(sec.credit ? GOOD : INK).fontSize(8.5).text((sec.credit ? 'Credit ' : 'Balance ') + t(sec.bal), W - M - 200, y + 3, { width: 200, align: 'right' });
+      y += 20; th(col);
+      (sec.rows || []).forEach((e, i) => {
+        doc.font('Helvetica').fontSize(8.5);
+        const note = t(e.n || ''); const lab = t(e.l);
+        const lw = doc.widthOfString(lab);
+        doc.fontSize(7.2); const inline = !note || lw + 10 + doc.widthOfString(note) <= descW;
+        const rh = inline ? 16 : 25;
+        if (brk(rh)) th(col);
+        if (i % 2) doc.rect(M, y, W - 2 * M, rh).fill(TINT);
+        doc.fillColor(MUTED).font('Helvetica').fontSize(8.5).text(t(e.d), cx.date, y + 4, { lineBreak: false });
+        doc.fillColor(INK).text(lab, cx.desc, y + 4, { width: descW, lineBreak: false, ellipsis: true });
+        if (note) { doc.fillColor(MUTED).fontSize(7.2); if (inline) doc.text(note, cx.desc + lw + 10, y + 5, { lineBreak: false }); else doc.text(note, cx.desc, y + 14, { width: descW, lineBreak: false, ellipsis: true }); }
+        doc.fillColor(e.neg ? GOOD : INK).font(e.neg ? 'Helvetica' : 'Helvetica-Bold').fontSize(8.5).text(t(e.a), cx.amtR - 90, y + 4, { width: 90, align: 'right' });
+        doc.fillColor(MUTED).font('Helvetica').text(t(e.b), cx.balR - 90, y + 4, { width: 90, align: 'right' });
+        y += rh;
+      });
+      if (!(sec.rows || []).length) { doc.fillColor(MUTED).font('Helvetica').fontSize(8.5).text('Nothing here yet.', cx.desc, y + 4); y += 16; }
+      doc.moveTo(M, y).lineTo(W - M, y).lineWidth(0.6).strokeColor(LINE).stroke();
+      doc.fillColor(sec.credit ? GOOD : INK).font('Helvetica-Bold').fontSize(8.5);
+      doc.text(t(sec.title) + (sec.credit ? ' credit' : ' balance'), cx.desc, y + 6, { lineBreak: false });
+      doc.text(t(sec.bal), cx.balR - 120, y + 6, { width: 120, align: 'right' });
+      y += si < st.secs.length - 1 ? 32 : 24;
+    });
+    if (!(st.secs || []).length) { doc.fillColor(MUTED).fontSize(9).text('Nothing billed yet.', cx.desc, y); y += 18; }
+    brk(30);
+    doc.moveTo(M, y).lineTo(W - M, y).lineWidth(1).strokeColor(INK).stroke();
+    doc.fillColor(st.credit ? GOOD : INK).font('Helvetica-Bold').fontSize(10.5);
+    doc.text(t(st.totalLabel || 'Total balance'), cx.desc, y + 8, { lineBreak: false });
+    doc.text(t(st.total || ''), cx.balR - 160, y + 8, { width: 160, align: 'right' });
+    footer();
+    doc.end();
+  });
+}
+
+async function statementMail(body) {
+  if (!(await commishPinOk(body.pin))) return { ok: false, error: 'That commissioner PIN doesn\'t match.' };
+  if (!mailer()) return { ok: false, error: 'Email isn\'t set up for the draft yet (GMAIL_USER and the app password).' };
+  const e = body.email || {};
+  const to = String(e.to || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { ok: false, error: 'That email address doesn\'t look right.' };
+  // Only send to people the draft already knows, so this can't be used to email anyone else.
+  const prefs = (await PREFS().get()).data() || {};
+  const known = new Set();
+  Object.values(prefs.prefs || {}).forEach((p) => [p.email, p.email2].forEach((x) => { if (x) known.add(String(x).trim().toLowerCase()); }));
+  if (isTest()) {
+    const real = ((await rawDb.doc('notify/members').get()).data() || {}).prefs || {};
+    Object.values(real).forEach((p) => [p.email, p.email2].forEach((x) => { if (x) known.add(String(x).trim().toLowerCase()); }));
+  }
+  if (!known.has(to)) return { ok: false, error: to + ' isn\'t a member address on the draft site. Use Send members to draft page in the Manager first.' };
+  const html = String(e.html || '').slice(0, 200000);
+  const text = String(e.text || '').slice(0, 50000);
+  const subject = String(e.subject || 'Guardians season tickets statement').trim().slice(0, 200);
+  const filename = (String(e.filename || 'Guardians statement.pdf').replace(/[\\/:*?"<>|]/g, '').slice(0, 120) || 'Guardians statement.pdf').replace(/(\.pdf)?$/i, '.pdf');
+  const attachments = [];
+  if (e.stmt && typeof e.stmt === 'object') attachments.push({ filename, content: await statementPdf(e.stmt), contentType: 'application/pdf' });
+  await mailer().sendMail({
+    from: '"Guardians Season Tickets" <' + GMAIL_USER.value() + '>',
+    to, subject: (isTest() ? '[TEST] ' : '') + subject, text, html, attachments,
+  });
+  return { ok: true, message: 'Sent to ' + to + '.' };
+}
+
 const fileBase = (n, key) => (String(n).replace(/[^\w]+/g, '-').replace(/^-|-$/g, '') + (key === 'rs' ? '-Guardians-games' : '-Guardians-postseason'));
 
 
