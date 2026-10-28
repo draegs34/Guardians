@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610281800">
+  <link rel="stylesheet" href="style.css?v=202610282000">
 </head>
 <body>
   <div id="test-banner" class="test-banner" hidden title="Test data, separate from the real drafts. Test PINs: members 1234, commissioner 0000. Alerts are marked [TEST].">Test Mode</div>
@@ -61,7 +61,8 @@
     </div>
     <div class="sn-sec"><div class="sn-lab">You</div>
       <button type="button" data-go="who"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg><span class="sn-t" id="sn-who">Who are you?</span><span class="sn-sub" id="sn-who-sub"></span></button>
-      <button type="button" data-go="notify"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="sn-t">Notification &amp; PIN settings</span><span class="sn-sub sn-ok" id="sn-notify-ok" hidden>&#10003;</span></button>
+      <button type="button" data-go="notify"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="sn-t">Notification settings</span><span class="sn-sub sn-ok" id="sn-notify-ok" hidden>&#10003;</span></button>
+      <button type="button" data-go="pin"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 20 3M16 7l3 3M18 5l2 2"/></svg><span class="sn-t">Change my PIN</span></button>
     </div>
     <div class="sn-sec">
       <a class="sn-item" id="sn-help" href="help.html"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.3-2.4 3.8"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg><span class="sn-t">Help</span></a>
@@ -102,7 +103,7 @@
           <p class="hint">Trade regular season games with other members. Post the games you'd like to trade away, or send an offer on someone else's listing. When you agree on a trade, the person who posted marks it fulfilled.</p>
         </div>
         <div class="swap-btns">
-          <button type="button" class="btn ghost small notify-open" id="swap-notify-btn"><svg class="bell" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><circle cx="12" cy="3.3" r="1.5"/><path d="M12 4.4c-3.5 0-5.9 2.7-5.9 6.2v3.6c0 1-.5 1.9-1.3 2.5l-.6.5c-.6.5-.3 1.4.5 1.4h14.6c.8 0 1.1-.9.5-1.4l-.6-.5c-.8-.6-1.3-1.5-1.3-2.5v-3.6c0-3.5-2.4-6.2-5.9-6.2z"/><path d="M9.4 19.7h5.2a2.6 2.6 0 0 1-5.2 0z"/></svg><span class="nb-long">Notification &amp; PIN settings</span><span class="nb-short">Alerts &amp; PIN</span><svg class="nb-check" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+          <button type="button" class="btn ghost small notify-open" id="swap-notify-btn"><svg class="bell" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><circle cx="12" cy="3.3" r="1.5"/><path d="M12 4.4c-3.5 0-5.9 2.7-5.9 6.2v3.6c0 1-.5 1.9-1.3 2.5l-.6.5c-.6.5-.3 1.4.5 1.4h14.6c.8 0 1.1-.9.5-1.4l-.6-.5c-.8-.6-1.3-1.5-1.3-2.5v-3.6c0-3.5-2.4-6.2-5.9-6.2z"/><path d="M9.4 19.7h5.2a2.6 2.6 0 0 1-5.2 0z"/></svg><span class="nb-long">Notification settings</span><span class="nb-short">Alerts</span><svg class="nb-check" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
           <button type="button" class="btn primary" id="swap-new">Post a listing</button>
         </div>
       </div>
@@ -148,7 +149,7 @@
 
     <div class="me-bar">
       <button class="btn ghost small" id="who-btn" type="button"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20.5c0-4.1 3.6-7 8-7s8 2.9 8 7c0 .3-.2.5-.5.5h-15c-.3 0-.5-.2-.5-.5z"/></svg><span id="who-label">Who are you?</span></button>
-      <button class="btn ghost small" id="notify-btn" type="button"><svg class="bell" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><circle cx="12" cy="3.3" r="1.5"/><path d="M12 4.4c-3.5 0-5.9 2.7-5.9 6.2v3.6c0 1-.5 1.9-1.3 2.5l-.6.5c-.6.5-.3 1.4.5 1.4h14.6c.8 0 1.1-.9.5-1.4l-.6-.5c-.8-.6-1.3-1.5-1.3-2.5v-3.6c0-3.5-2.4-6.2-5.9-6.2z"/><path d="M9.4 19.7h5.2a2.6 2.6 0 0 1-5.2 0z"/></svg><span class="nb-long">Notification &amp; PIN settings</span><span class="nb-short">Alerts &amp; PIN</span><svg class="nb-check" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      <button class="btn ghost small" id="notify-btn" type="button"><svg class="bell" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><circle cx="12" cy="3.3" r="1.5"/><path d="M12 4.4c-3.5 0-5.9 2.7-5.9 6.2v3.6c0 1-.5 1.9-1.3 2.5l-.6.5c-.6.5-.3 1.4.5 1.4h14.6c.8 0 1.1-.9.5-1.4l-.6-.5c-.8-.6-1.3-1.5-1.3-2.5v-3.6c0-3.5-2.4-6.2-5.9-6.2z"/><path d="M9.4 19.7h5.2a2.6 2.6 0 0 1-5.2 0z"/></svg><span class="nb-long">Notification settings</span><span class="nb-short">Alerts</span><svg class="nb-check" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
       <span class="me-status" id="me-status"></span>
     </div>
 
@@ -268,7 +269,7 @@
     <form method="dialog" id="gm-form">
       <div class="gm-head">
         <div><h3>Email members their games <span class="dlg-sub" id="gm-draft"></span></h3>
-        <p class="hint">Each checked member gets their own email listing the games they have. It goes to the address(es) in their Notification &amp; PIN settings, even if they've turned turn alerts off.</p></div>
+        <p class="hint">Each checked member gets their own email listing the games they have. It goes to the address(es) in their Notification settings, even if they've turned turn alerts off.</p></div>
       </div>
       <div class="gm-grid">
         <div class="gm-left">
@@ -385,14 +386,38 @@
         <button type="button" class="btn ghost" id="wm-later">Maybe later</button>
         <button type="button" class="btn primary" id="wm-setup">Set up notifications</button>
       </div>
-      <p class="wm-foot">You can always change this in the menu under <b>Notification &amp; PIN settings</b>.</p>
+      <p class="wm-foot">You can always change this in the menu under <b>Notification settings</b>.</p>
+    </form>
+  </dialog>
+
+  <dialog id="pin-dialog">
+    <form method="dialog" id="pin-form">
+      <h3>Change my PIN</h3>
+      <p class="hint">Your PIN confirms it's you when you pick, change settings or use Ticket Swap. Forgot it? Ask the commissioner to reset it.</p>
+      <label>Your name
+        <select id="pin-name"></select>
+      </label>
+      <label>Current PIN
+        <input id="pin-old" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Your current PIN">
+      </label>
+      <label><span>New PIN <span class="opt">(4 to 8 digits)</span></span>
+        <input id="pin-new" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      </label>
+      <label>New PIN again
+        <input id="pin-new2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
+      </label>
+      <p class="form-error" id="pin-error" role="alert"></p>
+      <div class="actions">
+        <button type="button" class="btn ghost" id="pin-cancel">Cancel</button>
+        <button type="submit" class="btn primary" id="pin-save">Save new PIN</button>
+      </div>
     </form>
   </dialog>
 
   <dialog id="notify-dialog">
     <form method="dialog" id="notify-form">
-      <h3>Notification &amp; PIN settings</h3>
-      <p class="hint">Set up how to reach you once, then choose what you hear about for the drafts and Ticket Swap. You can also change your PIN at the bottom.</p>
+      <h3>Notification settings</h3>
+      <p class="hint">Set up how to reach you once, then choose what you hear about for the drafts and Ticket Swap.</p>
       <div id="notify-who">
         <label>Your name
           <select id="notify-name"></select>
@@ -456,27 +481,6 @@
           <button type="button" class="btn ghost" id="notify-test">Send me a test (5 sec)</button>
           <button type="button" class="btn primary" id="notify-save">Save</button>
         </div>
-        <section class="nsec" id="pin-sec">
-          <h4>Your PIN</h4>
-          <button type="button" class="btn ghost small" id="pin-open">Change my PIN</button>
-          <fieldset class="nset" id="pin-fields" hidden>
-            <legend>Change your PIN</legend>
-            <label>Current PIN
-              <input id="pin-old" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Your current PIN">
-            </label>
-            <label><span>New PIN <span class="opt">(4 to 8 digits)</span></span>
-              <input id="pin-new" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
-            </label>
-            <label>New PIN again
-              <input id="pin-new2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8">
-            </label>
-            <p class="form-error" id="pin-error" role="alert"></p>
-            <div class="actions left">
-              <button type="button" class="btn ghost" id="pin-cancel">Cancel</button>
-              <button type="button" class="btn primary" id="pin-save">Save new PIN</button>
-            </div>
-          </fieldset>
-        </section>
       </div>
       <p class="form-error" id="notify-error" role="alert"></p>
       <div class="actions">
@@ -497,9 +501,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610281800"></script>
-  <script src="engine.js?v=202610281800"></script>
-  <script type="module" src="live.js?v=202610281800"></script>
-  <script src="app.js?v=202610281800"></script>
+  <script src="config.js?v=202610282000"></script>
+  <script src="engine.js?v=202610282000"></script>
+  <script type="module" src="live.js?v=202610282000"></script>
+  <script src="app.js?v=202610282000"></script>
 </body>
 </html>

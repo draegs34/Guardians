@@ -106,7 +106,7 @@
   if (store.get('guardians-draft-me') && !store.get(meKey('post'))) store.set(meKey('post'), store.get('guardians-draft-me'));
   let me = store.get(meKey(view)) || '';
   // Who's using this browser, for highlighting "you" (Up Next, Pick Log, calendar). Remembered from
-  // on-screen alerts, Notification & PIN settings, or Ticket Swap, whichever they've used.
+  // on-screen alerts, Notification settings, or Ticket Swap, whichever they've used.
   const VIEWER_KEY = 'guardians-viewer';
   const viewer = () => store.get(VIEWER_KEY) || me || store.get('guardians-swap-me') || '';
   let whoPin = ''; // PIN from "Who are you?", kept only while the page is open
@@ -2065,7 +2065,7 @@
     const link = (txt) => own ? ' <button type="button" class="link-btn sw-notify-link">' + txt + '</button>' : ' <small class="hint">(not set up)</small>';
     return '<label class="check"><input type="checkbox" id="sw-n-push"' + (n.push && a.push ? ' checked' : '') + (a.push ? '' : ' disabled') + '> <span>Push notification</span></label>' + (a.push ? '' : link('Set up push')) +
       '<label class="check"><input type="checkbox" id="sw-n-email"' + (n.email && a.email ? ' checked' : '') + (a.email ? '' : ' disabled') + '> <span>Email</span></label>' + (a.email ? '' : link('Add your email')) +
-      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification &amp; PIN settings</button></p>' : '');
+      (own && a.push && a.email ? '<p class="hint"><button type="button" class="link-btn sw-notify-link">Notification settings</button></p>' : '');
   }
   function wireOfferAlerts(a) {
     const box = $('sw-notify');
@@ -2335,7 +2335,6 @@
   }
   function fillNotify() {
     const p = notifyPrefs || {};
-    showPinFields(false);
     $('notify-for').textContent = notifyName;
     // On-screen alerts: on if this device already follows this member, or if nobody is set yet.
     // (ticked to start, until this browser has saved a choice)
@@ -2397,7 +2396,7 @@
     const on = !!me || !!store.get(PUSH_TOKEN_KEY) || store.get(NOTIFY_ON_KEY) === '1';
     ['notify-btn', 'swap-notify-btn'].forEach((id) => {
       $(id).classList.toggle('is-on', on);
-      $(id).setAttribute('aria-label', 'Notification & PIN settings' + (on ? ' (on)' : ''));
+      $(id).setAttribute('aria-label', 'Notification settings' + (on ? ' (on)' : ''));
     });
   }
   function notifyDone(res) {
@@ -2437,36 +2436,46 @@
   }
   ['notify-push-on', 'notify-email-on'].forEach((id) => $(id).addEventListener('change', syncNextUp));
 
-  /* Change your own PIN (saved to the member list the commissioner sees in Setup). */
-  function showPinFields(on) {
-    $('pin-fields').hidden = !on;
-    $('pin-open').hidden = on;
+  /* Change my PIN: its own dialog, opened from the side menu (saved to the member list the commissioner sees in Setup). */
+  let pinBusy = false;
+  async function openPin() {
+    if (!notifyMembers()) {
+      if (view !== 'rs' && view !== 'post') await ensureRs();
+      if (!notifyMembers()) { toast('One moment, the draft is still loading.'); return; }
+    }
+    const names = sortedNames(notifyMembers());
+    const pick = [notifyName, viewer(), me].find((n) => n && names.includes(n)) || '';
+    $('pin-name').innerHTML = '<option value="">Choose your name…</option>' + names.map((n) => '<option>' + esc(n) + '</option>').join('');
+    $('pin-name').value = pick;
     ['pin-old', 'pin-new', 'pin-new2'].forEach((id) => { $(id).value = ''; });
     $('pin-error').textContent = '';
-    if (on) $('pin-old').focus();
+    $('pin-dialog').showModal();
+    (pick ? $('pin-old') : $('pin-name')).focus();
   }
-  $('pin-open').addEventListener('click', () => showPinFields(true));
-  $('pin-cancel').addEventListener('click', () => showPinFields(false));
-  $('pin-save').addEventListener('click', () => {
+  $('pin-cancel').addEventListener('click', () => $('pin-dialog').close());
+  $('pin-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = $('pin-name').value;
     const oldPin = $('pin-old').value.trim(), n1 = $('pin-new').value.trim(), n2 = $('pin-new2').value.trim();
     const err = (t) => { $('pin-error').textContent = t; };
+    if (!name) return err('Choose your name.');
     if (!/^\d{4,8}$/.test(n1)) return err('Your new PIN must be 4 to 8 digits.');
     if (n1 !== n2) return err('The new PINs don\'t match. Type it the same way twice.');
-    if (notifyBusy) return;
-    notifyBusy = true;
+    if (pinBusy) return;
+    pinBusy = true;
     $('pin-save').disabled = true;
     err('');
-    apiPost({ draft: 'rs', action: 'notifyPin', name: notifyName, oldPin, newPin: n1 })
+    apiPost({ draft: 'rs', action: 'notifyPin', name, oldPin, newPin: n1 })
       .then((r) => {
         if (!r || !r.ok) return err((r && r.error) || 'Something went wrong.');
         // Keep using the new PIN for this visit.
-        notifyPin = n1;
-        if (swapAuth && swapAuth.name === notifyName) swapAuth.pin = n1;
-        showPinFields(false);
+        if (notifyName === name) notifyPin = n1;
+        if (swapAuth && swapAuth.name === name) swapAuth.pin = n1;
+        $('pin-dialog').close();
         toast(r.message || 'PIN changed.');
       })
       .catch(() => err("Couldn't reach the draft. Try again."))
-      .finally(() => { notifyBusy = false; $('pin-save').disabled = false; });
+      .finally(() => { pinBusy = false; $('pin-save').disabled = false; });
   });
   $('notify-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2693,7 +2702,7 @@
         setViewer(name);
         store.set('guardians-swap-me', name);
         whoPin = pin;
-        // Signed in for this visit: Notification & PIN settings and Ticket Swap won't ask again.
+        // Signed in for this visit: Notification settings and Ticket Swap won't ask again.
         notifyName = name; notifyPin = pin; notifyPrefs = res.prefs || {}; notifySuggest = res.suggestEmail || '';
         rememberNotifyOn(notifyPrefs);
         if (!swapAuth || swapAuth.name !== name) swapAuth = { name, pin, mine: [], email: !!(notifyPrefs.email || notifyPrefs.email2), push: (notifyPrefs.devices || 0) > 0 };
@@ -2837,6 +2846,7 @@
     closeMenu(true);
     if (go === 'who') $('who-btn').click();
     else if (go === 'notify') (view === 'swap' ? $('swap-notify-btn') : $('notify-btn')).click();
+    else if (go === 'pin') openPin();
     else if (go === 'cog') $('cog-btn').click();
     else { switchView(go); window.scrollTo(0, 0); }
   });
