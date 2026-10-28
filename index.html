@@ -26,7 +26,7 @@
   <meta name="theme-color" content="#0C2340">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=202610282000">
+  <link rel="stylesheet" href="style.css?v=202610282001">
 </head>
 <body>
   <div id="test-banner" class="test-banner" hidden title="Test data, separate from the real drafts. Test PINs: members 1234, commissioner 0000. Alerts are marked [TEST].">Test Mode</div>
@@ -302,34 +302,6 @@
     </form>
   </dialog>
 
-  <!-- Statement emails handed over from the Season Ticket Manager (#statements=…) -->
-  <dialog id="st-dialog">
-    <form method="dialog" id="st-form">
-      <div><h3>Send statement emails</h3>
-      <p class="hint">From the Season Ticket Manager. Each member gets their email with their statement PDF attached, sent from the draft's Gmail. Check the preview, enter your commissioner PIN and send.</p></div>
-      <div class="gm-grid">
-        <div class="gm-left">
-          <div class="gm-table-wrap"><table class="gm-table">
-            <thead><tr><th>Member</th><th>Attachment</th><th>Status</th><th></th></tr></thead>
-            <tbody id="st-rows"></tbody>
-          </table></div>
-          <p class="hint" id="st-subject"></p>
-          <label>Commissioner PIN<input id="st-pin" type="password" inputmode="numeric" autocomplete="off"></label>
-        </div>
-        <div class="gm-right">
-          <div class="gm-pv-head"><span id="st-pv-to"></span></div>
-          <iframe id="st-preview" title="Email preview" sandbox=""></iframe>
-        </div>
-      </div>
-      <p class="form-error" id="st-error" role="alert"></p>
-      <div class="actions gm-actions">
-        <span class="gm-count" id="st-count"></span>
-        <button type="button" class="btn ghost" id="st-cancel">Close</button>
-        <button type="button" class="btn primary" id="st-send">Send</button>
-      </div>
-    </form>
-  </dialog>
-
   <!-- Drop out dialog -->
   <dialog id="drop-dialog">
     <form method="dialog" id="drop-form">
@@ -503,9 +475,9 @@
 
   <div id="toast" class="toast" role="status" hidden></div>
 
-  <script src="config.js?v=202610282000"></script>
-  <script src="engine.js?v=202610282000"></script>
-  <script type="module" src="live.js?v=202610282000"></script>
-  <script src="app.js?v=202610282000"></script>
+  <script src="config.js?v=202610282001"></script>
+  <script src="engine.js?v=202610282001"></script>
+  <script type="module" src="live.js?v=202610282001"></script>
+  <script src="app.js?v=202610282001"></script>
 </body>
 </html>

@@ -123,10 +123,6 @@ A board for trading regular season games between members. It doesn't change the 
 
 ---
 
-## Statement emails from the Season Ticket Manager (Firebase only)
-
-In the Manager, **Email statements** queues a batch, then **Open the draft site** (or **Send from the draft site** on the last batch) opens this site with the batch in the link (`#statements=…`, compressed). A **Send statement emails** window lists each member with a preview of their email. Enter the commissioner PIN and click **Send** twice; each email goes out from the draft's Gmail as "Guardians Season Tickets", with the statement PDF built by the server from the Manager's statement lines. Emails only go to addresses already on the draft site (use **Send members to draft page** first). Test mode adds [TEST] to the subject.
-
 ## Notification settings (Firebase only)
 
 Members can get a message when it's their turn, even with the page closed. Each member opens the menu and taps **Notification & PIN settings** (also a button on the Ticket Swap page), enters their name and PIN, and chooses:
