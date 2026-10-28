@@ -880,7 +880,7 @@ async function syncMembers(key, body) {
       drafts[k] = snap.exists;
       ((snap.exists && snap.data().members) || []).forEach((m) => {
         const a = all.get(lc(m.name)) || { name: m.name, inRs: false, inPost: false, games: null, email: (prefs[lc(m.name)] || {}).email || '' };
-        if (k === 'rs') { a.inRs = true; a.games = Number(m.cap) || 0; } else a.inPost = true;
+        if (k === 'rs') { a.inRs = true; a.games = Number(m.cap) || 0; if (m.juniorOf) a.juniorOf = m.juniorOf; } else a.inPost = true;
         all.set(lc(m.name), a);
       });
     }
@@ -888,11 +888,13 @@ async function syncMembers(key, body) {
   }
 
   const games = (Array.isArray(body.games) ? body.games : []).slice(0, 200);
-  const add = (Array.isArray(body.add) ? body.add : []).slice(0, 200).map((a) => ({ name: str(a && a.name, 80), games: Math.max(0, Math.round(Number(a && a.games) || 0)), email: str(a && a.email) })).filter((a) => a.name);
+  const add = (Array.isArray(body.add) ? body.add : []).slice(0, 200).map((a) => ({ name: str(a && a.name, 80), games: Math.max(0, Math.round(Number(a && a.games) || 0)), email: str(a && a.email), juniorOf: str(a && a.juniorOf, 80) })).filter((a) => a.name);
+  // Junior members (from the Manager's 4th field): link an existing member to their full member.
+  const juniors = (Array.isArray(body.juniors) ? body.juniors : []).slice(0, 200).map((j) => ({ name: str(j && j.name, 80), juniorOf: str(j && j.juniorOf, 80) })).filter((j) => j.name && j.juniorOf);
   const emails = (Array.isArray(body.emails) ? body.emails : []).slice(0, 200).map((e) => ({ name: str(e && e.name, 80), email: str(e && e.email) }));
   // New members go on the regular season list (the source of truth); the postseason follows it.
   const addTo = { rs: true, post: false };
-  const out = { added: { rs: [], post: [] }, games: 0, emails: 0, bad: [] };
+  const out = { added: { rs: [], post: [] }, games: 0, emails: 0, bad: [], juniors: [], badJr: [] };
   const known = new Set();
 
   for (const k of ['rs', 'post']) {
@@ -903,6 +905,7 @@ async function syncMembers(key, body) {
       const members = (snap.data().members || []).map((m) => Object.assign({}, m));
       const byLc = new Map(members.map((m) => [lc(m.name), m]));
       let dirty = false;
+      let orderUpdate = null;
       if (k === 'rs') {
         games.forEach((g) => {
           const m = byLc.get(lc(g && g.name));
@@ -920,12 +923,32 @@ async function syncMembers(key, body) {
           dirty = true;
         });
       }
+      if (k === 'rs') {
+        // Junior members, after any adds so a full member added from the same link can be linked to.
+        const order = (snap.data().order || []).slice();
+        const link = (name, to, isNew) => {
+          const m = byLc.get(lc(name));
+          const f = byLc.get(lc(to));
+          if (!m) return;
+          if (!f || f === m || f.juniorOf || members.some((x) => lc(x.juniorOf) === lc(m.name))) { out.badJr.push(name); return; }
+          if (lc(m.juniorOf) === lc(f.name)) return;
+          m.juniorOf = f.name;
+          m.cap = 0;
+          if (!isNew) out.juniors.push(m.name + ' (with ' + f.name + ')');
+          dirty = true;
+        };
+        add.forEach((a) => { if (a.juniorOf && out.added.rs.includes(a.name)) link(a.name, a.juniorOf, true); });
+        juniors.forEach((j) => link(j.name, j.juniorOf, false));
+        const jrNames = new Set(members.filter((m) => m.juniorOf).map((m) => m.name));
+        const newOrder = order.filter((n) => !jrNames.has(n)); // juniors draft in their full member's slots
+        if (newOrder.length !== order.length) { orderUpdate = newOrder; dirty = true; }
+      }
       members.forEach((m) => known.add(lc(m.name)));
-      if (dirty) tx.update(ref, { members, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      if (dirty) tx.update(ref, Object.assign({ members, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, orderUpdate ? { order: orderUpdate } : {}));
     });
   }
 
-  if (out.added.rs.length) await syncPostFromRs({});
+  if (out.added.rs.length || out.juniors.length) await syncPostFromRs({});
   add.forEach((a) => { if (a.email) emails.push({ name: a.name, email: a.email }); });
   if (emails.length) {
     await db.runTransaction(async (tx) => {
@@ -946,13 +969,18 @@ async function syncMembers(key, body) {
 
   const bits = [];
   const label = { rs: 'the regular season draft', post: 'the postseason draft' };
-  if (out.added.rs.length) bits.push('added ' + out.added.rs.join(', ') + ' (both drafts)');
+  const jrAdded = add.filter((a) => a.juniorOf && out.added.rs.includes(a.name) && !out.badJr.includes(a.name)).map((a) => a.name);
+  const fullAdded = out.added.rs.filter((n) => !jrAdded.includes(n));
+  if (fullAdded.length) bits.push('added ' + fullAdded.join(', ') + ' (both drafts)');
+  if (jrAdded.length) bits.push('added junior member' + (jrAdded.length === 1 ? ' ' : 's ') + jrAdded.join(', ') + ' (regular season)');
+  if (out.juniors.length) bits.push('linked junior member' + (out.juniors.length === 1 ? ' ' : 's ') + out.juniors.join(', '));
+  if (out.badJr.length) bits.push('couldn\'t link ' + out.badJr.join(', ') + ' as a junior (their full member isn\'t a full member on the draft site)');
   if (out.games) bits.push('updated games for ' + out.games + ' member' + (out.games === 1 ? '' : 's'));
   if (out.emails) bits.push('updated ' + out.emails + ' email address' + (out.emails === 1 ? '' : 'es'));
   if (out.bad.length) bits.push('skipped an invalid email for ' + out.bad.join(', '));
   let msg = bits.join('; ');
   msg = msg ? msg.charAt(0).toUpperCase() + msg.slice(1) + '.' : 'Nothing needed changing.';
-  if (out.added.rs.length) msg += ' Give new members draft-order slots in Setup.';
+  if (fullAdded.length) msg += ' Give new members draft-order slots in Setup.';
   return { ok: true, message: msg, result: out };
 }
 

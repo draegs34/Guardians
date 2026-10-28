@@ -74,7 +74,8 @@
   }
   let wantNotify = /^#notifications/.test(location.hash);
   /* Members sent from the Season Ticket Manager arrive as #members=<base64url JSON [[name, email, games], …]>
-     (older links used #emails= with [[name, email], …]). */
+     (older links used #emails= with [[name, email], …]). Junior members have a 4th field, the full member's
+     name as it appears on the draft site, and games = null: [name, email, null, "Full Member Name"]. */
   function readEmailHash() {
     const m = location.hash.match(/(?:members|emails)=([A-Za-z0-9_-]+)/);
     if (!m) return null;
@@ -82,7 +83,10 @@
       const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
       const json = decodeURIComponent(escape(atob(b64 + '==='.slice((b64.length + 3) % 4))));
       const list = JSON.parse(json).filter((x) => Array.isArray(x) && String(x[0] || '').trim())
-        .map((x) => ({ from: String(x[0]).trim(), email: String(x[1] || '').trim(), games: x[2] == null || x[2] === '' ? null : Math.max(0, Math.round(Number(x[2]) || 0)) }));
+        .map((x) => {
+          const juniorOf = String(x[3] == null ? '' : x[3]).trim();
+          return { from: String(x[0]).trim(), email: String(x[1] || '').trim(), juniorOf, games: juniorOf || x[2] == null || x[2] === '' ? null : Math.max(0, Math.round(Number(x[2]) || 0)) };
+        });
       return list.length ? list : null;
     } catch (e) { return null; }
   }
@@ -1849,10 +1853,19 @@
   function syncRow(e) {
     const D = sync.data;
     const cur = e.to && e.to !== '__add' ? D.members.find((m) => m.name === e.to) : null;
-    const r = { cur, emailChange: false, gamesChange: false };
+    const r = { cur, emailChange: false, gamesChange: false, juniorChange: false, juniorTo: '', juniorMissing: false };
+    if (e.juniorOf) {
+      // The full member must be a full member on the draft site, or a full member being added from this same link.
+      const full = D.members.find((m) => m.inRs && !m.juniorOf && lcEq(m.name, e.juniorOf));
+      const adding = !full && sentEmails.find((x) => x !== e && x.to === '__add' && !x.juniorOf && lcEq(x.from, e.juniorOf));
+      r.juniorTo = full ? full.name : adding ? adding.from : '';
+      r.juniorMissing = !r.juniorTo || (cur && lcEq(cur.name, r.juniorTo));
+      if (r.juniorMissing) r.juniorTo = '';
+    }
     if (cur) {
       r.emailChange = !!e.email && !lcEq(e.email, cur.email);
-      r.gamesChange = cur.inRs && e.games != null && e.games !== Number(cur.games || 0);
+      r.gamesChange = !e.juniorOf && cur.inRs && e.games != null && e.games !== Number(cur.games || 0);
+      r.juniorChange = !!r.juniorTo && !lcEq(cur.juniorOf || '', r.juniorTo);
     }
     return r;
   }
@@ -1873,43 +1886,51 @@
     }
     const D = sync.data;
     const names = sortedNames(D.members);
-    sentEmails.forEach((e) => { if (e.to === undefined) e.to = guessMember(e.from, names) || '__add'; if (e.emailOn === undefined) e.emailOn = true; if (e.gamesOn === undefined) e.gamesOn = true; });
+    sentEmails.forEach((e) => { if (e.to === undefined) e.to = guessMember(e.from, names) || '__add'; if (e.emailOn === undefined) e.emailOn = true; if (e.gamesOn === undefined) e.gamesOn = true; if (e.juniorOn === undefined) e.juniorOn = true; });
+    // A new junior whose full member can't be found starts as Skip rather than being added as a full member with no games.
+    sentEmails.forEach((e) => { if (e.jrChecked) return; e.jrChecked = true; if (e.juniorOf && e.to === '__add' && syncRow(e).juniorMissing) e.to = ''; });
     const rows = [];
     const same = [];
     sentEmails.forEach((e, i) => {
       const r = syncRow(e);
-      if (r.cur && !r.emailChange && !r.gamesChange) { same.push(e.from === e.to ? e.from : e.from + ' (' + e.to + ')'); return; }
+      if (r.cur && !r.emailChange && !r.gamesChange && !r.juniorChange && !r.juniorMissing) { same.push(e.from === e.to ? e.from : e.from + ' (' + e.to + ')'); return; }
       const sel = '<select data-sm="' + i + '" aria-label="Draft member for ' + esc(e.from) + '">' +
         '<option value="__add"' + (e.to === '__add' ? ' selected' : '') + '>Add as a new member</option>' +
         '<option value=""' + (!e.to ? ' selected' : '') + '>Skip</option>' +
         '<optgroup label="Same person as…">' + names.map((n) => '<option' + (n === e.to ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</optgroup></select>';
       let detail = '';
-      if (e.to === '__add') detail = '<div class="em-note">New member' + (e.games != null ? ' · ' + e.games + ' games' : '') + (e.email ? ' · ' + esc(e.email) : '') + '</div>';
-      else if (!e.to) detail = '<div class="em-note">Not added</div>';
+      const jrNote = r.juniorMissing ? '<div class="em-note warn">Junior of “' + esc(e.juniorOf) + '”, who isn\'t a full member on the draft site. Not linked.</div>' : '';
+      if (e.to === '__add') detail = '<div class="em-note">' + (r.juniorTo ? 'New junior member ' + JR + ' of <strong>' + esc(r.juniorTo) + '</strong> · shares their games' : 'New member' + (e.games != null ? ' · ' + e.games + ' games' : '')) + (e.email ? ' · ' + esc(e.email) : '') + '</div>' + jrNote;
+      else if (!e.to) detail = '<div class="em-note">Not added</div>' + jrNote;
       else {
+        detail += jrNote;
+        if (r.juniorChange) detail += '<label class="check"><input type="checkbox" data-sm-jr="' + i + '"' + (e.juniorOn ? ' checked' : '') + '> <span>Junior of: ' + (r.cur.juniorOf ? '<s>' + esc(r.cur.juniorOf) + '</s> → ' : '') + '<strong>' + esc(r.juniorTo) + '</strong> ' + JR + '</span></label>';
         if (r.emailChange) detail += '<label class="check"><input type="checkbox" data-sm-email="' + i + '"' + (e.emailOn ? ' checked' : '') + '> <span>Email: ' + (r.cur.email ? '<s>' + esc(r.cur.email) + '</s> → ' : 'add ') + '<strong>' + esc(e.email) + '</strong></span></label>';
         if (r.gamesChange) detail += '<label class="check"><input type="checkbox" data-sm-games="' + i + '"' + (e.gamesOn ? ' checked' : '') + '> <span>Games: <s>' + (Number(r.cur.games) || 0) + '</s> → <strong>' + e.games + '</strong></span></label>';
       }
       rows.push('<div class="em-row' + (e.to === '__add' ? ' is-new' : '') + '"><div><div class="em-who">' + esc(e.from) + '</div>' + detail + '</div>' + sel + '</div>');
     });
-    const adds = sentEmails.filter((e) => e.to === '__add').length;
+    const adds = sentEmails.filter((e) => e.to === '__add' && !e.juniorOf).length;
+    const jrAdds = sentEmails.filter((e) => e.to === '__add' && e.juniorOf).length;
     body.innerHTML =
       (rows.length ? '<div class="email-map">' + rows.join('') + '</div>' : '<p class="hint"><strong>Everything already matches.</strong></p>') +
       (same.length ? '<p class="hint">Already up to date: ' + esc(same.join(', ')) + '.</p>' : '') +
       (adds ? '<p class="hint">New members join both drafts (active in the postseason, at the end of its order). They can pick without a PIN until you set one, and need draft-order slots below.</p>' : '') +
+      (jrAdds || sentEmails.some((e) => e.juniorOf && e.to && e.to !== '__add') ? '<p class="hint">Junior members join the regular season only, with no games or draft-order slots of their own. Choose their rounds under <em>Junior member rounds</em> in Settings.</p>' : '') +
       '<div class="row-btns">' + (rows.length ? '<button type="button" class="btn primary" id="sync-apply">Apply changes</button>' : '') +
       '<button type="button" class="btn ghost" id="sync-dismiss">' + (rows.length ? 'Dismiss' : 'Done') + '</button></div>';
   }
   function syncPayload() {
-    const emails = [], games = [], add = [];
+    const emails = [], games = [], add = [], juniors = [];
     sentEmails.forEach((e) => {
-      if (e.to === '__add') { add.push({ name: e.from, games: e.games, email: e.email }); return; }
-      if (!e.to) return;
       const r = syncRow(e);
+      if (e.to === '__add') { add.push({ name: e.from, games: r.juniorTo ? 0 : e.games, email: e.email, juniorOf: r.juniorTo }); return; }
+      if (!e.to) return;
       if (r.emailChange && e.emailOn) emails.push({ name: e.to, email: e.email });
       if (r.gamesChange && e.gamesOn) games.push({ name: e.to, games: e.games });
+      if (r.juniorChange && e.juniorOn) juniors.push({ name: e.to, juniorOf: r.juniorTo });
     });
-    return { emails, games, add };
+    return { emails, games, add, juniors };
   }
   function endSync() {
     sentEmails = null;
@@ -1922,7 +1943,8 @@
     if (!t.closest('#sync-body') || !sentEmails) return;
     if (t.dataset.sm != null) { sentEmails[Number(t.dataset.sm)].to = t.value; renderEmailTool(); return; }
     if (t.dataset.smEmail != null) { sentEmails[Number(t.dataset.smEmail)].emailOn = t.checked; return; }
-    if (t.dataset.smGames != null) { sentEmails[Number(t.dataset.smGames)].gamesOn = t.checked; }
+    if (t.dataset.smGames != null) { sentEmails[Number(t.dataset.smGames)].gamesOn = t.checked; return; }
+    if (t.dataset.smJr != null) { sentEmails[Number(t.dataset.smJr)].juniorOn = t.checked; }
   });
   $('setup-body').addEventListener('click', (ev) => {
     const b = ev.target.closest('#sync-body button');

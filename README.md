@@ -142,6 +142,7 @@ Settings are shared by both drafts and are matched by member name. The commissio
 - **New members** (no match in either draft) are listed as *Add as a new member*. Choose which drafts to add them to. They can pick without a PIN until you set one, and in the regular season they need draft-order slots (Setup → Draft order).
 - **Email changes** show the old and new address with a checkbox, so you can keep an address a member entered themselves. A member's first address turns their email alerts on.
 - **Games** show the old and new count for the regular season draft (Games purchased).
+- **Junior members** arrive as `[name, email, null, "Full Member Name"]` (the 4th field is the full member's name as it appears here). A new junior is added to the regular season only and linked to that full member; an existing member shows a *Junior of* checkbox. If the full member isn't a full member on the draft site, the row says so, isn't linked, and starts as *Skip*.
 - Names are matched automatically (including combined names like "Molly & Tom Jones" → Molly Jones). Use the dropdown on any row to pick a different member or skip it. Members whose details already match are listed as up to date.
 
 Click **Apply changes** to save.
