@@ -889,6 +889,9 @@
     $('swap-view').hidden = !swap;
     ['clock', 'me-bar', 'mtabs', 'layout'].forEach((id) => { const el = $(id) || document.querySelector('.' + id); if (el) el.hidden = setup || swap; });
     if (setup || swap) { $('turn-alert').hidden = true; $('price-banner').hidden = true; }
+    // The Live / Updated status is about the draft board, so Setup and Ticket Swap don't show it
+    // (they don't watch the board, so it would sit on "Connecting…").
+    $('sync').hidden = setup || swap;
   }
   function switchView(v) {
     if (!VIEWS[v] || v === view) return;
@@ -915,6 +918,8 @@
       return;
     }
     me = store.get(meKey(v)) || '';
+    $('sync').classList.remove('live', 'err');
+    $('sync').innerHTML = '<span class="mini-spin" aria-hidden="true"></span>Connecting…';
     showDraft();
     if (window.DraftLive) window.DraftLive.watch(v);
     refresh();
