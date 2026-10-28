@@ -1420,14 +1420,10 @@
   const hasPicks = (k, name) => !!name && ((setupBoards[k] && setupBoards[k].picks) || []).some((p) => p.member === name);
 
   /* Settings → Junior member rounds: a checkbox that opens a row of round buttons for each junior. */
+  // Full rounds only: games ÷ draft-order slots, rounded down (81 games ÷ 16 slots = 5 rounds; the leftover game is assigned).
   function juniorRoundCount(a) {
-    let most = 0;
-    a.members.filter((m) => m.name && !m.juniorOf).forEach((m) => {
-      const slots = a.order.filter((n) => n === m.name).length;
-      if (slots && Number(m.cap) > 0) most = Math.max(most, Math.ceil(Number(m.cap) / slots));
-    });
-    if (!most && a.order.length) most = Math.ceil(a.inventory.length / a.order.length);
-    return Math.min(30, Math.max(5, most || 10));
+    const slots = a.order.filter(Boolean).length;
+    return slots && a.inventory.length ? Math.min(30, Math.max(1, Math.floor(a.inventory.length / slots))) : 5;
   }
   // Regular season only: the postseason has no junior members.
   function juniorSettings(a, s) {
