@@ -1452,6 +1452,23 @@
     return html + '<p class="hint">' + summary.join(' · ') + '. Rounds after a full member\'s last pick are skipped automatically.</p></div>';
   }
 
+  const SETUP_SUBS = [['settings', 'Settings'], ['members', 'Members'], ['games', 'Games'], ['data', 'Picks &amp; data']];
+  let setupSub = (() => { try { return localStorage.getItem('guardians-setup-sub') || 'settings'; } catch (e) { return 'settings'; } })();
+  function showSetupSub() {
+    const body = $('setup-body');
+    body.querySelectorAll('section[data-sub]').forEach((sec) => { sec.hidden = sec.dataset.sub !== setupSub; });
+    body.querySelectorAll('#setup-subs button').forEach((b) => b.setAttribute('aria-current', b.dataset.sub === setupSub ? 'page' : 'false'));
+  }
+  $('setup-body').addEventListener('click', (e) => {
+    const b = e.target.closest('#setup-subs button[data-sub]');
+    if (!b) return;
+    setupSub = b.dataset.sub;
+    try { localStorage.setItem('guardians-setup-sub', setupSub); } catch (err) { /* private mode */ }
+    showSetupSub();
+    const nav = $('setup-subs');
+    if (nav && nav.getBoundingClientRect().top < 0) nav.scrollIntoView({ block: 'start' });
+  });
+
   function renderSetup() {
     document.querySelectorAll('#setup-tabs button').forEach((b) => b.setAttribute('aria-current', b.dataset.sk === setupKey ? 'page' : 'false'));
     if (/^archive/.test(setupKey)) {
@@ -1464,7 +1481,7 @@
     const rs = key === 'rs';
     const a = A();
     const importCard =
-      '<section class="card sc"><h3>Import data</h3>' +
+      '<section class="card sc" data-sub="data"><h3>Import data</h3>' +
       '<p class="hint">Moving from the Google Sheet: in the sheet choose <em>Guardians Draft → Export everything for Firebase</em>, copy the text and paste it here. ' +
       'It replaces the drafts and past drafts it contains. Use the <strong>setup key</strong> you chose when deploying (or your commissioner PIN).</p>' +
       '<textarea id="import-text" rows="5" placeholder="Paste the export here"></textarea>' +
@@ -1487,10 +1504,10 @@
     const rem = !!s.reminderOn;
 
     let html = '';
-    if (!rs) html += '<section class="card sc show-post"><label class="check big-check"><input type="checkbox" data-bind="settings.showTab"' + (s.showTab !== false ? ' checked' : '') + '> <span><strong>Show Postseason in the menu</strong><small>When unchecked, members don\'t see Postseason in the menu. Turn it on when it\'s time for a postseason draft. Save to apply.</small></span></label></section>';
-    if (rs && sentEmails) html += '<section class="card sc sync-card"><h3>Members from Season Ticket Manager</h3><div id="sync-body"></div></section>';
+    if (!rs) html += '<section class="card sc show-post" data-sub="settings"><label class="check big-check"><input type="checkbox" data-bind="settings.showTab"' + (s.showTab !== false ? ' checked' : '') + '> <span><strong>Show Postseason in the menu</strong><small>When unchecked, members don\'t see Postseason in the menu. Turn it on when it\'s time for a postseason draft. Save to apply.</small></span></label></section>';
+    if (rs && sentEmails) html += '<section class="card sc sync-card" data-sub="members"><h3>Members from Season Ticket Manager</h3><div id="sync-body"></div></section>';
 
-    html += '<section class="card sc"><h3>Settings</h3><div class="sgrid">' +
+    html += '<section class="card sc" data-sub="settings"><h3>Settings</h3><div class="sgrid">' +
       field('Draft title', inp('settings.title', s.title)) +
       (rs ? field('Season <span class="opt">(for the MLB schedule)</span>', inp('settings.season', s.season, 'inputmode="numeric"'))
         : field('Max picks per member', inp('settings.maxPicks', s.maxPicks || '', 'inputmode="numeric" placeholder="No limit"'))) +
@@ -1506,10 +1523,10 @@
       '<label class="sf inline' + (rem ? '' : ' off') + '"><span>Up to</span>' + inp('settings.reminderCount', s.reminderCount || 2, 'inputmode="numeric" style="width:70px"' + (rem ? '' : ' disabled')) + '<span>times per turn</span></label>' +
       '</div><p class="hint">Reminders count from the last alert and follow each member\'s own choices (email and/or push). None are sent from 11 PM to 8 AM ET (one that comes due overnight goes out at 8 AM), while the draft is paused, or to anyone who has dropped out. Checked every 10 minutes.</p>' + (rs ? juniorSettings(a, s) : '') + '</section>';
 
-    html += '<section class="card sc"><h3>Email members their games</h3><p class="hint">After the draft, send each member their own email listing the games they have, with a calendar file and a printable PDF. You\'ll see a preview before anything is sent.</p>' +
+    html += '<section class="card sc" data-sub="settings"><h3>Email members their games</h3><p class="hint">After the draft, send each member their own email listing the games they have, with a calendar file and a printable PDF. You\'ll see a preview before anything is sent.</p>' +
       '<div class="row-btns"><button type="button" class="btn primary" data-gm-open="' + key + '">Email members their games…</button></div></section>';
     if (rs) {
-      html += '<section class="card sc"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason draft too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>. <strong>Junior of</strong>: pick the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots of their own; anything they pick counts toward that full member. Choose their rounds under <em>Junior member rounds</em> in Settings. Juniors are regular season only; they aren\'t on the Postseason list.</p>' +
+      html += '<section class="card sc" data-sub="members"><h3>Members</h3><p class="hint">Listed by last name; anyone you add moves into place when you save. This list is used by both drafts: names, PINs and emails here update the Postseason draft too. Games purchased is each member\'s limit for the regular season. Leave a PIN blank to let someone pick without one. Adding an email turns on email alerts for that member; they can change it under <em>Notification settings</em>. <strong>Junior of</strong>: pick the full member a junior shares tickets with. Juniors have their own PIN and email but no games or draft-order slots of their own; anything they pick counts toward that full member. Choose their rounds under <em>Junior member rounds</em> in Settings. Juniors are regular season only; they aren\'t on the Postseason list.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>Name</th><th>PIN</th><th>Games</th><th>Junior of</th><th>Email (for turn alerts)</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => {
           const where = [hasPicks('rs', m.orig) ? 'regular season' : '', hasPicks('post', m.orig) ? 'postseason' : ''].filter(Boolean);
@@ -1532,7 +1549,7 @@
       a.order.forEach((n) => { slotCount[n] = (slotCount[n] || 0) + 1; });
       const warn = a.members.filter((m) => m.name && Number(m.cap) > 0 && (slotCount[m.name] || 0) !== Math.floor(Number(m.cap) / 5))
         .map((m) => esc(m.name) + ' has ' + (slotCount[m.name] || 0) + ' slot' + ((slotCount[m.name] || 0) === 1 ? '' : 's') + ' (' + m.cap + ' games → ' + Math.floor(Number(m.cap) / 5) + ')');
-      html += '<section class="card sc"><h3>Draft order</h3><p class="hint">One row per slot in a round: list each member once for every 5 games purchased. ' +
+      html += '<section class="card sc" data-sub="members"><h3>Draft order</h3><p class="hint">One row per slot in a round: list each member once for every 5 games purchased. ' +
         '<strong>' + a.order.length + ' slots = ' + a.order.length + ' picks per round.</strong> Snake order reverses each round.</p>' +
         (warn.length ? '<p class="warn">Check: ' + warn.join('; ') + '.</p>' : '') +
         '<ol class="slots">' + a.order.map((n, i) => '<li><span class="slot-no">' + (i + 1) + '</span><select data-bind="order.' + i + '">' +
@@ -1546,7 +1563,7 @@
     } else {
       const rsMembers = (admin.rs && admin.rs.members) || [];
       const emailOf = (n) => { const m = rsMembers.find((x) => x.name === n); return m ? m.email : ''; };
-      html += '<section class="card sc"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular Season</strong> tab; change names, PINs and emails there. ' +
+      html += '<section class="card sc" data-sub="members"><h3>Members &amp; draft order</h3><p class="hint">Members come from the <strong>Regular Season</strong> tab; change names, PINs and emails there. ' +
         'Here the list order is the postseason draft order (new members start at the end; junior members are regular season only). ✕ marks someone inactive for the postseason (they keep any picks but get no more turns); ↺ brings them back.</p>' +
         '<div class="tbl"><table class="stable"><thead><tr><th>#</th><th>Name</th><th>PIN</th><th>Email</th><th></th></tr></thead><tbody>' +
         a.members.map((m, i) => '<tr' + (m.inactive ? ' class="inactive"' : '') + '><td class="num">' + (i + 1) + '</td><td>' + ro(m.name) + (m.notInRs ? ' <span class="tag">Not on the regular season list</span>' : m.inactive ? ' <span class="tag">Inactive</span>' : '') + '</td><td>' + ro(m.pin, 'pin-in') + '</td><td>' + ro(emailOf(m.name), 'email-in') + '</td>' +
@@ -1556,7 +1573,7 @@
         '<p class="hint">Randomize shuffles the active members (inactive ones move to the end). ' + esc(FIRST3) + ' always gets one of the first 3 picks. Click again for a new order; nothing changes until you save.</p></section>';
     }
 
-    html += '<section class="card sc"><h3>' + (rs ? 'Home games' : 'Games & seat pairs') + '</h3>' +
+    html += '<section class="card sc" data-sub="games"><h3>' + (rs ? 'Home games' : 'Games & seat pairs') + '</h3>' +
       (rs ? '<p class="hint">Load or refresh from MLB any time: dates, opponents and start times update, promotions fill in when MLB lists them, and your notes are kept. Save your other changes first.</p>' +
         '<div class="row-btns mlb-row"><button type="button" class="btn primary" data-act="load-mlb">Load / refresh schedule from MLB</button><span class="mlb-checked" id="mlb-checked">' + mlbCheckText() + '</span></div>'
         : '<p class="hint">Notes show as badges; separate several with ";". Item IDs starting ALDS-, ALCS-, WS- get prices from the Season Ticket Manager.</p>') +
@@ -1572,13 +1589,19 @@
       }).join('') + '</tbody></table></div>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="add-game">+ Add ' + (rs ? 'game' : 'seat pair') + '</button></div></section>';
 
-    html += '<section class="card sc"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
+    html += '<section class="card sc" data-sub="data"><h3>Picks</h3><p class="hint">Download every pick, assignment, skip and drop-out in this draft. Opens in Excel, Numbers or Google Sheets.</p>' +
       '<div class="row-btns"><button type="button" class="btn ghost" data-act="csv">Download picks (CSV)</button></div></section>';
-    if (rs && TEST) html += '<section class="card sc test-card"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. The regular season draft starts open with 9 picks left: Sean, Lauren, Colleen, then Andrew, Steve, Bill, Matt, Marie and Mike. Notification settings made in test mode are kept.</p>' +
+    if (rs && TEST) html += '<section class="card sc test-card" data-sub="data"><h3>Reset test data</h3><p class="hint">Reloads the test drafts (the 2026 ticket holders on 2027 dates) and clears Ticket Swap listings and offers. The regular season draft starts open with 9 picks left: Sean, Lauren, Colleen, then Andrew, Steve, Bill, Matt, Marie and Mike. Notification settings made in test mode are kept.</p>' +
       '<div class="row-btns"><button type="button" class="btn danger" data-act="test-reset">Reset test data</button></div></section>';
     if (rs && !TEST) html += importCard;
     html += '<div class="save-bar"><span class="hint" id="setup-msg"></span><button type="button" class="btn primary" data-act="save">Save ' + (rs ? 'regular season' : 'postseason') + '</button></div>';
+    // Subsection tabs: only the chosen subsection's cards show; Save still saves everything.
+    if (rs && sentEmails && !sentEmails.tabbed) { sentEmails.tabbed = true; setupSub = 'members'; } // Manager updates are on Members
+    if (!SETUP_SUBS.some((t) => t[0] === setupSub)) setupSub = 'settings';
+    html = '<nav class="subtabs setup-subs" id="setup-subs" aria-label="' + (rs ? 'Regular season' : 'Postseason') + ' setup">' +
+      SETUP_SUBS.map((t) => '<button type="button" data-sub="' + t[0] + '" aria-current="' + (t[0] === setupSub ? 'page' : 'false') + '">' + t[1] + (t[0] === 'members' && rs && sentEmails ? ' <span class="sub-dot" aria-label="updates from the Season Ticket Manager"></span>' : '') + '</button>').join('') + '</nav>' + html;
     $('setup-body').innerHTML = html;
+    showSetupSub();
     if (rs && sentEmails) renderEmailTool();
   }
 
